@@ -45,6 +45,7 @@ var Route = {
     setFilter(id) { this.filter = id; this.renderFilters(); this.renderLines(); },
 
     renderLines() {
+        this.computeAlmost();
         const box = document.getElementById('route-lines');
         const lines = ROUTE.filter(l => this.filter === 'all' || l.id === this.filter);
         box.innerHTML = lines.map(line => {
@@ -74,13 +75,19 @@ var Route = {
                 </div>
             </section>`;
         }).join('');
-        box.querySelectorAll('.stations').forEach(st => FX.stagger(st, '.station', 25));
+        box.querySelectorAll('.stations').forEach(st => FX.stagger(st, '.station', 12));
+    },
+
+    computeAlmost() {
+        const m = {};
+        Store.almostTasks(2).forEach(x => { if (x.missing.length === 2) x.missing.forEach(id => m[id] = (m[id] || 0) + 1); });
+        this._almost = m;
     },
 
     stationHTML(s) {
         const known = Store.knows(s.id);
         const unlock = Store.unlockCountFor(s.id);
-        const almost = known ? 0 : Store.almostTasks(2).filter(x => x.missing.length === 2 && x.missing.includes(s.id)).length;
+        const almost = known ? 0 : (this._almost[s.id] || 0);
         const total = TaskDB.list.filter(t => t.requires.includes(s.id)).length;
         return `
         <button class="station ${known ? 'is-known' : ''}" data-id="${s.id}" onclick="Route.toggle('${s.id}', event)" title="${esc(s.desc)}">
@@ -118,6 +125,7 @@ var Route = {
 
     /* Обновляем станции без полной перерисовки, чтобы не дёргать анимации */
     refreshStations() {
+        this.computeAlmost();
         document.querySelectorAll('.station').forEach(el => {
             const s = STATIONS[el.dataset.id];
             const html = this.stationHTML(s);

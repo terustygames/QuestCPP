@@ -17,6 +17,7 @@ var App = {
 
         this.bindGlobal();
         this.applyTheme(Store.state.settings.theme, true);
+        this.applyMotion(Store.state.settings.motion || 'on', true);
         this.renderSoundButton();
 
         Router.start();
@@ -74,7 +75,16 @@ var App = {
         document.querySelectorAll('.theme-btn').forEach(b => b.innerHTML = Icon(theme === 'night' ? 'sun' : 'moon'));
         if (!silent) { Store.state.settings.theme = theme; Store.save(); Sounds.tab(); }
     },
-    toggleTheme() { this.applyTheme(Store.state.settings.theme === 'night' ? 'day' : 'night'); }
+    toggleTheme() { this.applyTheme(Store.state.settings.theme === 'night' ? 'day' : 'night'); },
+
+    /* Тумблер эффектов: off — без анимаций и частиц (слабые машины) */
+    applyMotion(mode, silent) {
+        document.documentElement.dataset.motion = mode;
+        FX.reduced = mode === 'off' || matchMedia('(prefers-reduced-motion: reduce)').matches;
+        document.querySelectorAll('.motion-btn').forEach(b => { b.innerHTML = Icon('sparkle'); b.classList.toggle('is-off', mode === 'off'); b.title = mode === 'off' ? 'Эффекты выключены' : 'Эффекты включены'; });
+        if (!silent) { Store.state.settings.motion = mode; Store.save(); Sounds.tab(); }
+    },
+    toggleMotion() { this.applyMotion(Store.state.settings.motion === 'off' ? 'on' : 'off'); }
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());

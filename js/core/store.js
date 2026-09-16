@@ -36,6 +36,8 @@ var Store = {
     },
 
     save() {
+        this._unlockCache = null;
+        this._knownSet = null;
         localStorage.setItem(this.KEY, JSON.stringify(this.state));
         this.listeners.forEach(fn => fn(this.state));
     },
@@ -43,7 +45,10 @@ var Store = {
     subscribe(fn) { this.listeners.push(fn); },
 
     /* ---- станции ---- */
-    knows(id) { return this.state.known.includes(id); },
+    knows(id) {
+        if (!this._knownSet) this._knownSet = new Set(this.state.known);
+        return this._knownSet.has(id);
+    },
     setKnown(id, value) {
         const k = this.state.known;
         const i = k.indexOf(id);
@@ -57,6 +62,8 @@ var Store = {
         this.state.known = [...set];
         this.save();
     },
+    /* Черновики: не дёргаем подписчиков, пишем лениво */
+
 
     /* ---- задачи ---- */
     isSolved(id) { return this.state.solved.includes(id); },
@@ -65,11 +72,15 @@ var Store = {
 
     /* Сколько задач откроется, если выучить станцию id */
     unlockCountFor(id) {
-        if (this.knows(id)) return 0;
-        return TaskDB.list.filter(t =>
-            t.requires.includes(id) &&
-            t.requires.every(r => r === id || this.knows(r))
-        ).length;
+        if (!this._unlockCache) {
+            const c = {};
+            TaskDB.list.forEach(t => {
+                const missing = t.requires.filter(r => !this.knows(r));
+                if (missing.length === 1) c[missing[0]] = (c[missing[0]] || 0) + 1;
+            });
+            this._unlockCache = c;
+        }
+        return this._unlockCache[id] || 0;
     },
 
     /* Задачи, до которых не хватает 1–2 станций: [{task, missing:[ids]}] */
@@ -110,7 +121,8 @@ var Store = {
     },
     saveDraft(id, code) {
         this.state.drafts[id] = code;
-        localStorage.setItem(this.KEY, JSON.stringify(this.state));
+        clearTimeout(this._draftT);
+        this._draftT = setTimeout(() => localStorage.setItem(this.KEY, JSON.stringify(this.state)), 300);
     },
 
     /* Возвращает { xpGained, levelBefore, levelAfter, newAchievements } */

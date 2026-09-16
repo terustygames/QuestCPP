@@ -7,17 +7,14 @@
     position: sticky; top: 0; z-index: 50;
     display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1rem;
     padding: .7rem clamp(1rem, 3vw, 2rem);
-    background: color-mix(in srgb, var(--bg) 82%, transparent);
-    backdrop-filter: blur(12px);
+    background: var(--bg);
     border-bottom: 2px solid var(--line);
 }
 .brand { display: inline-flex; align-items: center; gap: .6rem; font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; }
 .brand-mark {
     display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px;
     background: var(--coral); color: #fff; border: 2px solid var(--line); box-shadow: 0 3px 0 var(--line);
-    transition: transform .3s var(--ease-pop);
 }
-.brand:hover .brand-mark { transform: rotate(-8deg) scale(1.08); }
 .brand-mark .icon { width: 20px; height: 20px; }
 .brand-text b { color: var(--coral); }
 .topnav { display: flex; justify-content: center; gap: .3rem; }
@@ -113,7 +110,7 @@
 .ring {
     --p: 0; position: relative; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%;
     background: conic-gradient(var(--sky) calc(var(--p) * 360deg), var(--bg-2) 0);
-    border: 2px solid var(--line); transition: --p .6s;
+    border: 2px solid var(--line);
 }
 .ring::before { content: ''; position: absolute; inset: 7px; border-radius: 50%; background: var(--paper); }
 .ring b, .ring span { position: relative; font-family: var(--font-display); line-height: 1; }
@@ -138,14 +135,14 @@
 .station {
     position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .7rem; text-align: left;
     padding: .6rem .7rem; border: 2px solid var(--line-soft); border-radius: var(--r-sm); background: var(--paper);
-    transition: transform .15s var(--ease-pop), border-color .2s, background .2s, box-shadow .15s;
+    transition: transform .1s ease-out, border-color .2s, background .2s;
 }
-.station:hover { border-color: var(--c); transform: translateY(-2px); box-shadow: 0 4px 0 var(--c); }
-.station.is-pressed { transform: translateY(2px) scale(.98); box-shadow: none; }
+.station:hover { border-color: var(--c); background: color-mix(in srgb, var(--c) 6%, var(--paper)); }
+.station.is-pressed { transform: translateY(2px); }
 .station.is-known { background: color-mix(in srgb, var(--c) 12%, var(--paper)); border-color: var(--c); }
 .station.is-highlight { animation: highlight 2.2s var(--ease-out); }
 .station-node { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); background: var(--paper); color: transparent; transition: background .2s, color .2s, transform .3s var(--ease-pop); }
-.station.is-known .station-node { background: var(--c); color: #fff; transform: scale(1.1); }
+.station.is-known .station-node { background: var(--c); color: #fff; }
 .station-node .icon { width: 16px; height: 16px; stroke-width: 3; }
 .station-body { display: grid; gap: .05rem; min-width: 0; }
 .station-name { font-size: .85rem; font-weight: 700; background: none; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

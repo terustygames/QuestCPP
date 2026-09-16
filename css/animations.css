@@ -9,7 +9,7 @@
 @keyframes screen-out { to { opacity: 0; transform: translateY(-10px) scale(.99); } }
 
 /* Каскадное появление */
-.anim-rise { animation: rise .5s var(--ease-out) both; }
+.anim-rise { animation: rise .45s var(--ease-out) backwards; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 
 /* Дрожание при ошибке */
@@ -25,10 +25,10 @@
 @keyframes stamp { 0% { transform: scale(2) rotate(-15deg); opacity: 0; } 60% { transform: scale(.9) rotate(3deg); opacity: 1; } 100% { transform: none; } }
 
 /* Пульс на «откроет N задач» */
-@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 
 /* Подсветка найденной станции */
-@keyframes highlight { 0% { box-shadow: 0 0 0 0 var(--c); } 30% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--c) 40%, transparent); transform: scale(1.04); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@keyframes highlight { 0% { box-shadow: 0 0 0 0 var(--c); } 30% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--c) 40%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
 
 /* Блики на прогресс-барах */
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
@@ -50,8 +50,10 @@
 @keyframes toast-out { to { opacity: 0; transform: translateY(10px) scale(.95); } }
 
 /* Плавающие акценты на главной */
-.hero-copy h1 em { animation: wobble 6s ease-in-out infinite; }
-@keyframes wobble { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-1.2deg); } }
+/* Бесконечные анимации текста и поворотов убраны: они заставляют браузер
+   перерисовывать шрифт каждый кадр и выглядят как дрожание. */
 
-.level-ring { animation: breathe 3.5s ease-in-out infinite; }
-@keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+/* Отключение эффектов при системной настройке или по тумблеру */
+[data-motion="off"] *, [data-motion="off"] *::before, [data-motion="off"] *::after {
+    animation: none !important; transition: none !important;
+}

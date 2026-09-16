@@ -12,7 +12,8 @@ var FX = {
         this.ctx = this.canvas.getContext('2d');
         const resize = () => { this.canvas.width = innerWidth; this.canvas.height = innerHeight; };
         resize();
-        addEventListener('resize', resize);
+        let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(resize, 120); });
+        this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
         this.bindJuice();
     },
 
@@ -34,9 +35,20 @@ var FX = {
         };
         document.addEventListener('pointerup', up);
         document.addEventListener('pointercancel', up);
+        /* Звук наведения — только при входе в элемент, не чаще 12 раз/с */
+        let lastHover = 0, lastEl = null;
         document.addEventListener('mouseover', e => {
             const b = e.target.closest('.btn, .station');
-            if (b && !b.disabled && !b.classList.contains('no-hover-sound')) Sounds.hover();
+            if (!b || b === lastEl || b.disabled) return;
+            lastEl = b;
+            const now = performance.now();
+            if (now - lastHover < 80) return;
+            lastHover = now;
+            Sounds.hover();
+        }, { passive: true });
+        /* Снимаем класс каскадного появления после анимации, чтобы он не спорил с hover */
+        document.addEventListener('animationend', e => {
+            if (e.animationName === 'rise') { e.target.classList.remove('anim-rise'); e.target.style.animationDelay = ''; }
         });
     },
 
@@ -51,9 +63,15 @@ var FX = {
     },
 
     /* ---- частицы ---- */
-    spawn(p) { this.parts.push(p); if (!this.raf) this.loop(); },
+    MAX_PARTS: 400,
+    spawn(p) {
+        if (this.parts.length >= this.MAX_PARTS) return;
+        this.parts.push(p);
+        if (!this.raf) { this.canvas.classList.add('is-live'); this.loop(); }
+    },
 
     sparks(x, y, n = 12, colors = this.PALETTE) {
+        if (this.reduced) return;
         for (let i = 0; i < n; i++) {
             const a = Math.random() * Math.PI * 2, v = 2 + Math.random() * 5;
             this.spawn({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2, g: 0.25, life: 1, decay: 0.03 + Math.random() * 0.03,
@@ -62,6 +80,7 @@ var FX = {
     },
 
     burst(x, y, n = 80) {
+        if (this.reduced) n = Math.min(n, 20);
         for (let i = 0; i < n; i++) {
             const a = Math.random() * Math.PI * 2, v = 4 + Math.random() * 9;
             this.spawn({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 4, g: 0.18, life: 1, decay: 0.008 + Math.random() * 0.01,
@@ -72,6 +91,7 @@ var FX = {
 
     /* Ленты сверху экрана */
     ribbons(n = 120) {
+        if (this.reduced) n = Math.min(n, 30);
         for (let i = 0; i < n; i++) {
             this.spawn({ x: Math.random() * innerWidth, y: -20 - Math.random() * innerHeight * 0.5, vx: (Math.random() - 0.5) * 2, vy: 2 + Math.random() * 3,
                          g: 0.02, life: 1, decay: 0.004, size: 6 + Math.random() * 6, color: this.PALETTE[i % this.PALETTE.length],
@@ -98,7 +118,7 @@ var FX = {
                 c.restore();
             }
             this.raf = this.parts.length ? requestAnimationFrame(step) : null;
-            if (!this.raf) c.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            if (!this.raf) { c.clearRect(0, 0, this.canvas.width, this.canvas.height); this.canvas.classList.remove('is-live'); }
         };
         this.raf = requestAnimationFrame(step);
     },

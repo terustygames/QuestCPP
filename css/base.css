@@ -97,11 +97,11 @@ pre code { background: none; padding: 0; }
         linear-gradient(var(--line-soft) 1px, transparent 1px),
         linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
     background-size: 32px 32px;
-    mask-image: radial-gradient(ellipse at 50% 0%, #000 30%, transparent 80%);
-    opacity: .6;
+    opacity: .35;
 }
 
-#fx-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 1000; }
+#fx-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 1000; will-change: transform; }
+#fx-canvas:not(.is-live) { display: none; }
 
 /* Скроллбары */
 * { scrollbar-width: thin; scrollbar-color: var(--muted) transparent; }

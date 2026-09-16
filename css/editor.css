@@ -10,7 +10,7 @@
 }
 .tab:hover { color: #fff; background: rgba(255,255,255,.05); }
 .tab.is-on { color: #fff; background: var(--editor-bg); border-color: rgba(255,255,255,.12); }
-.tab.is-pressed { transform: translateY(1px); }
+.tab.is-pressed { opacity: .8; }
 .editor-tools { margin-left: auto; display: flex; align-items: center; gap: .4rem; padding-bottom: .4rem; }
 .editor-tools .btn { background: rgba(255,255,255,.06); color: #fff; border-color: rgba(255,255,255,.2); box-shadow: 0 2px 0 rgba(0,0,0,.4); }
 .editor-tools .btn:hover { background: rgba(255,255,255,.12); }
@@ -76,7 +76,7 @@
 .test.is-pass .test-n { color: #0b3b2c; }
 .test.is-fail, .test.is-compile, .test.is-runtime, .test.is-network { color: #ff8b8b; border-color: rgba(255,107,107,.5); background: rgba(255,107,107,.08); }
 .test.is-fail .test-n, .test.is-compile .test-n, .test.is-runtime .test-n { color: #3b0b0b; }
-.test:hover { transform: translateY(-2px); }
+.test:hover { filter: brightness(1.15); }
 
 .out-grid { display: grid; grid-template-columns: minmax(160px, 220px) 1fr; gap: .7rem; flex: 1; min-height: 0; }
 .stdin-box { display: flex; flex-direction: column; gap: .3rem; }

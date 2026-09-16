@@ -6,7 +6,8 @@
     <title>C++ Quest — маршрут по C++ с практикой</title>
     <meta name="description" content="Отметь ключевые слова C++, которые знаешь, и решай нетривиальные задачи с автоматической проверкой.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@500;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@800&family=Manrope:wght@500;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/layout.css">
     <link rel="stylesheet" href="css/components.css">
@@ -32,6 +33,7 @@
         <a class="btn btn-nav" data-nav="hall" href="#hall" onclick="Router.go('hall'); return false;">Зал</a>
     </nav>
     <div class="topbar-right">
+        <button class="btn btn-icon motion-btn" onclick="App.toggleMotion()" title="Эффекты"></button>
         <button class="btn btn-icon theme-btn" onclick="App.toggleTheme()" title="Тема"></button>
         <button class="btn btn-icon sound-btn" onclick="App.toggleSound()" title="Звук"></button>
     </div>
@@ -253,28 +255,28 @@
 <div class="toasts" id="toasts"></div>
 
 <!-- Данные -->
-<script src="js/data/keywords.js"></script>
-<script src="js/data/tasks/_index.js"></script>
-<script src="js/data/tasks/level1-start.js"></script>
-<script src="js/data/tasks/level2-control.js"></script>
-<script src="js/data/tasks/level3-craft.js"></script>
-<script src="js/data/tasks/level4-tools.js"></script>
-<script src="js/data/tasks/level5-mastery.js"></script>
-<script src="js/data/achievements.js"></script>
+<script defer src="js/data/keywords.js"></script>
+<script defer src="js/data/tasks/_index.js"></script>
+<script defer src="js/data/tasks/level1-start.js"></script>
+<script defer src="js/data/tasks/level2-control.js"></script>
+<script defer src="js/data/tasks/level3-craft.js"></script>
+<script defer src="js/data/tasks/level4-tools.js"></script>
+<script defer src="js/data/tasks/level5-mastery.js"></script>
+<script defer src="js/data/achievements.js"></script>
 <!-- Ядро -->
-<script src="js/core/store.js"></script>
-<script src="js/core/sounds.js"></script>
-<script src="js/core/fx.js"></script>
-<script src="js/core/router.js"></script>
-<script src="js/core/judge.js"></script>
+<script defer src="js/core/store.js"></script>
+<script defer src="js/core/sounds.js"></script>
+<script defer src="js/core/fx.js"></script>
+<script defer src="js/core/router.js"></script>
+<script defer src="js/core/judge.js"></script>
 <!-- Интерфейс -->
-<script src="js/ui/icons.js"></script>
-<script src="js/ui/overlay.js"></script>
-<script src="js/ui/home.js"></script>
-<script src="js/ui/route.js"></script>
-<script src="js/ui/practice.js"></script>
-<script src="js/ui/reference.js"></script>
-<script src="js/ui/hall.js"></script>
-<script src="js/app.js"></script>
+<script defer src="js/ui/icons.js"></script>
+<script defer src="js/ui/overlay.js"></script>
+<script defer src="js/ui/home.js"></script>
+<script defer src="js/ui/route.js"></script>
+<script defer src="js/ui/practice.js"></script>
+<script defer src="js/ui/reference.js"></script>
+<script defer src="js/ui/hall.js"></script>
+<script defer src="js/app.js"></script>
 </body>
 </html>

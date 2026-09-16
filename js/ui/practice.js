@@ -177,7 +177,10 @@ var Practice = {
     bindEditor() {
         const ed = this.editor;
         ed.addEventListener('input', () => this.onEdit());
-        ed.addEventListener('scroll', () => { this.gutter.scrollTop = ed.scrollTop; this.hl.scrollTop = ed.scrollTop; this.hl.scrollLeft = ed.scrollLeft; });
+        ed.addEventListener('scroll', () => {
+            if (this._scrollRaf) return;
+            this._scrollRaf = requestAnimationFrame(() => { this._scrollRaf = null; this.gutter.scrollTop = ed.scrollTop; this.hl.scrollTop = ed.scrollTop; this.hl.scrollLeft = ed.scrollLeft; });
+        }, { passive: true });
         ed.addEventListener('keydown', e => {
             if (e.key === 'Tab') {
                 e.preventDefault();
@@ -225,9 +228,10 @@ var Practice = {
     },
 
     onEdit() {
-        this.renderGutter();
-        this.highlight();
-        if (this.task) Store.saveDraft(this.task.id, this.editor.value);
+        /* Подсветка и сохранение — не чаще раза в кадр / раз в 400 мс */
+        if (!this._hlRaf) this._hlRaf = requestAnimationFrame(() => { this._hlRaf = null; this.renderGutter(); this.highlight(); });
+        clearTimeout(this._saveT);
+        this._saveT = setTimeout(() => { if (this.task) Store.saveDraft(this.task.id, this.editor.value); }, 400);
     },
 
     setCode(code) { this.editor.value = code; this.renderGutter(); this.highlight(); },
@@ -235,6 +239,8 @@ var Practice = {
 
     renderGutter() {
         const n = this.editor.value.split('\n').length;
+        if (n === this._gutterN) return;
+        this._gutterN = n;
         this.gutter.innerHTML = Array.from({ length: n }, (_, i) => `<span>${i + 1}</span>`).join('');
     },
 
