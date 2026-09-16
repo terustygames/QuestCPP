@@ -1,0 +1,57 @@
+/* ==========================================================================
+   animations.css — keyframes и классы-эффекты.
+   ========================================================================== */
+
+/* Переходы экранов */
+.screen-enter { animation: screen-in .45s var(--ease-out); }
+.screen-leave { animation: screen-out .18s ease-in forwards; }
+@keyframes screen-in { from { opacity: 0; transform: translateY(18px) scale(.99); } to { opacity: 1; transform: none; } }
+@keyframes screen-out { to { opacity: 0; transform: translateY(-10px) scale(.99); } }
+
+/* Каскадное появление */
+.anim-rise { animation: rise .5s var(--ease-out) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* Дрожание при ошибке */
+.anim-shake { animation: shake .5s var(--ease-out); }
+.anim-shake-hard { animation: shake-hard .6s var(--ease-out); }
+@keyframes shake { 10%, 90% { transform: translateX(-2px); } 20%, 80% { transform: translateX(4px); } 30%, 50%, 70% { transform: translateX(-6px); } 40%, 60% { transform: translateX(6px); } }
+@keyframes shake-hard { 10%, 90% { transform: translate(-3px, 1px) rotate(-.3deg); } 20%, 80% { transform: translate(6px, -1px) rotate(.3deg); } 30%, 50%, 70% { transform: translate(-9px, 2px) rotate(-.5deg); } 40%, 60% { transform: translate(9px, -2px) rotate(.5deg); } }
+
+/* Подпрыгивание */
+.anim-pop { animation: pop .45s var(--ease-pop); }
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+@keyframes bounce-in { 0% { transform: scale(.3); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes stamp { 0% { transform: scale(2) rotate(-15deg); opacity: 0; } 60% { transform: scale(.9) rotate(3deg); opacity: 1; } 100% { transform: none; } }
+
+/* Пульс на «откроет N задач» */
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+
+/* Подсветка найденной станции */
+@keyframes highlight { 0% { box-shadow: 0 0 0 0 var(--c); } 30% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--c) 40%, transparent); transform: scale(1.04); } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+/* Блики на прогресс-барах */
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* Волна на кнопке */
+@keyframes ripple { to { transform: scale(1); opacity: 0; } }
+
+/* Крутилка */
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Всплывающий текст */
+@keyframes float-up { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.6); } 15% { opacity: 1; transform: translate(-50%, -70%) scale(1.15); } 100% { opacity: 0; transform: translate(-50%, -220%) scale(1); } }
+
+/* Вспышка экрана */
+@keyframes flash { from { opacity: 1; } to { opacity: 0; } }
+
+/* Тосты */
+@keyframes toast-in { from { opacity: 0; transform: translateY(20px) scale(.9); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { to { opacity: 0; transform: translateY(10px) scale(.95); } }
+
+/* Плавающие акценты на главной */
+.hero-copy h1 em { animation: wobble 6s ease-in-out infinite; }
+@keyframes wobble { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-1.2deg); } }
+
+.level-ring { animation: breathe 3.5s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }

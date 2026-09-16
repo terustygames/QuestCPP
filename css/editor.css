@@ -1,0 +1,110 @@
+/* ==========================================================================
+   editor.css — редактор кода, подсветка, вывод, тесты, диффы.
+   ========================================================================== */
+
+.editor-tabs { display: flex; align-items: center; gap: .2rem; padding: .5rem .6rem 0; background: rgba(0,0,0,.25); border-bottom: 2px solid rgba(255,255,255,.08); }
+.tab {
+    padding: .55rem 1rem; border-radius: 10px 10px 0 0; font-weight: 700; font-size: .85rem; font-family: var(--font-mono);
+    color: rgba(255,255,255,.55); border: 2px solid transparent; border-bottom: 0; transition: all .15s;
+    position: relative; top: 2px;
+}
+.tab:hover { color: #fff; background: rgba(255,255,255,.05); }
+.tab.is-on { color: #fff; background: var(--editor-bg); border-color: rgba(255,255,255,.12); }
+.tab.is-pressed { transform: translateY(1px); }
+.editor-tools { margin-left: auto; display: flex; align-items: center; gap: .4rem; padding-bottom: .4rem; }
+.editor-tools .btn { background: rgba(255,255,255,.06); color: #fff; border-color: rgba(255,255,255,.2); box-shadow: 0 2px 0 rgba(0,0,0,.4); }
+.editor-tools .btn:hover { background: rgba(255,255,255,.12); }
+.font-select { background-color: rgba(255,255,255,.06); color: #fff; border-color: rgba(255,255,255,.2); font-family: var(--font-mono); }
+.font-select option { color: #000; }
+.backend-badge { display: inline-flex; align-items: center; gap: .3rem; padding: .2rem .6rem; border-radius: 999px; font-size: .7rem; font-weight: 800; letter-spacing: .04em; border: 1.5px solid; }
+.backend-badge::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.backend-badge.is-local { color: #6ee7b7; border-color: rgba(110,231,183,.4); }
+.backend-badge.is-remote { color: #fcd34d; border-color: rgba(252,211,77,.4); }
+
+.pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* ---- код: textarea поверх подсвеченного pre ---- */
+.code-wrap { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: auto 1fr; background: var(--editor-bg); }
+.gutter {
+    padding: 1rem .6rem 1rem 1rem; text-align: right; color: rgba(255,255,255,.28); font-family: var(--font-mono); font-size: var(--editor-size); line-height: 1.6;
+    user-select: none; overflow: hidden; background: rgba(0,0,0,.18); border-right: 1px solid rgba(255,255,255,.06);
+}
+.gutter span { display: block; }
+.editor-hl, .editor {
+    grid-column: 2; grid-row: 1; margin: 0; padding: 1rem 1.2rem 6rem; font-family: var(--font-mono); font-size: var(--editor-size); line-height: 1.6;
+    tab-size: 4; white-space: pre; overflow: auto; border: 0; outline: 0;
+}
+.editor-hl { pointer-events: none; color: var(--editor-ink); }
+.editor { position: relative; background: transparent; color: transparent; caret-color: #ffd166; resize: none; z-index: 1; }
+.editor::selection { background: rgba(77,150,255,.35); color: transparent; }
+.editor::placeholder { color: rgba(255,255,255,.3); }
+
+.tk-kw { color: #ff79c6; font-weight: 700; }
+.tk-ty { color: #8be9fd; }
+.tk-str { color: #f1fa8c; }
+.tk-num { color: #bd93f9; }
+.tk-cm { color: #6272a4; font-style: italic; }
+.tk-pp { color: #ffb86c; }
+.tk-fn { color: #50fa7b; }
+
+/* ---- нижняя панель ---- */
+.editor-actions { display: flex; align-items: center; gap: .6rem; padding: .7rem .9rem; background: rgba(0,0,0,.25); border-top: 2px solid rgba(255,255,255,.08); }
+.kbd-hint { margin-right: auto; font-size: .72rem; color: rgba(255,255,255,.4); font-family: var(--font-mono); }
+.btn-submit { padding: .75rem 1.4rem; }
+.btn-run, .btn-submit { box-shadow: 0 4px 0 #0b0913; }
+.btn-run:hover, .btn-submit:hover { box-shadow: 0 6px 0 #0b0913; }
+.btn-run.is-pressed, .btn-submit.is-pressed { box-shadow: 0 0 0 #0b0913; }
+
+/* ---- вывод ---- */
+#pane-output { padding: .8rem .9rem; gap: .7rem; overflow: auto; }
+.out-status { display: flex; align-items: center; gap: .5rem; min-height: 2.4rem; padding: .5rem .9rem; border-radius: 10px; font-weight: 800; font-size: .95rem; background: rgba(255,255,255,.05); border: 2px solid rgba(255,255,255,.1); }
+.out-status:empty { display: none; }
+.out-status.is-running { color: #fcd34d; border-color: rgba(252,211,77,.35); }
+.out-status.is-ok { color: #6ee7b7; border-color: rgba(110,231,183,.4); background: rgba(110,231,183,.08); }
+.out-status.is-warn { color: #fcd34d; }
+.out-status.is-fail, .out-status.is-error { color: #ff8b8b; border-color: rgba(255,107,107,.4); background: rgba(255,107,107,.08); }
+.out-status .icon { stroke-width: 2.5; }
+
+.out-tests { display: flex; flex-wrap: wrap; gap: .4rem; }
+.out-tests:empty { display: none; }
+.test { display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .6rem .3rem .3rem; border-radius: 999px; font-size: .75rem; font-weight: 700; border: 2px solid; transition: all .25s var(--ease-pop); cursor: pointer; }
+.test-n { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 800; background: currentColor; }
+.test-n { color: inherit; }
+.test.is-wait { color: rgba(255,255,255,.4); border-color: rgba(255,255,255,.15); }
+.test.is-wait .test-n { background: rgba(255,255,255,.15); color: #fff; }
+.test.is-pass { color: #6ee7b7; border-color: rgba(110,231,183,.5); background: rgba(110,231,183,.08); }
+.test.is-pass .test-n { color: #0b3b2c; }
+.test.is-fail, .test.is-compile, .test.is-runtime, .test.is-network { color: #ff8b8b; border-color: rgba(255,107,107,.5); background: rgba(255,107,107,.08); }
+.test.is-fail .test-n, .test.is-compile .test-n, .test.is-runtime .test-n { color: #3b0b0b; }
+.test:hover { transform: translateY(-2px); }
+
+.out-grid { display: grid; grid-template-columns: minmax(160px, 220px) 1fr; gap: .7rem; flex: 1; min-height: 0; }
+.stdin-box { display: flex; flex-direction: column; gap: .3rem; }
+.stdin-box label { font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.45); }
+.stdin-box textarea { flex: 1; min-height: 120px; padding: .6rem .8rem; border-radius: 10px; background: rgba(0,0,0,.3); color: var(--editor-ink); border: 2px solid rgba(255,255,255,.12); font-family: var(--font-mono); font-size: .85rem; resize: none; outline: none; }
+.stdin-box textarea:focus { border-color: var(--sky); }
+.out-console { margin: 0; flex: 1; min-height: 160px; padding: .8rem 1rem; border-radius: 10px; background: rgba(0,0,0,.3); border: 2px solid rgba(255,255,255,.12); font-size: .85rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word; overflow: auto; color: var(--editor-ink); }
+.out-console:empty::before { content: 'Здесь появится вывод программы и результаты проверки.'; color: rgba(255,255,255,.3); }
+.out-console.is-error { color: #ffb4b4; }
+
+.err-loc { color: #8be9fd; text-decoration: underline; cursor: pointer; font-weight: 700; }
+.err-loc:hover { color: #fff; }
+.err-kind.is-error { color: #ff6b6b; }
+.err-kind.is-warning { color: #fcd34d; }
+.err-kind.is-note { color: #8be9fd; }
+
+.diff { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; }
+.diff > div { display: grid; gap: .25rem; align-content: start; }
+.diff span { font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.45); }
+.diff pre { margin: 0; padding: .5rem .7rem; border-radius: 8px; background: rgba(255,255,255,.05); border: 1.5px solid rgba(255,255,255,.1); white-space: pre-wrap; word-break: break-word; font-size: .82rem; max-height: 260px; overflow: auto; }
+.diff .is-bad pre { border-color: rgba(255,107,107,.5); }
+.diff mark { background: rgba(255,107,107,.3); color: #fff; border-radius: 3px; padding: 0 2px; }
+.diff i { color: rgba(255,255,255,.35); }
+.stderr { margin: .6rem 0 0; padding: .5rem .7rem; border-radius: 8px; background: rgba(252,211,77,.08); border: 1.5px solid rgba(252,211,77,.3); color: #fcd34d; font-size: .78rem; white-space: pre-wrap; }
+
+@media (max-width: 760px) {
+    .out-grid, .diff { grid-template-columns: 1fr; }
+    .kbd-hint { display: none; }
+    .editor-actions { flex-wrap: wrap; }
+    .editor-actions .btn { flex: 1; }
+}

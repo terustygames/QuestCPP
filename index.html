@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="day">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C++ Quest — маршрут по C++ с практикой</title>
+    <meta name="description" content="Отметь ключевые слова C++, которые знаешь, и решай нетривиальные задачи с автоматической проверкой.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@500;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/editor.css">
+    <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+
+<div class="bg-grid" aria-hidden="true"></div>
+<canvas id="fx-canvas" aria-hidden="true"></canvas>
+
+<!-- ================= Шапка ================= -->
+<header class="topbar">
+    <a class="brand" href="#home" onclick="Router.go('home'); return false;">
+        <span class="brand-mark" data-icon="logo"></span>
+        <span class="brand-text">C++<b>Quest</b></span>
+    </a>
+    <nav class="topnav">
+        <a class="btn btn-nav" data-nav="home" href="#home" onclick="Router.go('home'); return false;">Главная</a>
+        <a class="btn btn-nav" data-nav="route" href="#route" onclick="Router.go('route'); return false;">Маршрут</a>
+        <a class="btn btn-nav" data-nav="arena" href="#arena" onclick="Router.go('arena'); return false;">Арена</a>
+        <a class="btn btn-nav" data-nav="reference" href="#reference" onclick="Router.go('reference'); return false;">Справочник</a>
+        <a class="btn btn-nav" data-nav="hall" href="#hall" onclick="Router.go('hall'); return false;">Зал</a>
+    </nav>
+    <div class="topbar-right">
+        <button class="btn btn-icon theme-btn" onclick="App.toggleTheme()" title="Тема"></button>
+        <button class="btn btn-icon sound-btn" onclick="App.toggleSound()" title="Звук"></button>
+    </div>
+</header>
+
+<main class="screens">
+
+    <!-- ================= Главная ================= -->
+    <section id="screen-home" class="screen">
+        <div class="home-hero">
+            <div class="hero-copy">
+                <span class="kicker">Маршрут по языку</span>
+                <h1>Учи C++ <em>станция<br>за станцией</em></h1>
+                <p class="hero-phrase" id="home-phrase"></p>
+                <div class="hero-actions">
+                    <button class="btn btn-primary btn-lg" data-fx="big" onclick="Router.go('arena')">Начать практику</button>
+                    <button class="btn btn-ghost btn-lg" onclick="Router.go('route')">Настроить маршрут</button>
+                </div>
+            </div>
+            <div class="hero-side">
+                <div class="level-card">
+                    <div class="level-ring">
+                        <span class="level-n" id="home-level-n">1</span>
+                        <span class="level-cap">уровень</span>
+                    </div>
+                    <div class="level-body">
+                        <b id="home-level-title">Пассажир</b>
+                        <div class="bar bar-lg"><i id="home-level-fill" style="width:0%"></i></div>
+                        <span class="muted" id="home-level-text">0 / 100 XP</span>
+                    </div>
+                </div>
+                <div class="stats-row">
+                    <div class="stat"><b id="stat-xp">0</b><span>XP</span></div>
+                    <div class="stat"><b id="stat-solved">0</b><span>решено</span></div>
+                    <div class="stat"><b id="stat-known">0</b><span>станций</span></div>
+                    <div class="stat"><b id="stat-streak">0</b><span>дней подряд</span></div>
+                </div>
+                <div id="home-next"></div>
+            </div>
+        </div>
+
+        <div class="home-menu" id="home-menu">
+            <button class="menu-card btn" style="--c:#4d96ff" onclick="Router.go('route')">
+                <span class="menu-icon" data-icon="map"></span>
+                <span class="menu-title">Маршрут</span>
+                <span class="menu-desc" id="home-route-desc"></span>
+            </button>
+            <button class="menu-card btn" style="--c:#ff6b6b" onclick="Router.go('arena')">
+                <span class="menu-icon" data-icon="swords"></span>
+                <span class="menu-title">Арена</span>
+                <span class="menu-desc" id="home-arena-desc"></span>
+            </button>
+            <button class="menu-card btn" style="--c:#2ec4b6" onclick="Router.go('reference')">
+                <span class="menu-icon" data-icon="book"></span>
+                <span class="menu-title">Справочник</span>
+                <span class="menu-desc">Каждая станция с примером кода</span>
+            </button>
+            <button class="menu-card btn" style="--c:#ffb400" onclick="Router.go('hall')">
+                <span class="menu-icon" data-icon="trophy"></span>
+                <span class="menu-title">Зал</span>
+                <span class="menu-desc" id="home-hall-desc"></span>
+            </button>
+        </div>
+
+        <div class="home-how">
+            <div class="how-step"><i>1</i><b>Отметьте станции</b><span>Ключевые слова и символы в порядке, в котором их обычно учат.</span></div>
+            <div class="how-step"><i>2</i><b>Получайте задачи по силам</b><span>Арена предлагает только то, что решается известными конструкциями.</span></div>
+            <div class="how-step"><i>3</i><b>Проверяйте компилятором</b><span>Настоящий g++, скрытые тесты, разбор отличий вывода.</span></div>
+        </div>
+    </section>
+
+    <!-- ================= Маршрут ================= -->
+    <section id="screen-route" class="screen">
+        <header class="screen-head">
+            <div>
+                <span class="kicker">Карта</span>
+                <h2>Маршрут</h2>
+                <p class="muted">Нажмите на станцию, если знаете её. Число справа — сколько задач откроется.</p>
+            </div>
+            <div class="route-summary">
+                <div class="ring" id="route-ring" style="--p:0"><b id="route-known">0</b><span>/<i id="route-total">0</i></span></div>
+                <div class="route-sum-text">
+                    <b><span id="route-avail">0</span> задач доступно</b>
+                    <span class="muted"><span id="route-unsolved">0</span> ещё не решено</span>
+                </div>
+                <div class="route-bulk">
+                    <button class="btn btn-ghost btn-sm" onclick="Route.selectAll(true)">Знаю всё</button>
+                    <button class="btn btn-ghost btn-sm" onclick="Route.selectAll(false)">Сбросить</button>
+                </div>
+            </div>
+        </header>
+        <div class="route-tools">
+            <label class="search" data-icon="search"><input id="route-search" type="search" placeholder="Найти станцию: if, vector, &x, ::"></label>
+            <div class="chips" id="route-filters"></div>
+        </div>
+        <div class="route-lines" id="route-lines"></div>
+        <div class="route-foot">
+            <button class="btn btn-primary btn-lg" data-fx="big" onclick="Router.go('arena')">К задачам</button>
+        </div>
+    </section>
+
+    <!-- ================= Арена ================= -->
+    <section id="screen-arena" class="screen screen-wide">
+        <div class="arena">
+            <aside class="task-panel">
+                <div class="arena-bar">
+                    <div class="arena-stats">
+                        <span class="mini-stat"><b id="arena-xp">0</b> XP</span>
+                        <span class="mini-stat"><b id="arena-solved">0</b> решено</span>
+                        <div class="bar bar-sm"><i id="arena-level-fill" style="width:0%"></i></div>
+                    </div>
+                    <div class="arena-actions">
+                        <button class="btn btn-ghost btn-sm" data-icon="dice" onclick="Practice.newTask()">Случайная</button>
+                        <button class="btn btn-ghost btn-sm" id="list-toggle" data-icon="list" onclick="Practice.toggleList()">Список <span class="count" id="task-list-count">0</span></button>
+                    </div>
+                </div>
+
+                <div class="task-list-wrap" id="task-list-wrap">
+                    <div class="list-filters">
+                        <select id="list-level">
+                            <option value="all">Все уровни</option>
+                            <option value="1">1 · Разминка</option>
+                            <option value="2">2 · Ветвления</option>
+                            <option value="3">3 · Ремесло</option>
+                            <option value="4">4 · Инструменты</option>
+                            <option value="5">5 · Мастерство</option>
+                        </select>
+                        <select id="list-status">
+                            <option value="unsolved">Нерешённые</option>
+                            <option value="all">Все</option>
+                            <option value="solved">Решённые</option>
+                        </select>
+                    </div>
+                    <div class="task-list" id="task-list"></div>
+                </div>
+
+                <div class="task-card" id="task-card"></div>
+            </aside>
+
+            <div class="editor-panel" id="editor-panel">
+                <div class="editor-tabs">
+                    <button class="tab is-on" data-tab="code" onclick="Practice.switchTab('code')">main.cpp</button>
+                    <button class="tab" data-tab="output" onclick="Practice.switchTab('output')">Вывод и тесты</button>
+                    <span class="editor-tools">
+                        <span class="backend-badge" id="backend-badge">...</span>
+                        <select id="font-size" class="font-select" onchange="Practice.setFontSize(this.value)">
+                            <option value="13">13</option><option value="14">14</option><option value="15">15</option>
+                            <option value="16">16</option><option value="18">18</option><option value="20">20</option>
+                        </select>
+                        <button class="btn btn-icon btn-sm" title="Копировать код" data-icon="copy" onclick="Practice.copyCode()"></button>
+                        <button class="btn btn-icon btn-sm" title="Сбросить к заготовке" data-icon="reset" onclick="Practice.resetCode()"></button>
+                    </span>
+                </div>
+
+                <div class="pane" id="pane-code">
+                    <div class="code-wrap">
+                        <div class="gutter" id="gutter"></div>
+                        <pre class="editor-hl" id="editor-hl" aria-hidden="true"></pre>
+                        <textarea id="editor" class="editor" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="off"></textarea>
+                    </div>
+                </div>
+
+                <div class="pane is-hidden" id="pane-output">
+                    <div class="out-status" id="out-status"></div>
+                    <div class="out-tests" id="out-tests"></div>
+                    <div class="out-grid">
+                        <div class="stdin-box">
+                            <label>stdin для запуска</label>
+                            <textarea id="stdin" spellcheck="false"></textarea>
+                        </div>
+                        <pre class="out-console" id="out-console"></pre>
+                    </div>
+                </div>
+
+                <div class="editor-actions">
+                    <span class="kbd-hint">Ctrl+Enter — запуск, Ctrl+Shift+Enter — проверка, Tab — отступ</span>
+                    <button class="btn btn-run" id="run-btn" onclick="Practice.run()"><span class="btn-label" data-icon="play">Запустить</span><span class="spinner"></span></button>
+                    <button class="btn btn-primary btn-submit" id="submit-btn" data-fx="big" onclick="Practice.submit()"><span class="btn-label" data-icon="send">Проверить решение</span><span class="spinner"></span></button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= Справочник ================= -->
+    <section id="screen-reference" class="screen">
+        <header class="screen-head">
+            <div>
+                <span class="kicker">Шпаргалка</span>
+                <h2>Справочник</h2>
+                <p class="muted">Каждая станция маршрута с примером, который можно скопировать.</p>
+            </div>
+            <label class="search" data-icon="search"><input id="ref-search" type="search" placeholder="Поиск по справочнику"></label>
+        </header>
+        <div class="ref-content" id="ref-content"></div>
+    </section>
+
+    <!-- ================= Зал ================= -->
+    <section id="screen-hall" class="screen">
+        <header class="screen-head">
+            <div>
+                <span class="kicker">Итоги</span>
+                <h2>Зал достижений</h2>
+            </div>
+            <div class="hall-tools">
+                <button class="btn btn-ghost btn-sm" onclick="Hall.exportProgress()">Экспорт</button>
+                <label class="btn btn-ghost btn-sm">Импорт<input type="file" accept="application/json" hidden onchange="Hall.importProgress(this)"></label>
+                <button class="btn btn-ghost btn-sm btn-danger-text" onclick="Hall.resetProgress()">Сбросить</button>
+            </div>
+        </header>
+        <div class="hall-summary" id="hall-summary"></div>
+        <div class="hall-lines" id="hall-lines"></div>
+        <h3 class="hall-sub">Достижения</h3>
+        <div class="ach-grid" id="ach-grid"></div>
+    </section>
+</main>
+
+<!-- ================= Оверлеи ================= -->
+<div class="modal" id="modal"><div class="modal-box" id="modal-box"></div></div>
+<div class="toasts" id="toasts"></div>
+
+<!-- Данные -->
+<script src="js/data/keywords.js"></script>
+<script src="js/data/tasks/_index.js"></script>
+<script src="js/data/tasks/level1-start.js"></script>
+<script src="js/data/tasks/level2-control.js"></script>
+<script src="js/data/tasks/level3-craft.js"></script>
+<script src="js/data/tasks/level4-tools.js"></script>
+<script src="js/data/tasks/level5-mastery.js"></script>
+<script src="js/data/achievements.js"></script>
+<!-- Ядро -->
+<script src="js/core/store.js"></script>
+<script src="js/core/sounds.js"></script>
+<script src="js/core/fx.js"></script>
+<script src="js/core/router.js"></script>
+<script src="js/core/judge.js"></script>
+<!-- Интерфейс -->
+<script src="js/ui/icons.js"></script>
+<script src="js/ui/overlay.js"></script>
+<script src="js/ui/home.js"></script>
+<script src="js/ui/route.js"></script>
+<script src="js/ui/practice.js"></script>
+<script src="js/ui/reference.js"></script>
+<script src="js/ui/hall.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
