@@ -29,9 +29,9 @@ var App = {
         /* Первый визит: отмечаем стартовую линию, чтобы Арена не была пустой */
         if (!localStorage.getItem('questcpp.visited')) {
             localStorage.setItem('questcpp.visited', '1');
-            const first = ROUTE[0].stations.map(s => s.id);
+            const first = ['cout', 'endl', 'cin', 'int', 'arithmetic', 'assignment'];
             Store.setKnownMany(first, true);
-            setTimeout(() => Toast.show('Мы отметили линию «Старт» как известную. Уточните маршрут, когда будет время.', 'info', 6000), 800);
+            setTimeout(() => Toast.show('Мы отметили cout, cin, int и арифметику как известные. Уточните маршрут, когда будет время.', 'info', 6000), 800);
         }
     },
 

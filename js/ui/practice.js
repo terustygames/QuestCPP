@@ -109,8 +109,10 @@ var Practice = {
                 ${attempts ? `<span class="attempt-pill" title="Попыток">${Icon('clock')} ${attempts}</span>` : ''}
             </div>
             <h2 class="task-title">${esc(t.title)}</h2>
+            ${t.goal ? `<div class="task-goal"><span>Что сделать</span><p>${esc(t.goal)}</p></div>` : ''}
             <p class="task-story">${esc(t.story)}</p>
             <div class="task-tags">${t.requires.map(r => `<button class="tag" style="--c:${STATIONS[r].color}" onclick="Route.showInfo('${r}', event)"><code>${esc(STATIONS[r].name)}</code></button>`).join('')}</div>
+            <h4 class="task-h">Условие</h4>
             <div class="task-spec">${t.spec}</div>
             <div class="task-io">
                 <div><h4>Ввод</h4><p>${t.input}</p></div>

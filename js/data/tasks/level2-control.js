@@ -3,6 +3,7 @@
 TaskDB.add([
     {
         id: 'triangle_kind',
+        goal: 'Определить вид треугольника по трём сторонам или сказать, что его не существует.',
         title: 'Паспорт треугольника',
         level: 2, xp: 35,
         requires: ['cin', 'cout', 'int', 'if', 'else_if', 'logical'],
@@ -28,9 +29,10 @@ int main(){int a,b,c;cin>>a>>b>>c;if(a+b<=c||a+c<=b||b+c<=a)cout<<"impossible";e
     },
     {
         id: 'fizz_custom',
+        goal: 'Для чисел 1..n печатать Boom, Tss, BoomTss или само число в зависимости от делимости.',
         title: 'Барабанщик и тарелки',
         level: 2, xp: 30,
-        requires: ['cin', 'cout', 'for', 'if', 'else_if', 'arithmetic'],
+        requires: ['cin', 'cout', 'for', 'if', 'else_if', 'arithmetic', 'modulo'],
         story: 'Барабанщик бьёт в бочку на каждом такте, кратном a, и в тарелку — кратном b.',
         spec: 'Даны <code>n</code>, <code>a</code> и <code>b</code>. Для тактов от 1 до n выведите <code>Boom</code>, если такт кратен a, <code>Tss</code>, если кратен b, <code>BoomTss</code>, если кратен обоим, и сам номер такта иначе. Каждое значение — на новой строке.',
         input: 'Три целых числа <code>n a b</code> (1 ≤ n ≤ 100, 2 ≤ a, b ≤ 20).',
@@ -51,9 +53,10 @@ int main(){int n,a,b;cin>>n>>a>>b;for(int i=1;i<=n;i++){if(i%a==0&&i%b==0)cout<<
     },
     {
         id: 'digit_stats',
+        goal: 'Посчитать число цифр, максимальную цифру и количество нулей.',
         title: 'Досье на число',
         level: 2, xp: 35,
-        requires: ['cin', 'cout', 'while', 'arithmetic', 'long_long', 'if'],
+        requires: ['cin', 'cout', 'while', 'arithmetic', 'long_long', 'if', 'modulo', 'do_while'],
         story: 'Аналитик изучает число как подозреваемого: сколько цифр, какая самая большая, есть ли нули.',
         spec: 'Дано целое неотрицательное число (может не влезать в int). Выведите количество цифр, максимальную цифру и количество нулей в записи. Число нельзя считывать как строку.',
         input: 'Одно число <code>n</code> (0 ≤ n ≤ 10¹⁸).',
@@ -75,9 +78,10 @@ int main(){long long n;cin>>n;int cnt=0,mx=0,z=0;do{int d=n%10;cnt++;if(d>mx)mx=
     },
     {
         id: 'collatz_steps',
+        goal: 'Посчитать шаги до единицы по правилу Коллатца и максимум по пути.',
         title: 'Град из чисел',
         level: 2, xp: 35,
-        requires: ['cin', 'cout', 'while', 'if', 'else', 'long_long'],
+        requires: ['cin', 'cout', 'while', 'if', 'else', 'long_long', 'modulo', 'loop_counters'],
         story: 'Гипотеза Коллатца: любое число, если долго с ним возиться, скатывается к единице.',
         spec: 'Дано <code>n</code>. Пока n не станет 1, применяйте правило: чётное — делите на 2, нечётное — умножайте на 3 и прибавляйте 1. Выведите число шагов и максимальное значение, встретившееся по пути (включая само n).',
         input: 'Целое число <code>n</code> (1 ≤ n ≤ 10⁶).',
@@ -99,6 +103,7 @@ int main(){long long n;cin>>n;long long mx=n;int steps=0;while(n!=1){if(n%2==0)n
     },
     {
         id: 'hollow_square',
+        goal: 'Нарисовать квадрат из звёздочек с пустой серединой и точкой в центре.',
         title: 'Рамка со звёздами',
         level: 2, xp: 35,
         requires: ['cin', 'cout', 'for', 'nested_loops', 'if', 'else', 'logical'],
@@ -122,9 +127,10 @@ int main(){int n;cin>>n;for(int i=0;i<n;i++){for(int j=0;j<n;j++){bool b=i==0||i
     },
     {
         id: 'prime_check',
+        goal: 'Проверить, простое ли число, за корень из n.',
         title: 'Пропуск в простые',
         level: 2, xp: 40,
-        requires: ['cin', 'cout', 'for', 'if', 'bool', 'break', 'long_long'],
+        requires: ['cin', 'cout', 'for', 'if', 'bool', 'break', 'long_long', 'modulo'],
         story: 'Клуб простых чисел пускает только тех, у кого ровно два делителя.',
         spec: 'Дано число <code>n</code>. Выведите <code>prime</code>, если оно простое, иначе — его наименьший делитель, больший единицы. Числа 0 и 1 не простые: для них выведите <code>none</code>. Решение должно работать за корень из n: n может быть до 10¹².',
         input: 'Одно целое число (0 ≤ n ≤ 10¹²).',
@@ -148,11 +154,12 @@ int main(){long long n;cin>>n;if(n<2){cout<<"none";return 0;}for(long long d=2;d
     },
     {
         id: 'sum_until_zero',
+        goal: 'Читать числа до нуля и посчитать выручку, продажи и возвраты.',
         title: 'Кассовая лента',
         level: 2, xp: 35,
-        requires: ['cin', 'cout', 'while', 'if', 'continue', 'int'],
+        requires: ['cin', 'cout', 'while', 'if', 'continue', 'int', 'loop_counters'],
         story: 'Кассир пробивает суммы, отрицательные — возвраты, ноль — конец смены.',
-        spec: 'Читайте целые числа до нуля (ноль не учитывается). Положительные — продажи, отрицательные — возвраты. Выведите итоговую выручку (продажи минус возвраты по модулю), количество продаж и количество возвратов. Если продаж больше нуля, дополнительно выведите средний чек продажи (целочисленное деление).',
+        spec: 'Читайте целые числа, пока не встретится 0 (сам 0 не считается). Положительное число — продажа, отрицательное — возврат.<br>Выведите в одной строке: сумму всех чисел, количество продаж, количество возвратов.<br>Если продаж было хотя бы одна, на второй строке выведите средний размер продажи (сумма продаж / их количество, целочисленно).',
         input: 'Последовательность целых чисел, завершающаяся нулём.',
         output: 'Три числа через пробел, при наличии продаж — ещё одно число на новой строке.',
         tests: [
@@ -172,9 +179,10 @@ int main(){int x,total=0,sales=0,refunds=0,sum=0;while(cin>>x&&x!=0){if(x>0){sal
     },
     {
         id: 'calculator_switch',
+        goal: 'Выполнить одну арифметическую операцию через switch, обработав деление на ноль.',
         title: 'Калькулятор в две руки',
         level: 2, xp: 35,
-        requires: ['cin', 'cout', 'switch', 'char', 'if', 'long_long'],
+        requires: ['cin', 'cout', 'switch', 'char', 'if', 'long_long', 'modulo'],
         story: 'Минимальный калькулятор для терминала: одно действие за раз, но без делений на ноль.',
         spec: 'Дано выражение вида <code>a op b</code>, где op — один из <code>+ - * / %</code>. Выведите результат. При делении на ноль выведите <code>division by zero</code>. При неизвестном операторе — <code>unknown operator</code>. Обязательно используйте <code>switch</code>.',
         input: 'Число, символ, число через пробелы.',
@@ -198,11 +206,12 @@ int main(){long long a,b;char op;cin>>a>>op>>b;switch(op){case '+':cout<<a+b;bre
     },
     {
         id: 'longest_run',
+        goal: 'Найти самую длинную серию единиц подряд и где она началась.',
         title: 'Серия побед',
         level: 2, xp: 40,
-        requires: ['cin', 'cout', 'for', 'if', 'else', 'int'],
+        requires: ['cin', 'cout', 'for', 'if', 'else', 'int', 'loop_counters'],
         story: 'Тренер смотрит на результаты сезона и ищет самую длинную серию побед подряд.',
-        spec: 'Дано <code>n</code> и затем n чисел — 1 (победа) или 0 (поражение). Выведите длину самой длинной серии единиц подряд и номер матча (с 1), с которого она началась. При нескольких сериях одинаковой длины — самую первую. Если побед не было, выведите <code>0 0</code>.',
+        spec: 'Дано <code>n</code> и n чисел, каждое 1 (победа) или 0 (поражение). Найдите самую длинную цепочку единиц подряд.<br>Выведите её длину и номер первого матча цепочки (нумерация с 1). Если таких цепочек несколько — берите самую первую. Если единиц нет — выведите <code>0 0</code>.',
         input: 'n, затем n чисел.',
         output: 'Два числа.',
         tests: [
@@ -222,6 +231,7 @@ int main(){int n;cin>>n;int best=0,bestStart=0,cur=0,curStart=0;for(int i=1;i<=n
     },
     {
         id: 'multiplication_table_slice',
+        goal: 'Вывести прямоугольный кусок таблицы умножения.',
         title: 'Кусок таблицы умножения',
         level: 2, xp: 30,
         requires: ['cin', 'cout', 'for', 'nested_loops'],
@@ -246,9 +256,10 @@ int main(){int r1,r2,c1,c2;cin>>r1>>r2>>c1>>c2;for(int i=r1;i<=r2;i++){for(int j
     },
     {
         id: 'gcd_lcm',
+        goal: 'Найти НОД алгоритмом Евклида и НОК через него.',
         title: 'Шестерёнки',
         level: 2, xp: 40,
-        requires: ['cin', 'cout', 'while', 'long_long', 'arithmetic'],
+        requires: ['cin', 'cout', 'while', 'long_long', 'arithmetic', 'modulo'],
         story: 'Две шестерёнки с разным числом зубьев: через сколько оборотов метки снова совпадут?',
         spec: 'Даны два натуральных числа. Выведите их наибольший общий делитель и наименьшее общее кратное. Используйте алгоритм Евклида: пока b не ноль, заменяйте пару (a, b) на (b, a % b).',
         input: 'Два числа (1 ≤ a, b ≤ 10⁹).',
@@ -270,6 +281,7 @@ int main(){long long a,b;cin>>a>>b;long long x=a,y=b;while(y){long long t=x%y;x=
     },
     {
         id: 'number_pyramid',
+        goal: 'Напечатать пирамиду из цифр 1..i..1 с выравниванием по центру.',
         title: 'Пирамида из цифр',
         level: 2, xp: 40,
         requires: ['cin', 'cout', 'for', 'nested_loops', 'arithmetic'],
@@ -293,6 +305,7 @@ int main(){int n;cin>>n;for(int i=1;i<=n;i++){for(int s=0;s<n-i;s++)cout<<' ';fo
     },
     {
         id: 'ternary_grades',
+        goal: 'Раскрасить баллы в green / yellow / red тернарным оператором.',
         title: 'Светофор оценок',
         level: 2, xp: 30,
         requires: ['cin', 'cout', 'for', 'ternary', 'int'],
@@ -315,9 +328,10 @@ int main(){int n;cin>>n;for(int i=0;i<n;i++){int x;cin>>x;cout<<(x>=80?"green":x
     },
     {
         id: 'perfect_numbers',
+        goal: 'Найти все совершенные числа на отрезке.',
         title: 'Совершенство в диапазоне',
         level: 2, xp: 40,
-        requires: ['cin', 'cout', 'for', 'nested_loops', 'if', 'bool'],
+        requires: ['cin', 'cout', 'for', 'nested_loops', 'if', 'bool', 'modulo', 'flag_var'],
         story: 'Число совершенно, если равно сумме своих делителей, кроме себя самого. Таких мало, и это красиво.',
         spec: 'Даны <code>l</code> и <code>r</code>. Выведите все совершенные числа из отрезка [l, r] по одному в строке. Если таких нет, выведите <code>none</code>.',
         input: 'Два числа (1 ≤ l ≤ r ≤ 10000).',

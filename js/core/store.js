@@ -32,6 +32,8 @@ var Store = {
                 this.state = { ...this.state, ...saved, settings: { ...this.state.settings, ...(saved.settings || {}) } };
             }
         } catch (e) { /* повреждённые данные — начинаем заново */ }
+        /* Миграция: убираем станции, которых больше нет в маршруте */
+        this.state.known = this.state.known.filter(id => STATIONS[id]);
         return this.state;
     },
 
