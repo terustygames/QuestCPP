@@ -1,0 +1,179 @@
+// Компактный HUD под тач-экран: минимум текста, крупные кнопки.
+import type { ReactNode } from 'react';
+import {
+  Heart,
+  Gem,
+  Skull,
+  Flag,
+  Pause,
+  Play,
+  Volume2,
+  VolumeX,
+  HelpCircle,
+  Plus,
+  Combine,
+  Layers,
+  Zap,
+} from 'lucide-react';
+import type { Engine } from '../game/engine';
+import { CONFIG } from '../game/config';
+
+function Chip({ icon, value, tone }: { icon: ReactNode; value: ReactNode; tone?: string }) {
+  return (
+    <div
+      className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1 text-[13px] font-bold tabular-nums"
+      style={tone ? { color: tone } : undefined}
+    >
+      {icon}
+      <span>{value}</span>
+    </div>
+  );
+}
+
+function IconBtn({
+  children,
+  onClick,
+  title,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  title: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.05] text-slate-300 transition hover:border-white/25 hover:text-white active:scale-90"
+    >
+      {children}
+    </button>
+  );
+}
+
+export function Header({
+  g,
+  paused,
+  speed,
+  muted,
+  onPause,
+  onSpeed,
+  onMute,
+  onHelp,
+}: {
+  g: Engine;
+  paused: boolean;
+  speed: number;
+  muted: boolean;
+  onPause: () => void;
+  onSpeed: () => void;
+  onMute: () => void;
+  onHelp: () => void;
+}) {
+  return (
+    <header
+      className="flex items-center justify-between gap-2 px-3"
+      style={{ paddingTop: 'max(10px, env(safe-area-inset-top))' }}
+    >
+      <div className="font-display hidden bg-gradient-to-r from-cyan-300 via-sky-400 to-violet-400 bg-clip-text text-[15px] font-black tracking-wide text-transparent sm:block">
+        ОРБИТАЛЬ
+      </div>
+      <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+        <Chip icon={<Flag size={13} className="shrink-0 text-amber-300" />} value={g.wave} />
+        <Chip
+          icon={<Heart size={13} className="shrink-0 text-rose-400" fill="currentColor" />}
+          value={g.lives}
+          tone={g.lives <= 5 ? '#fda4af' : undefined}
+        />
+        <Chip icon={<Gem size={13} className="shrink-0 text-cyan-300" />} value={g.essence} />
+        {g.status === 'wave' && (
+          <Chip icon={<Skull size={13} className="shrink-0 text-slate-300" />} value={g.enemiesLeft} />
+        )}
+      </div>
+      <div className="flex items-center gap-1.5">
+        <IconBtn onClick={onPause} title={paused ? 'Продолжить' : 'Пауза'}>
+          {paused ? <Play size={15} /> : <Pause size={15} />}
+        </IconBtn>
+        <button
+          onClick={onSpeed}
+          title="Скорость игры"
+          aria-label="Скорость игры"
+          className={`h-9 rounded-lg border px-2 text-[12px] font-extrabold transition active:scale-90 ${
+            speed === 2
+              ? 'border-cyan-400/50 bg-cyan-500/15 text-cyan-300'
+              : 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'
+          }`}
+        >
+          {speed}×
+        </button>
+        <IconBtn onClick={onMute} title={muted ? 'Включить звук' : 'Выключить звук'}>
+          {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+        </IconBtn>
+        <IconBtn onClick={onHelp} title="Как играть">
+          <HelpCircle size={15} />
+        </IconBtn>
+      </div>
+    </header>
+  );
+}
+
+export function Controls({
+  g,
+  onBuy,
+  onToggleMode,
+  onCallWave,
+}: {
+  g: Engine;
+  onBuy: () => void;
+  onToggleMode: () => void;
+  onCallWave: () => void;
+}) {
+  const accum = g.mode === 'accumulate';
+  const canBuy = g.essence >= CONFIG.orbCost;
+  return (
+    <div
+      className="flex items-stretch gap-2 px-3"
+      style={{
+        paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+        paddingTop: 10,
+      }}
+    >
+      <button
+        onClick={onToggleMode}
+        className={`flex min-h-[54px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-2xl border px-1.5 text-[13px] font-bold transition-all active:scale-[0.96] sm:text-[15px] ${
+          accum
+            ? 'border-amber-400/60 bg-amber-500/20 text-amber-200'
+            : 'border-cyan-400/40 bg-cyan-500/10 text-cyan-200'
+        }`}
+      >
+        {accum ? <Layers size={18} /> : <Combine size={18} />}
+        <span className="whitespace-nowrap">{accum ? 'Накопление' : 'Совмещение'}</span>
+      </button>
+
+      <button
+        onClick={onBuy}
+        className={`flex min-h-[54px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 px-1.5 text-[13px] font-bold text-slate-950 shadow-lg shadow-cyan-500/25 transition-all active:scale-[0.96] sm:text-[15px] ${
+          canBuy ? '' : 'opacity-60'
+        }`}
+      >
+        <Plus size={18} strokeWidth={3} />
+        <span className="whitespace-nowrap">Шарик</span>
+        <span className="flex items-center gap-1 rounded-lg bg-black/25 px-1.5 py-0.5 text-[11px] sm:text-[13px]">
+          <Gem size={12} />
+          {CONFIG.orbCost}
+        </span>
+      </button>
+
+      {g.status === 'prep' && (
+        <button
+          onClick={onCallWave}
+          className="flex min-h-[54px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-2xl border border-amber-400/50 bg-amber-500/15 px-1.5 text-[13px] font-bold text-amber-300 transition-all active:scale-[0.96] sm:text-[15px]"
+        >
+          <Zap size={18} />
+          <span className="whitespace-nowrap">Волна</span>
+          <span className="rounded-lg bg-black/30 px-1.5 py-0.5 text-[11px] sm:text-[13px]">+{CONFIG.callBonus}</span>
+        </button>
+      )}
+    </div>
+  );
+}
