@@ -24,7 +24,7 @@ function Chip({ icon, value, tone }: { icon: ReactNode; value: ReactNode; tone?:
       style={tone ? { color: tone } : undefined}
     >
       {icon}
-      <span>{value}</span>
+      <span className="whitespace-nowrap">{value}</span>
     </div>
   );
 }
@@ -85,6 +85,17 @@ export function Header({
           tone={g.lives <= 5 ? '#fda4af' : undefined}
         />
         <Chip icon={<Gem size={13} className="shrink-0 text-cyan-300" />} value={g.essence} />
+        <Chip
+          icon={<Zap size={13} className="shrink-0 text-amber-300" />}
+          value={
+            <span
+              title="Глобальное улучшение: усиливает все шарики. Можно сделать столько, сколько волна на счётчике"
+              className="tabular-nums"
+            >
+              {g.upgradeLevel} из {g.wave}
+            </span>
+          }
+        />
         {g.status === 'wave' && (
           <Chip icon={<Skull size={13} className="shrink-0 text-slate-300" />} value={g.enemiesLeft} />
         )}

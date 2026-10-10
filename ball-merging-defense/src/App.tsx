@@ -132,13 +132,7 @@ export default function App() {
   };
 
   return (
-    <div
-      className="flex h-dvh w-full flex-col overflow-hidden bg-[#05070e] text-slate-100"
-      style={{
-        backgroundImage:
-          'radial-gradient(900px 420px at 50% -10%, rgba(56,120,255,.13), transparent 60%), radial-gradient(700px 380px at 85% 110%, rgba(177,108,255,.10), transparent 60%)',
-      }}
-    >
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-[#0b0e18] text-slate-100">
       <Header
         g={g}
         paused={paused}

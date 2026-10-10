@@ -25,11 +25,10 @@ function BossSlot({ id, dim }: { id: BossId; dim?: boolean }) {
         style={{
           width: 74,
           height: 74,
-          borderColor: dim ? 'rgba(255,255,255,0.15)' : def.color,
-          background: `radial-gradient(circle at 35% 30%, #ffffff 0%, ${def.color} 45%, ${def.dark} 100%)`,
-          boxShadow: dim ? 'none' : `0 0 24px ${def.glow}0.55)`,
+          borderColor: dim ? 'rgba(255,255,255,0.15)' : def.dark,
+          background: def.color,
           opacity: dim ? 0.45 : 1,
-          transition: 'opacity 0.4s, box-shadow 0.4s',
+          transition: 'opacity 0.4s',
         }}
       />
       <div className="whitespace-nowrap text-[13px] font-bold text-slate-200">{def.name}</div>
@@ -147,9 +146,8 @@ export function BossRoulette({
               <div
                 className="h-14 w-14 shrink-0 rounded-full border-2"
                 style={{
-                  borderColor: def.color,
-                  background: `radial-gradient(circle at 35% 30%, #ffffff 0%, ${def.color} 45%, ${def.dark} 100%)`,
-                  boxShadow: `0 0 30px ${def.glow}0.6)`,
+                  borderColor: def.dark,
+                  background: def.color,
                 }}
               />
               <div className="min-w-0">
@@ -160,7 +158,7 @@ export function BossRoulette({
               </div>
             </div>
             <div className="mt-3 text-center text-[12px] text-slate-500">
-              Усиль поле: улучши шарики, собери заряженные в накопление
+              Усиль поле: сделай глобальное улучшение или собери заряженные в накопление
             </div>
             <div className="mt-4 flex gap-2">
               <button

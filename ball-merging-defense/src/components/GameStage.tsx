@@ -134,50 +134,28 @@ function drawOrbMark(x: CanvasRenderingContext2D, type: OrbType, cx: number, cy:
   x.restore();
 }
 
-function makeOrbSprite(color: string, dark: string, glow: string, type: OrbType): HTMLCanvasElement {
+// Плоский "наклейка-шарик": однотонный круг с тёмной кромкой
+// и знаком типа. Без градиентов и свечения — как в референсе.
+function makeOrbSprite(color: string, dark: string, _glow: string, type: OrbType): HTMLCanvasElement {
   const S = 128;
   const c = document.createElement('canvas');
   c.width = S;
   c.height = S;
   const x = c.getContext('2d')!;
   const cx = S / 2;
-  // мягкое свечение вокруг
-  const glowG = x.createRadialGradient(cx, cx, 20, cx, cx, 62);
-  glowG.addColorStop(0, `${glow}0.55)`);
-  glowG.addColorStop(1, `${glow}0)`);
-  x.fillStyle = glowG;
-  x.fillRect(0, 0, S, S);
-  // тело шарика
-  const r = 48;
-  const body = x.createRadialGradient(cx - 16, cx - 18, 6, cx, cx, r);
-  body.addColorStop(0, 'rgba(255,255,255,0.95)');
-  body.addColorStop(0.32, color);
-  body.addColorStop(1, dark);
-  x.fillStyle = body;
+  const r = 46;
+  // тёмная кромка чуть больше тела
+  x.fillStyle = dark;
   x.beginPath();
   x.arc(cx, cx, r, 0, Math.PI * 2);
   x.fill();
-  // нижняя тень внутри
-  const inner = x.createRadialGradient(cx, cx + 14, 4, cx, cx + 14, r);
-  inner.addColorStop(0, 'rgba(0,0,0,0.38)');
-  inner.addColorStop(0.7, 'rgba(0,0,0,0)');
-  x.fillStyle = inner;
+  // однотонное тело
+  x.fillStyle = color;
   x.beginPath();
-  x.arc(cx, cx, r, 0, Math.PI * 2);
-  x.fill();
-  // блик сверху
-  x.fillStyle = 'rgba(255,255,255,0.3)';
-  x.beginPath();
-  x.ellipse(cx - 14, cx - 20, 14, 8, -0.5, 0, Math.PI * 2);
+  x.arc(cx, cx, r - 5, 0, Math.PI * 2);
   x.fill();
   // знак типа (у десяти типов свои метки)
   drawOrbMark(x, type, cx, cx);
-  // лёгкий ободок
-  x.strokeStyle = 'rgba(255,255,255,0.22)';
-  x.lineWidth = 2;
-  x.beginPath();
-  x.arc(cx, cx, r - 1, 0, Math.PI * 2);
-  x.stroke();
   return c;
 }
 
@@ -213,49 +191,24 @@ function buildStaticLayer(w: number, h: number) {
   const s = w / STAGE_W;
   x.setTransform(s, 0, 0, s, 0, 0);
 
-  // фон
-  x.fillStyle = '#070b16';
-  x.fillRect(0, 0, STAGE_W, STAGE_H);
-  const vg = x.createRadialGradient(STAGE_W / 2, STAGE_H * 0.45, 60, STAGE_W / 2, STAGE_H * 0.45, STAGE_H * 0.75);
-  vg.addColorStop(0, 'rgba(30,50,90,0.5)');
-  vg.addColorStop(1, 'rgba(5,8,16,0)');
-  x.fillStyle = vg;
+  // плоский фон (без градиентов, сетки и виньетки)
+  x.fillStyle = '#161b2c';
   x.fillRect(0, 0, STAGE_W, STAGE_H);
 
-  // лёгкая фоновая сетка
-  x.strokeStyle = 'rgba(80,110,180,0.07)';
-  x.lineWidth = 1;
-  for (let gx = 0; gx <= STAGE_W; gx += 40) {
-    x.beginPath();
-    x.moveTo(gx, 0);
-    x.lineTo(gx, STAGE_H);
-    x.stroke();
-  }
-  for (let gy = 0; gy <= STAGE_H; gy += 40) {
-    x.beginPath();
-    x.moveTo(0, gy);
-    x.lineTo(STAGE_W, gy);
-    x.stroke();
-  }
-
-  // ТРАССА — простой дизайн: одна дорожка с кромкой, без нагромождения линий
+  // ТРАССА — плоская дорожка: два цвета, без свечения
   const t = TRACK;
   const trackPath = () => {
     x.beginPath();
     x.roundRect(t.x0, t.y0, t.x1 - t.x0, t.y1 - t.y0, t.r);
   };
   trackPath();
-  x.strokeStyle = '#0d1526';
+  x.strokeStyle = '#10141f';
   x.lineWidth = 32;
   x.lineJoin = 'round';
   x.stroke();
   trackPath();
-  x.strokeStyle = '#152238';
+  x.strokeStyle = '#232a40';
   x.lineWidth = 26;
-  x.stroke();
-  trackPath();
-  x.strokeStyle = 'rgba(125,170,255,0.16)';
-  x.lineWidth = 1.5;
   x.stroke();
 }
 
@@ -322,19 +275,15 @@ function drawBanner(x: CanvasRenderingContext2D, g: Engine) {
   const cx = STAGE_W / 2;
   const cy = 108;
   roundedRect(x, cx - w / 2, cy - 21, w, 42, 16);
-  x.fillStyle = 'rgba(15,23,42,0.85)';
+  x.fillStyle = '#1e293b';
   x.fill();
-  x.strokeStyle = 'rgba(255,255,255,0.16)';
+  x.strokeStyle = 'rgba(255,255,255,0.20)';
   x.lineWidth = 1;
   x.stroke();
-  x.save();
-  x.shadowColor = 'rgba(56,189,248,0.8)';
-  x.shadowBlur = 12;
   x.fillStyle = '#ffffff';
   x.textAlign = 'center';
   x.textBaseline = 'middle';
   x.fillText(g.banner, cx, cy + 1);
-  x.restore();
 }
 
 // ---------- Эффекты ввода (для подсветок на канвасе) ----------
@@ -361,7 +310,7 @@ function drawScene(
     x.drawImage(staticLayer, 0, 0);
     x.setTransform(staticW / STAGE_W, 0, 0, staticH / STAGE_H, 0, 0);
   } else {
-    x.fillStyle = '#070b16';
+    x.fillStyle = '#161b2c';
     x.fillRect(0, 0, STAGE_W, STAGE_H);
   }
 
@@ -382,38 +331,41 @@ function drawScene(
     const isLink = sel !== null && sel !== i && has && isAdj(sel, i);
     const isPlace = fx?.placeHover === i;
 
-    roundedRect(x, px + ox, py, CELL, CELL, 16);
-    if (has) {
-      x.fillStyle = 'rgba(255,255,255,0.035)';
-      x.fill();
-      x.strokeStyle = 'rgba(255,255,255,0.12)';
-      x.lineWidth = 1.5;
-      x.stroke();
-    } else {
-      // пустая клетка: нейтральная рамка, подсветка только под пальцем
-      x.fillStyle = isPlace ? 'rgba(34,211,238,0.10)' : 'rgba(255,255,255,0.015)';
-      x.fill();
+    const ccx = px + ox + CELL / 2;
+    const ccy = py + CELL / 2;
+    if (!has) {
+      // пустая клетка: почти незаметная пунктирная рамка,
+      // подсветка только под пальцем
+      roundedRect(x, px + ox, py, CELL, CELL, 16);
+      if (isPlace) {
+        x.fillStyle = 'rgba(255,255,255,0.06)';
+        x.fill();
+      }
       x.setLineDash([7, 7]);
-      x.strokeStyle = active ? (isPlace ? 'rgba(103,232,249,0.45)' : 'rgba(148,163,184,0.20)') : 'rgba(148,163,184,0.12)';
+      x.strokeStyle = isPlace
+        ? 'rgba(255,255,255,0.55)'
+        : active
+          ? 'rgba(255,255,255,0.10)'
+          : 'rgba(255,255,255,0.06)';
       x.lineWidth = isPlace ? 2.5 : 1.5;
       x.stroke();
       x.setLineDash([]);
     }
 
+    // выделение и связь — плоские кольца вокруг шарика
     if (isLink) {
-      const a = 0.4 + 0.25 * Math.sin(vnow * 5);
-      roundedRect(x, px - 3, py - 3, CELL + 6, CELL + 6, 19);
-      x.fillStyle = `rgba(34,211,238,${(0.08 * a).toFixed(3)})`;
-      x.fill();
-      x.strokeStyle = `rgba(34,211,238,${a.toFixed(3)})`;
-      x.lineWidth = 2.5;
+      const a = 0.55 + 0.2 * Math.sin(vnow * 5);
+      x.strokeStyle = `rgba(125,211,252,${a.toFixed(3)})`;
+      x.lineWidth = 2;
+      x.beginPath();
+      x.arc(ccx, ccy, 41, 0, Math.PI * 2);
       x.stroke();
     }
     if (isSel) {
-      const a = 0.65 + 0.3 * Math.sin(vnow * 5);
-      roundedRect(x, px - 4, py - 4, CELL + 8, CELL + 8, 20);
-      x.strokeStyle = `rgba(34,211,238,${a.toFixed(3)})`;
+      x.strokeStyle = 'rgba(255,255,255,0.95)';
       x.lineWidth = 3;
+      x.beginPath();
+      x.arc(ccx, ccy, 41, 0, Math.PI * 2);
       x.stroke();
     }
   }
@@ -451,27 +403,10 @@ function drawScene(
       }
     }
 
-    // уровни улучшения: золотые точки снизу
-    if (o.up > 1) {
-      const n = o.up - 1;
-      for (let k = 0; k < n; k++) {
-        const px2 = c.x + (k - (n - 1) / 2) * 10;
-        x.beginPath();
-        x.arc(px2, c.y + 31, 3.4, 0, Math.PI * 2);
-        x.fillStyle = 'rgba(0,0,0,0.6)';
-        x.fill();
-        x.beginPath();
-        x.arc(px2, c.y + 31, 2.4, 0, Math.PI * 2);
-        x.fillStyle = '#fbbf24';
-        x.fill();
-      }
-    }
-
-    // заряженный (2+)
+    // заряженный (2+): плоское жёлтое кольцо
     if (o.level > 1) {
-      const info = TYPE_INFO[o.type];
-      x.strokeStyle = `${info.glow}0.55)`;
-      x.lineWidth = 2 + Math.min(4, o.level);
+      x.strokeStyle = 'rgba(251,191,36,0.85)';
+      x.lineWidth = 2 + Math.min(3, o.level - 1);
       x.beginPath();
       x.arc(c.x, c.y, 27, 0, Math.PI * 2);
       x.stroke();
@@ -520,8 +455,11 @@ function drawScene(
       x.arc(c.x, c.y, 40, -Math.PI / 2, -Math.PI / 2 + fx.lpProgress * Math.PI * 2);
       x.stroke();
       if (fx.lpProgress > 0.25) {
+        const lvl = g.upgradeLevel;
         const label =
-          o.up >= CONFIG.maxUpgrade ? 'Максимальный уровень' : `Улучшение: ${CONFIG.upgradeCosts[o.up - 1]}`;
+          lvl >= g.wave
+            ? `Лимит улучшений: ${g.wave} (номер волны)`
+            : `Улучшение: ${CONFIG.upgradeCostBase * (lvl + 1)} эссенции (все шарики)`;
         x.font = '700 13px Manrope, system-ui, sans-serif';
         const bw = x.measureText(label).width + 18;
         roundedRect(x, c.x - bw / 2, c.y - 62, bw, 22, 11);
@@ -560,21 +498,15 @@ function drawScene(
     const r = e.radius;
     const flash = g.now < e.flashUntil;
 
-    const body = x.createRadialGradient(ex - r * 0.35, ey - r * 0.4, r * 0.15, ex, ey, r);
-    if (e.boss) {
-      // два разных босса: Громила (красный) и Стриж (голубой)
-      const def = BOSS_DEFS[(e.bossId || 1) as BossId];
-      body.addColorStop(0, '#ffffff');
-      body.addColorStop(0.4, def.color);
-      body.addColorStop(1, def.dark);
-    } else {
-      body.addColorStop(0, '#cbd5e1');
-      body.addColorStop(0.7, '#64748b');
-      body.addColorStop(1, '#1e293b');
-    }
-    x.fillStyle = body;
+    // плоское тело: однотонный круг с тёмной кромкой
+    const def = e.boss ? BOSS_DEFS[(e.bossId || 1) as BossId] : null;
+    x.fillStyle = def ? def.dark : '#2b3548';
     x.beginPath();
     x.arc(ex, ey, r, 0, Math.PI * 2);
+    x.fill();
+    x.fillStyle = def ? def.color : '#5c6b85';
+    x.beginPath();
+    x.arc(ex, ey, r - 2.5, 0, Math.PI * 2);
     x.fill();
 
     if (g.now < e.slowUntil) {
@@ -629,8 +561,7 @@ function drawScene(
       x.fill();
     }
     // имя босса над полоской здоровья
-    if (e.boss) {
-      const def = BOSS_DEFS[(e.bossId || 1) as BossId];
+    if (e.boss && def) {
       x.font = '800 11px Manrope, system-ui, sans-serif';
       x.textAlign = 'center';
       x.textBaseline = 'alphabetic';
@@ -676,23 +607,17 @@ function drawScene(
       x.fill();
     }
     x.globalAlpha = 1;
-    // голова с лёгким вилянием
+    // плоская голова с лёгким вилянием
     const off = Math.sin(p.age * 9 + p.seed) * 4;
     const hx = p.x + nx * off;
     const hy = p.y + ny * off;
-    x.globalAlpha = 0.35;
+    x.fillStyle = info.dark;
+    x.beginPath();
+    x.arc(hx, hy, 6, 0, Math.PI * 2);
+    x.fill();
     x.fillStyle = info.color;
     x.beginPath();
-    x.arc(hx, hy, 9, 0, Math.PI * 2);
-    x.fill();
-    x.globalAlpha = 1;
-    const head = x.createRadialGradient(hx - 2, hy - 2, 1, hx, hy, 5.5);
-    head.addColorStop(0, '#ffffff');
-    head.addColorStop(0.6, info.color);
-    head.addColorStop(1, info.dark);
-    x.fillStyle = head;
-    x.beginPath();
-    x.arc(hx, hy, 5.5, 0, Math.PI * 2);
+    x.arc(hx, hy, 4.5, 0, Math.PI * 2);
     x.fill();
   }
 
