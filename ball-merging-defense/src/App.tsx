@@ -48,6 +48,9 @@ export default function App() {
         case 'detonate':
           buzz(70);
           break;
+        case 'upgrade':
+          buzz(20);
+          break;
         case 'gameover':
           buzz([90, 60, 90, 60, 220]);
           break;
@@ -77,11 +80,6 @@ export default function App() {
       if (e.code === 'Space') {
         e.preventDefault();
         if (active) game.toggleMode();
-      } else if (e.code === 'KeyB') {
-        if (active) {
-          initAudio();
-          game.buyOrb();
-        }
       } else if (e.code === 'Enter') {
         if (game.status === 'prep') game.callWaveNow();
       } else if (e.code === 'KeyP' || e.code === 'Escape') {
@@ -159,12 +157,16 @@ export default function App() {
           }}
           onEmptyTap={(i) => {
             initAudio();
-            g.buyOrbAt(i);
+            g.placeOrbAt(i);
           }}
           onDragPair={(a, b) => {
             initAudio();
             if (g.mode === 'combine') g.firePair(a, b);
             else g.mergePair(a, b);
+          }}
+          onUpgrade={(i) => {
+            initAudio();
+            g.upgradeCell(i);
           }}
           onSell={(i) => {
             initAudio();
@@ -184,10 +186,6 @@ export default function App() {
       {playing && (
         <Controls
           g={g}
-          onBuy={() => {
-            initAudio();
-            g.buyOrb();
-          }}
           onToggleMode={() => {
             initAudio();
             g.toggleMode();

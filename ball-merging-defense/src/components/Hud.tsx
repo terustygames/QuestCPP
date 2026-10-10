@@ -10,7 +10,6 @@ import {
   Volume2,
   VolumeX,
   HelpCircle,
-  Plus,
   Combine,
   Layers,
   Zap,
@@ -104,7 +103,7 @@ export function Header({
               : 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'
           }`}
         >
-          {speed}×
+          {speed}
         </button>
         <IconBtn onClick={onMute} title={muted ? 'Включить звук' : 'Выключить звук'}>
           {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
@@ -119,17 +118,14 @@ export function Header({
 
 export function Controls({
   g,
-  onBuy,
   onToggleMode,
   onCallWave,
 }: {
   g: Engine;
-  onBuy: () => void;
   onToggleMode: () => void;
   onCallWave: () => void;
 }) {
   const accum = g.mode === 'accumulate';
-  const canBuy = g.essence >= CONFIG.orbCost;
   return (
     <div
       className="flex items-stretch gap-2 px-3"
@@ -150,28 +146,14 @@ export function Controls({
         <span className="whitespace-nowrap">{accum ? 'Накопление' : 'Совмещение'}</span>
       </button>
 
-      <button
-        onClick={onBuy}
-        className={`flex min-h-[54px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 px-1.5 text-[13px] font-bold text-slate-950 shadow-lg shadow-cyan-500/25 transition-all active:scale-[0.96] sm:text-[15px] ${
-          canBuy ? '' : 'opacity-60'
-        }`}
-      >
-        <Plus size={18} strokeWidth={3} />
-        <span className="whitespace-nowrap">Шарик</span>
-        <span className="flex items-center gap-1 rounded-lg bg-black/25 px-1.5 py-0.5 text-[11px] sm:text-[13px]">
-          <Gem size={12} />
-          {CONFIG.orbCost}
-        </span>
-      </button>
-
       {g.status === 'prep' && (
         <button
           onClick={onCallWave}
           className="flex min-h-[54px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-2xl border border-amber-400/50 bg-amber-500/15 px-1.5 text-[13px] font-bold text-amber-300 transition-all active:scale-[0.96] sm:text-[15px]"
         >
           <Zap size={18} />
-          <span className="whitespace-nowrap">Волна</span>
-          <span className="rounded-lg bg-black/30 px-1.5 py-0.5 text-[11px] sm:text-[13px]">+{CONFIG.callBonus}</span>
+          <span className="whitespace-nowrap">Волна сейчас</span>
+          <span className="rounded-lg bg-black/30 px-1.5 py-0.5 text-[11px] sm:text-[13px]">{CONFIG.callBonus}</span>
         </button>
       )}
     </div>

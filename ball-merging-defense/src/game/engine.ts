@@ -22,12 +22,20 @@ import { sfx } from './audio';
 export type Status = 'title' | 'prep' | 'wave' | 'gameover';
 export type Mode = 'combine' | 'accumulate';
 // Короткие события для UI (виброотклик на телефоне)
-export type EngineEvent = 'leak' | 'kill' | 'boss' | 'clear' | 'gameover' | 'detonate';
+export type EngineEvent =
+  | 'leak'
+  | 'kill'
+  | 'boss'
+  | 'clear'
+  | 'gameover'
+  | 'detonate'
+  | 'upgrade';
 
 export interface OrbState {
   id: number;
   type: OrbType;
   level: number; // 1 — обычный, 2+ — заряженный (накопление)
+  up: number; // уровень улучшения: 1 — базовый, до CONFIG.maxUpgrade
   cdUntil: number; // время, до которого шарик на перезарядке
   bornAt: number; // для анимации появления
   pulse: number; // для анимации "толчка" при слиянии
@@ -53,6 +61,7 @@ export interface EnemyState {
 export interface ProjState {
   id: number;
   kind: OrbType;
+  up: number; // уровень улучшения стрелявшего шарика (влияет на эффект)
   x: number;
   y: number;
   vx: number;
@@ -122,10 +131,13 @@ export class Engine {
   prepUntil = 0;
 
   // --- очередь "лопания" шариков (чтобы взрывы шли красиво, с задержкой) ---
-  popQueue: { at: number; cell: number; count: number }[] = [];
+  popQueue: { at: number; cell: number; count: number; up: number }[] = [];
   popQueued = new Set<number>();
   chainCount = 0;
   maxChain = 0;
+
+  // --- автоматическое заполнение пустых клеток ---
+  nextAutoFill = 0;
 
   // --- статистика и UI-эффекты ---
   kills = 0;
@@ -190,10 +202,33 @@ export class Engine {
   }
 
   // ============ УПРАВЛЕНИЕ ИГРОЙ ============
+  // Случайный тип шарика (шипастый выпадает реже остальных)
+  private randomOrbType(): OrbType {
+    const r = Math.random() * 14;
+    if (r < 3) return 'fire';
+    if (r < 6) return 'ice';
+    if (r < 9) return 'bolt';
+    if (r < 12) return 'poison';
+    return 'spiky';
+  }
+
   startGame() {
     this.status = 'prep';
     this.prepUntil = this.now + CONFIG.firstPrep;
-    this.setBanner('Призывай шарики — скоро волна!');
+    this.nextAutoFill = 0;
+    // Поле начинается полностью заполненным (появление — каскадом)
+    for (let i = 0; i < this.grid.length; i++) {
+      this.grid[i] = {
+        id: this.nextId++,
+        type: this.randomOrbType(),
+        level: 1,
+        up: 1,
+        cdUntil: 0,
+        bornAt: this.now + i * 0.03,
+        pulse: this.now,
+      };
+    }
+    this.setBanner('Поле готово. Волна через 9 секунд');
   }
 
   startWave() {
@@ -204,14 +239,14 @@ export class Engine {
     if (bossWave) this.spawnPlan.push(true);
     for (let i = 0; i < normals; i++) this.spawnPlan.push(false);
     this.spawnTimer = 0.4;
-    this.setBanner(bossWave ? `ВОЛНА ${this.wave} — БОСС!` : `Волна ${this.wave}`);
+    this.setBanner(bossWave ? `Волна ${this.wave}: босс` : `Волна ${this.wave}`);
     sfx.waveStart();
   }
 
   callWaveNow() {
     if (this.status !== 'prep') return;
     this.essence += CONFIG.callBonus;
-    this.textP(STAGE_W / 2, 120, `+${CONFIG.callBonus} эссенции`, '#7dd3fc');
+    this.textP(STAGE_W / 2, 120, `${CONFIG.callBonus} эссенции`, '#7dd3fc');
     this.startWave();
   }
 
@@ -238,31 +273,46 @@ export class Engine {
   }
 
   // ============ ДЕЙСТВИЯ ИГРОКА ============
-  // Призвать шарик в случайную свободную клетку (кнопка «Шарик»)
-  buyOrb() {
-    const empty: number[] = [];
-    this.grid.forEach((o, i) => {
-      if (!o) empty.push(i);
-    });
-    if (!empty.length) return this.err('Нет свободных клеток');
-    this.buyOrbAt(empty[Math.floor(Math.random() * empty.length)]);
-  }
-
-  // Призвать шарик в конкретную пустую клетку (тап по пустой клетке)
-  buyOrbAt(cell: number) {
-    if (this.essence < CONFIG.orbCost) return this.err('Не хватает эссенции');
+  // Поместить новый шарик в пустую клетку. Бесплатно:
+  // автоматически (nextAutoFill) или по тапу игрока в пустую клетку.
+  placeOrbAt(cell: number, auto = false) {
     if (this.grid[cell]) return;
-    this.essence -= CONFIG.orbCost;
-    // Шипастый чуть реже остальных (2 из 14)
-    const r = Math.random() * 14;
-    const type: OrbType = r < 3 ? 'fire' : r < 6 ? 'ice' : r < 9 ? 'bolt' : r < 12 ? 'poison' : 'spiky';
-    this.grid[cell] = { id: this.nextId++, type, level: 1, cdUntil: 0, bornAt: this.now, pulse: this.now };
+    const type = this.randomOrbType();
+    this.grid[cell] = { id: this.nextId++, type, level: 1, up: 1, cdUntil: 0, bornAt: this.now, pulse: this.now };
     const c = cellC(cell);
-    this.ring(c.x, c.y, TYPE_INFO[type].color, 60);
-    this.spark(c.x, c.y, TYPE_INFO[type].color, 6, 90);
-    sfx.buy();
+    this.ring(c.x, c.y, TYPE_INFO[type].color, auto ? 46 : 60);
+    this.spark(c.x, c.y, TYPE_INFO[type].color, auto ? 4 : 6, 90);
+    if (auto) sfx.place();
+    else sfx.buy();
   }
 
+  // Улучшение шарика за эссенцию (долгое нажатие / ПКМ на десктопе)
+  upgradeCell(i: number) {
+    const o = this.grid[i];
+    if (!o) return;
+    if (o.up >= CONFIG.maxUpgrade) {
+      this.err('Максимальный уровень улучшения');
+      this.shake(i);
+      return;
+    }
+    const cost = CONFIG.upgradeCosts[o.up - 1];
+    if (this.essence < cost) {
+      this.err(`Не хватает эссенции, нужно ${cost}`);
+      this.shake(i);
+      return;
+    }
+    this.essence -= cost;
+    o.up += 1;
+    o.pulse = this.now;
+    const c = cellC(i);
+    this.ring(c.x, c.y, '#fbbf24', 64);
+    this.spark(c.x, c.y, '#fbbf24', 10, 110);
+    this.textP(c.x, c.y - 34, `Уровень ${o.up}`, '#fcd34d');
+    sfx.upgrade();
+    this.emit('upgrade');
+  }
+
+  // Продажа (ПКМ на десктопе): клетка опустеет и заполнится новым шариком
   sellCell(i: number) {
     const o = this.grid[i];
     if (!o) return;
@@ -272,7 +322,7 @@ export class Engine {
     this.popQueued.delete(i);
     if (this.sel === i) this.sel = null;
     const c = cellC(i);
-    this.textP(c.x, c.y - 10, `+${refund}`, '#7dd3fc');
+    this.textP(c.x, c.y - 10, `${refund}`, '#7dd3fc');
     this.spark(c.x, c.y, '#7dd3fc', 6, 80);
     sfx.sell();
   }
@@ -342,7 +392,7 @@ export class Engine {
     const c = cellC(a);
     this.ring(c.x, c.y, TYPE_INFO[A.type].color, 70);
     this.spark(c.x, c.y, TYPE_INFO[A.type].color, 8, 110);
-    this.textP(c.x, c.y - 14, `×${A.level}`, '#ffffff');
+    this.textP(c.x, c.y - 14, `${A.level}`, '#ffffff');
     sfx.merge();
   }
 
@@ -379,7 +429,7 @@ export class Engine {
     if (this.mode === 'combine') {
       this.mode = 'accumulate';
       this.sel = null;
-      this.setBanner('НАКОПЛЕНИЕ: сливай одинаковые шарики в один', 2.4);
+      this.setBanner('Режим накопления: сливай одинаковые шарики в один', 2.4);
       sfx.modeOn();
     } else {
       this.mode = 'combine';
@@ -389,19 +439,19 @@ export class Engine {
         const o = this.grid[i];
         if (o && o.level >= 2 && !this.popQueued.has(i)) {
           this.popQueued.add(i);
-          this.popQueue.push({ at: this.now + k * 0.08, cell: i, count: o.level * 2 });
+          this.popQueue.push({ at: this.now + k * 0.08, cell: i, count: o.level * 2, up: o.up });
           k++;
         }
       }
-      if (k > 0) {
-        this.setBanner(`ДЕТОНАЦИЯ! ×${k}`, 1.6);
-        this.detonateFlashUntil = this.now + 0.35;
-        sfx.detonate();
-        this.emit('detonate');
-      } else {
-        this.setBanner('Нет заряженных шариков (нужен уровень ×2 и выше)', 2);
-      }
+    if (k > 0) {
+      this.setBanner(`Детонация: разрушено ${k}`, 1.6);
+      this.detonateFlashUntil = this.now + 0.35;
+      sfx.detonate();
+      this.emit('detonate');
+    } else {
+      this.setBanner('Нет заряженных шариков (нужен уровень 2 и выше)', 2);
     }
+  }
   }
 
   // ============ СТРЕЛЬБА ============
@@ -409,16 +459,16 @@ export class Engine {
     const o = this.grid[cell];
     if (!o) return;
     const c = cellC(cell);
-    this.fireOrbAt(c.x, c.y, o.type, count);
+    this.fireOrbAt(c.x, c.y, o.type, count, o.up);
     sfx.shoot(o.type);
     o.pulse = this.now;
   }
 
-  fireOrbAt(x: number, y: number, type: OrbType, count: number) {
+  fireOrbAt(x: number, y: number, type: OrbType, count: number, up: number) {
     for (let k = 0; k < count; k++) {
       const target = this.pickTarget();
       this.projs.push({
-        id: this.nextId++, kind: type, x, y,
+        id: this.nextId++, kind: type, up, x, y,
         vx: (Math.random() - 0.5) * 260,
         vy: -150 - Math.random() * 160,
         targetId: target ? target.id : -1,
@@ -448,16 +498,15 @@ export class Engine {
     this.ring(c.x, c.y, '#b16cff', 110);
     this.spark(c.x, c.y, '#b16cff', 14, 190);
     sfx.pop();
-    const dirs: [number, number][] = [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ];
-    for (const [dx, dy] of dirs) {
+    // Улучшение добавляет иглы (4, 5, 6, 7), равномерно по кругу
+    const n = 4 + (o.up - 1);
+    for (let k = 0; k < n; k++) {
+      const a = -Math.PI / 2 + (Math.PI * 2 * k) / n;
+      const dx = Math.cos(a);
+      const dy = Math.sin(a);
       this.needles.push({
         id: this.nextId++, x: c.x + dx * 24, y: c.y + dy * 24,
-        dx, dy, ang: Math.atan2(dy, dx), life: 1.6, depth,
+        dx, dy, ang: a, life: 1.6, depth,
       });
     }
   }
@@ -474,10 +523,12 @@ export class Engine {
 
   // Попадание снаряда: эффект зависит от типа шарика, как и задумано
   impact(p: ProjState, e: EnemyState) {
+    const up = p.up;
     const pos = pathPoint(e.p);
     switch (p.kind) {
       case 'fire': {
-        this.damage(e, 3, '#ff9a3d');
+        // улучшение: основной урон 3, 4, 5, 6
+        this.damage(e, 3 + (up - 1), '#ff9a3d');
         this.ring(pos.x, pos.y, '#ff6a3d', 70);
         // осколки по соседним врагам
         for (const o of this.enemies) {
@@ -489,40 +540,45 @@ export class Engine {
         break;
       }
       case 'ice': {
+        // улучшение: замедление сильнее и дольше
         this.damage(e, 1, '#9be2ff');
-        e.slowUntil = this.now + 2.3;
-        e.slowFactor = 0.55;
+        e.slowUntil = this.now + 2.3 + 0.4 * (up - 1);
+        e.slowFactor = Math.max(0.2, 0.55 - 0.05 * (up - 1));
         this.ring(pos.x, pos.y, '#46c8ff', 44);
         break;
       }
       case 'bolt': {
-        this.damage(e, 2, '#ffe066');
-        let best: EnemyState | null = null;
-        let bd = 150 * 150;
-        for (const o of this.enemies) {
-          if (o === e || o.dead) continue;
-          const q = pathPoint(o.p);
-          const dx = q.x - pos.x, dy = q.y - pos.y;
-          const d2 = dx * dx + dy * dy;
-          if (d2 < bd) {
-            bd = d2;
-            best = o;
-          }
-        }
-        if (best) {
-          this.damage(best, 2, '#ffe066');
-          const q = pathPoint(best.p);
-          this.linkLine(pos.x, pos.y, q.x, q.y, '#ffd23f');
+        // улучшение: цепь бьёт 1, 2, 3 врагов, радиус 150, 180, 210
+        const chainN = up;
+        const radius = 150 + 30 * (up - 1);
+        const chainDmg = 2 + (up - 1);
+        this.damage(e, chainDmg, '#ffe066');
+        const cands = this.enemies
+          .filter((o) => o !== e && !o.dead)
+          .map((o) => {
+            const q = pathPoint(o.p);
+            const dx = q.x - pos.x, dy = q.y - pos.y;
+            return { o, q, d2: dx * dx + dy * dy };
+          })
+          .filter((c) => c.d2 < radius * radius)
+          .sort((a, b) => a.d2 - b.d2)
+          .slice(0, chainN);
+        for (const c of cands) {
+          this.damage(c.o, chainDmg, '#ffe066');
+          this.linkLine(pos.x, pos.y, c.q.x, c.q.y, '#ffd23f');
         }
         sfx.zap();
         break;
       }
       case 'poison': {
+        // улучшение: яд сильнее и дольше (1.2-3.0 в секунду, 4-5.5 секунд)
         this.damage(e, 1, '#86efac');
-        if (e.dots.length < 4) e.dots.push({ until: this.now + 4, dps: 1.2 });
+        const dps = 1.2 + 0.6 * (up - 1);
+        const until = this.now + 4 + 0.5 * (up - 1);
+        if (e.dots.length < 4) e.dots.push({ until, dps });
         else {
           e.dots.sort((x, y) => x.until - y.until);
-          e.dots[0].until = this.now + 4;
+          e.dots[0].until = until;
         }
         this.ring(pos.x, pos.y, '#4ade80', 40);
         break;
@@ -539,6 +595,18 @@ export class Engine {
 
     // подготовка -> старт волны по таймеру
     if (this.status === 'prep' && this.now >= this.prepUntil) this.startWave();
+
+    // автоматическое заполнение пустых клеток новым случайным шариком
+    if (this.now >= this.nextAutoFill) {
+      this.nextAutoFill += CONFIG.autoFillInterval;
+      const empties: number[] = [];
+      this.grid.forEach((o, i) => {
+        if (!o) empties.push(i);
+      });
+      if (empties.length) {
+        this.placeOrbAt(empties[Math.floor(Math.random() * empties.length)], true);
+      }
+    }
 
     // спавн врагов
     if (this.status === 'wave' && this.spawnPlan.length) {
@@ -588,7 +656,7 @@ export class Engine {
       this.kills++;
       const pos = pathPoint(e.p);
       this.spark(pos.x, pos.y, e.boss ? '#c084fc' : '#fbbf24', e.boss ? 18 : 9, e.boss ? 200 : 130);
-      this.textP(pos.x, pos.y - 14, `+${e.reward}`, '#fcd34d');
+      this.textP(pos.x, pos.y - 14, `${e.reward}`, '#fcd34d');
       this.emit('kill');
     }
     if (died.length) sfx.die();
@@ -606,7 +674,7 @@ export class Engine {
     if (this.status === 'wave' && !this.spawnPlan.length && !this.enemies.length) {
       const bonus = CONFIG.clearBonusBase + this.wave;
       this.essence += bonus;
-      this.setBanner(`Волна зачищена! +${bonus} эссенции`, 2.2);
+      this.setBanner(`Волна зачищена, бонус ${bonus} эссенции`, 2.2);
       sfx.clear();
       this.emit('clear');
       this.wave++;
@@ -661,7 +729,7 @@ export class Engine {
           if (o.type === 'spiky') {
             this.detonateSpiky(i, n.depth + 1); // цепная реакция!
           } else {
-            this.popQueue.push({ at: this.now + 0.05, cell: i, count: 2 * o.level });
+            this.popQueue.push({ at: this.now + 0.05, cell: i, count: 2 * o.level, up: o.up });
             this.spark(c.x, c.y, '#b16cff', 6, 100);
             sfx.needle();
           }
@@ -689,7 +757,7 @@ export class Engine {
           const c = cellC(q.cell);
           this.ring(c.x, c.y, TYPE_INFO[o.type].color, 54);
           this.spark(c.x, c.y, TYPE_INFO[o.type].color, 7, 110);
-          this.fireOrbAt(c.x, c.y, o.type, q.count);
+          this.fireOrbAt(c.x, c.y, o.type, q.count, q.up);
           sfx.popSmall();
         }
       }
@@ -699,7 +767,7 @@ export class Engine {
     if (this.chainCount > 0 && !this.needles.length && !this.popQueue.length) {
       if (this.chainCount >= 3) {
         this.essence += this.chainCount;
-        this.setBanner(`Цепная реакция ×${this.chainCount}! +${this.chainCount} эссенции`, 2);
+        this.setBanner(`Цепная реакция: ${this.chainCount}, бонус ${this.chainCount} эссенции`, 2);
         sfx.clear();
       }
       this.maxChain = Math.max(this.maxChain, this.chainCount);

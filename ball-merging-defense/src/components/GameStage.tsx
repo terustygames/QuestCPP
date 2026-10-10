@@ -2,7 +2,12 @@
 // ИГРОВОЕ ПОЛЕ. Один <canvas> вместо сотен DOM-узлов:
 // React перестал перерисовывать сцену 60 раз в секунду —
 // это главный источник производительности на телефоне.
-// Управление: tap / перетаскивание / долгое нажатие (продажа).
+// Управление:
+//   тап по шарику — выбор, тап по соседу — выстрел-слияние
+//   перетаскивание шарика на соседа — выстрел-слияние
+//   долгое нажатие на шарик — улучшение (за эссенцию)
+//   тап по пустой клетке — поставить шарик (бесплатно)
+//   ПКМ на десктопе — продать шарик
 // ============================================================
 
 import { useEffect, useRef } from 'react';
@@ -236,11 +241,11 @@ function drawBanner(x: CanvasRenderingContext2D, g: Engine) {
 
 // ---------- Эффекты ввода (для подсветок на канвасе) ----------
 export interface StageFx {
-  lpCell: number; // клетка под долгим нажатием
+  lpCell: number; // клетка под долгим нажатием (улучшение)
   lpProgress: number; // 0..1
   dragFrom: number; // клетка, откуда тащат
   dragHover: number; // клетка, на которой сейчас палец
-  buyHover: number; // пустая клетка под пальцем (можно призвать)
+  placeHover: number; // пустая клетка под пальцем (можно поставить)
 }
 
 // ---------- Главный рендер кадра ----------
@@ -266,7 +271,7 @@ function drawScene(
   drawBeacon(x, SPAWN_POS.x, SPAWN_POS.y, '#22c55e', vnow, 0);
   drawBeacon(x, EXIT_POS.x, EXIT_POS.y, '#ef4444', vnow, 1.7);
 
-  const canBuy = g.essence >= CONFIG.orbCost && (g.status === 'prep' || g.status === 'wave');
+  const active = g.status === 'prep' || g.status === 'wave';
   const sel = g.sel;
 
   // --- клетки ---
@@ -277,7 +282,7 @@ function drawScene(
     const has = !!g.grid[i];
     const isSel = sel === i;
     const isLink = sel !== null && sel !== i && has && isAdj(sel, i);
-    const isBuy = fx?.buyHover === i;
+    const isPlace = fx?.placeHover === i;
 
     roundedRect(x, px + ox, py, CELL, CELL, 16);
     if (has) {
@@ -287,11 +292,12 @@ function drawScene(
       x.lineWidth = 1.5;
       x.stroke();
     } else {
-      x.fillStyle = isBuy ? 'rgba(34,211,238,0.10)' : 'rgba(255,255,255,0.015)';
+      // пустая клетка: нейтральная рамка, подсветка только под пальцем
+      x.fillStyle = isPlace ? 'rgba(34,211,238,0.10)' : 'rgba(255,255,255,0.015)';
       x.fill();
       x.setLineDash([7, 7]);
-      x.strokeStyle = canBuy ? 'rgba(103,232,249,0.30)' : 'rgba(148,163,184,0.18)';
-      x.lineWidth = isBuy ? 2.5 : 1.5;
+      x.strokeStyle = active ? (isPlace ? 'rgba(103,232,249,0.45)' : 'rgba(148,163,184,0.20)') : 'rgba(148,163,184,0.12)';
+      x.lineWidth = isPlace ? 2.5 : 1.5;
       x.stroke();
       x.setLineDash([]);
     }
@@ -320,7 +326,12 @@ function drawScene(
     const o = g.grid[i];
     if (!o) continue;
     const c = cellC(i);
-    const box = 96;
+    // анимация появления: шарик вырастает из нуля
+    const sinceBorn = g.now - o.bornAt;
+    let scale = 1;
+    if (sinceBorn < 0) scale = 0.35; // ещё не время (каскад старта)
+    else if (sinceBorn < 0.18) scale = 0.35 + (sinceBorn / 0.18) * 0.65;
+    const box = 96 * scale;
     x.drawImage(sprites[o.type], c.x - box / 2, c.y - box / 2, box, box);
 
     // шипы у шипастого
@@ -342,7 +353,23 @@ function drawScene(
       }
     }
 
-    // заряженный (×2+)
+    // уровни улучшения: золотые точки снизу
+    if (o.up > 1) {
+      const n = o.up - 1;
+      for (let k = 0; k < n; k++) {
+        const px2 = c.x + (k - (n - 1) / 2) * 10;
+        x.beginPath();
+        x.arc(px2, c.y + 31, 3.4, 0, Math.PI * 2);
+        x.fillStyle = 'rgba(0,0,0,0.6)';
+        x.fill();
+        x.beginPath();
+        x.arc(px2, c.y + 31, 2.4, 0, Math.PI * 2);
+        x.fillStyle = '#fbbf24';
+        x.fill();
+      }
+    }
+
+    // заряженный (2+)
     if (o.level > 1) {
       const info = TYPE_INFO[o.type];
       x.strokeStyle = `${info.glow}0.55)`;
@@ -359,9 +386,9 @@ function drawScene(
         x.arc(c.x, c.y, 33, 0, Math.PI * 2);
         x.stroke();
       }
-      // бейдж ×N
+      // бейдж уровня заряда
       x.font = '800 12px Manrope, system-ui, sans-serif';
-      const label = `×${o.level}`;
+      const label = `${o.level}`;
       const bw = x.measureText(label).width + 10;
       roundedRect(x, c.x + 16, c.y - 38, bw, 18, 9);
       x.fillStyle = 'rgba(0,0,0,0.75)';
@@ -387,13 +414,29 @@ function drawScene(
       x.fill();
     }
 
-    // прогресс долгого нажатия (продажа)
+    // прогресс долгого нажатия (улучшение) и подпись стоимости
     if (fx && fx.lpCell === i && fx.lpProgress > 0) {
       x.strokeStyle = 'rgba(251,191,36,0.95)';
       x.lineWidth = 4;
       x.beginPath();
       x.arc(c.x, c.y, 40, -Math.PI / 2, -Math.PI / 2 + fx.lpProgress * Math.PI * 2);
       x.stroke();
+      if (fx.lpProgress > 0.25) {
+        const label =
+          o.up >= CONFIG.maxUpgrade ? 'Максимальный уровень' : `Улучшение: ${CONFIG.upgradeCosts[o.up - 1]}`;
+        x.font = '700 13px Manrope, system-ui, sans-serif';
+        const bw = x.measureText(label).width + 18;
+        roundedRect(x, c.x - bw / 2, c.y - 62, bw, 22, 11);
+        x.fillStyle = 'rgba(0,0,0,0.8)';
+        x.fill();
+        x.strokeStyle = 'rgba(251,191,36,0.5)';
+        x.lineWidth = 1;
+        x.stroke();
+        x.fillStyle = '#fcd34d';
+        x.textAlign = 'center';
+        x.textBaseline = 'middle';
+        x.fillText(label, c.x, c.y - 51);
+      }
     }
   }
 
@@ -599,7 +642,9 @@ function drawScene(
       x,
       STAGE_W / 2,
       STAGE_H - 46,
-      g.nextWaveBoss ? `Следующая: БОСС · врагов ${g.nextWaveSize}` : `Следующая: врагов ${g.nextWaveSize}`,
+      g.nextWaveBoss
+        ? `Следующая волна: босс, врагов ${g.nextWaveSize}`
+        : `Следующая волна: врагов ${g.nextWaveSize}`,
       g.nextWaveBoss ? '#f0abfc' : '#94a3b8',
     );
   } else if (g.status === 'wave') {
@@ -608,7 +653,7 @@ function drawScene(
       x,
       STAGE_W / 2,
       44,
-      bossOnField ? `Врагов: ${g.enemiesLeft} · БОСС` : `Врагов: ${g.enemiesLeft}`,
+      bossOnField ? `Врагов: ${g.enemiesLeft}, босс на поле` : `Врагов: ${g.enemiesLeft}`,
       '#fda4af',
     );
   }
@@ -631,7 +676,7 @@ interface Gesture {
   done: boolean;
 }
 
-const LP_TIME = 0.48; // сек, удержание = продажа
+const LP_TIME = 0.48; // сек, удержание = улучшение
 const MOVE_TOL = 16; // логических px, после этого жест считается движением
 
 export function GameStage({
@@ -642,6 +687,7 @@ export function GameStage({
   onCellTap,
   onEmptyTap,
   onDragPair,
+  onUpgrade,
   onSell,
 }: {
   g: Engine;
@@ -651,6 +697,7 @@ export function GameStage({
   onCellTap: (i: number) => void;
   onEmptyTap: (i: number) => void;
   onDragPair: (a: number, b: number) => void;
+  onUpgrade: (i: number) => void;
   onSell: (i: number) => void;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
@@ -711,26 +758,26 @@ export function GameStage({
             lpProgress: 0,
             dragFrom: gs.cell,
             dragHover: gs.hover,
-            buyHover: -1,
+            placeHover: -1,
           };
         } else if (gs.drag && !gs.moved) {
-          // удерживаем шарик — кольцо прогресса продажи
+          // удерживаем шарик — кольцо прогресса улучшения
           const pr = (performance.now() - gs.lpStart) / (LP_TIME * 1000);
           fxRef.current = {
             lpCell: gs.cell,
             lpProgress: Math.min(1, pr),
             dragFrom: -1,
             dragHover: -1,
-            buyHover: -1,
+            placeHover: -1,
           };
         } else if (!gs.drag && !gs.moved) {
-          // держим палец на пустой клетке — подсветка «призвать сюда»
+          // держим палец на пустой клетке — подсветка «поставить сюда»
           fxRef.current = {
             lpCell: -1,
             lpProgress: 0,
             dragFrom: -1,
             dragHover: -1,
-            buyHover: g.grid[gs.cell] ? -1 : gs.cell,
+            placeHover: g.grid[gs.cell] ? -1 : gs.cell,
           };
         } else {
           fxRef.current = null;
@@ -806,7 +853,7 @@ export function GameStage({
       gs.lpTimer = window.setTimeout(() => {
         if (gesture.current === gs && !gs.moved) {
           gs.done = true;
-          onSell(i);
+          onUpgrade(i);
         }
       }, LP_TIME * 1000);
     }
@@ -850,7 +897,7 @@ export function GameStage({
       // тащили, но никуда не попали — отменяем
       return;
     }
-    // пустая клетка: короткий тап = призвать шарик сюда
+    // пустая клетка: короткий тап = поставить шарик сюда (бесплатно)
     if (!gs.moved) onEmptyTap(i);
   };
 
@@ -864,7 +911,7 @@ export function GameStage({
         onPointerMove={onPointerMove}
         onPointerUp={(e) => finish(e, true)}
         onPointerCancel={(e) => finish(e, false)}
-        // ПКМ на десктопе = продажа (на телефоне это долгое нажатие)
+        // ПКМ на десктопе = продажа (на телефоне продажи нет, поле заполняется само)
         onContextMenu={(e) => {
           e.preventDefault();
           const p = toStage(e);

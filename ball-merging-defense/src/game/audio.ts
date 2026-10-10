@@ -76,6 +76,13 @@ export const sfx = {
   sell() {
     tone(700, 420, 0.09, 'triangle', 0.1);
   },
+  place() {
+    tone(440, 720, 0.09, 'sine', 0.1);
+  },
+  upgrade() {
+    tone(520, 1040, 0.12, 'triangle', 0.13);
+    tone(780, 1560, 0.12, 'sine', 0.09, 0.05);
+  },
   merge() {
     tone(300, 540, 0.13, 'triangle', 0.15);
     tone(450, 810, 0.13, 'sine', 0.08, 0.03);
