@@ -5,6 +5,10 @@
 // ============================================================
 
 import {
+  ALL_TYPES,
+  BOSS_DEFS,
+  BOSS_IDS,
+  CLASSIC_TYPES,
   CONFIG,
   COLS,
   ROWS,
@@ -15,12 +19,15 @@ import {
   cellC,
   pathPoint,
   TYPE_INFO,
+  type BossId,
   type OrbType,
 } from './config';
 import { sfx } from './audio';
 
 export type Status = 'title' | 'prep' | 'wave' | 'gameover';
 export type Mode = 'combine' | 'accumulate';
+// Режим игры: обычный (как раньше) или экспериментальный (меняющаяся колода)
+export type GameMode = 'normal' | 'experimental';
 // Короткие события для UI (виброотклик на телефоне)
 export type EngineEvent =
   | 'leak'
@@ -50,10 +57,12 @@ export interface EnemyState {
   radius: number;
   slowUntil: number;
   slowFactor: number;
+  stunUntil: number; // время, до которого враг заморожен (паралич)
   dots: { until: number; dps: number }[]; // яды
   reward: number;
   leakDmg: number;
   boss: boolean;
+  bossId: number; // 0 — не босс, иначе 1 или 2 (какой именно босс)
   flashUntil: number;
   dead: boolean;
 }
@@ -71,6 +80,9 @@ export interface ProjState {
   seed: number;
   life: number;
   trail: { x: number; y: number }[];
+  straight?: boolean; // летит прямо (пробой), без самонаведения
+  pierceLeft?: number; // сколько врагов ещё пробивает
+  hitIds?: number[]; // враги, уже поражённые этим снарядом
 }
 
 export interface NeedleState {
@@ -104,6 +116,7 @@ export class Engine {
   // --- состояние игры ---
   status: Status = 'title';
   mode: Mode = 'combine';
+  gameMode: GameMode = 'normal';
   now = 0;
   wave = 1;
   lives = CONFIG.lives;
@@ -126,9 +139,11 @@ export class Engine {
   }
 
   // --- волны ---
-  spawnPlan: boolean[] = []; // true = босс
+  // план спавна: 0 = обычный враг, 1/2 = босс (какой — по BOSS_DEFS)
+  spawnPlan: number[] = [];
   spawnTimer = 0;
   prepUntil = 0;
+  pendingBossId = 0; // босс следующей босс-волны (выбирает рулетка)
 
   // --- очередь "лопания" шариков (чтобы взрывы шли красиво, с задержкой) ---
   popQueue: { at: number; cell: number; count: number; up: number }[] = [];
@@ -138,6 +153,12 @@ export class Engine {
 
   // --- автоматическое заполнение пустых клеток ---
   nextAutoFill = 0;
+
+  // --- колода типов шариков ---
+  // В обычном режиме — пять базовых типов.
+  // В экспериментальном — пять случайных из десяти, меняются каждую 5-ю волну.
+  deck: OrbType[] = [...CLASSIC_TYPES];
+  lastVampAt = -10; // дроссель эссенции от вампира
 
   // --- статистика и UI-эффекты ---
   kills = 0;
@@ -202,8 +223,12 @@ export class Engine {
   }
 
   // ============ УПРАВЛЕНИЕ ИГРОЙ ============
-  // Случайный тип шарика (шипастый выпадает реже остальных)
+  // Случайный тип шарика из текущей колоды.
+  // В обычном режиме шипастый выпадает реже остальных.
   private randomOrbType(): OrbType {
+    if (this.gameMode === 'experimental') {
+      return this.deck[Math.floor(Math.random() * this.deck.length)];
+    }
     const r = Math.random() * 14;
     if (r < 3) return 'fire';
     if (r < 6) return 'ice';
@@ -212,11 +237,11 @@ export class Engine {
     return 'spiky';
   }
 
-  startGame() {
-    this.status = 'prep';
-    this.prepUntil = this.now + CONFIG.firstPrep;
-    this.nextAutoFill = 0;
-    // Поле начинается полностью заполненным (появление — каскадом)
+  // Заполнить всё поле новыми шариками из колоды (каскадное появление)
+  refillField() {
+    this.sel = null;
+    this.popQueue.length = 0;
+    this.popQueued.clear();
     for (let i = 0; i < this.grid.length; i++) {
       this.grid[i] = {
         id: this.nextId++,
@@ -228,7 +253,36 @@ export class Engine {
         pulse: this.now,
       };
     }
-    this.setBanner('Поле готово. Волна через 9 секунд');
+  }
+
+  // Экспериментальный режим: новая колода — 5 случайных типов из десяти.
+  // Поле пересобирается под новую колоду.
+  reshuffleDeck(initial = false) {
+    const pool = [...ALL_TYPES];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    this.deck = pool.slice(0, CONFIG.deckSize);
+    if (!initial) this.refillField();
+    this.setBanner(`Колода: ${this.deck.map((t) => TYPE_INFO[t].name).join(', ')}`, 3.5);
+  }
+
+  startGame(mode: GameMode = 'normal') {
+    this.gameMode = mode;
+    this.status = 'prep';
+    this.prepUntil = this.now + CONFIG.firstPrep;
+    this.nextAutoFill = 0;
+    this.pendingBossId = 0;
+    if (mode === 'experimental') {
+      this.reshuffleDeck(true);
+      this.refillField();
+      this.setBanner('Экспериментальный режим. Волна через 9 секунд');
+    } else {
+      this.deck = [...CLASSIC_TYPES];
+      this.refillField();
+      this.setBanner('Поле готово. Волна через 9 секунд');
+    }
   }
 
   startWave() {
@@ -236,10 +290,16 @@ export class Engine {
     const bossWave = this.wave % CONFIG.bossEvery === 0;
     const normals = bossWave ? 4 + this.wave : CONFIG.waveCountBase + this.wave * CONFIG.waveCountPer;
     this.spawnPlan = [];
-    if (bossWave) this.spawnPlan.push(true);
-    for (let i = 0; i < normals; i++) this.spawnPlan.push(false);
+    if (bossWave) {
+      // если босс ещё не выбран (страховка) — берём случайного
+      if (!this.pendingBossId) this.pendingBossId = BOSS_IDS[Math.floor(Math.random() * BOSS_IDS.length)];
+      this.spawnPlan.push(this.pendingBossId);
+    }
+    for (let i = 0; i < normals; i++) this.spawnPlan.push(0);
     this.spawnTimer = 0.4;
-    this.setBanner(bossWave ? `Волна ${this.wave}: босс` : `Волна ${this.wave}`);
+    this.setBanner(
+      bossWave ? `Волна ${this.wave}: босс ${BOSS_DEFS[this.pendingBossId as BossId].name}` : `Волна ${this.wave}`,
+    );
     sfx.waveStart();
   }
 
@@ -255,19 +315,24 @@ export class Engine {
     return Math.max(CONFIG.spawnIntervalMin, base - this.wave * 0.03);
   }
 
-  spawnEnemy(boss: boolean) {
+  // kind: 0 = обычный враг, 1 или 2 = босс (BOSS_DEFS)
+  spawnEnemy(kind: number) {
     const w = this.wave;
+    const boss = kind > 0;
+    const def = boss ? BOSS_DEFS[kind as BossId] : null;
     const hp = boss
-      ? Math.round(CONFIG.bossHp * Math.pow(CONFIG.bossHpGrowth, w / CONFIG.bossEvery - 1))
+      ? Math.round(CONFIG.bossHp * def!.hpMult * Math.pow(CONFIG.bossHpGrowth, w / CONFIG.bossEvery - 1))
       : Math.round(CONFIG.enemyHp * Math.pow(CONFIG.enemyHpGrowth, w - 1));
     this.enemies.push({
       id: this.nextId++, p: 0, hp, maxHp: hp,
-      speed: boss ? CONFIG.bossSpeed : Math.min(CONFIG.enemySpeedCap, CONFIG.enemySpeed + (w - 1) * CONFIG.enemySpeedGrowth),
-      radius: boss ? 22 : 14,
-      slowUntil: 0, slowFactor: 1, dots: [],
-      reward: boss ? CONFIG.bossReward : CONFIG.enemyReward,
+      speed: boss
+        ? CONFIG.bossSpeed * def!.speedMult
+        : Math.min(CONFIG.enemySpeedCap, CONFIG.enemySpeed + (w - 1) * CONFIG.enemySpeedGrowth),
+      radius: boss ? def!.radius : 14,
+      slowUntil: 0, slowFactor: 1, stunUntil: 0, dots: [],
+      reward: boss ? def!.reward : CONFIG.enemyReward,
       leakDmg: boss ? CONFIG.bossLeak : 1,
-      boss, flashUntil: 0, dead: false,
+      boss, bossId: boss ? kind : 0, flashUntil: 0, dead: false,
     });
     if (boss) this.emit('boss');
   }
@@ -459,14 +524,37 @@ export class Engine {
     const o = this.grid[cell];
     if (!o) return;
     const c = cellC(cell);
-    this.fireOrbAt(c.x, c.y, o.type, count, o.up);
+    // шквал всегда бьёт залпом из пяти
+    const n = o.type === 'barrage' ? Math.max(count, 5) : count;
+    this.fireOrbAt(c.x, c.y, o.type, n, o.up);
     sfx.shoot(o.type);
     o.pulse = this.now;
   }
 
   fireOrbAt(x: number, y: number, type: OrbType, count: number, up: number) {
+    if (type === 'barrage') count = Math.max(count, 5); // залп не меньше пяти
     for (let k = 0; k < count; k++) {
       const target = this.pickTarget();
+      if (type === 'pierce') {
+        // пробой: прямой выстрел в сторону цели, без самонаведения
+        let dx = Math.random() - 0.5;
+        let dy = -1;
+        if (target) {
+          const tp = pathPoint(target.p);
+          dx = tp.x - x;
+          dy = tp.y - y;
+        }
+        const d = Math.hypot(dx, dy) || 1;
+        const sp = 430;
+        this.projs.push({
+          id: this.nextId++, kind: type, up, x, y,
+          vx: (dx / d) * sp, vy: (dy / d) * sp,
+          targetId: -1,
+          age: 0, seed: Math.random() * 10, life: 1.4, trail: [],
+          straight: true, pierceLeft: 2 + (up - 1), hitIds: [],
+        });
+        continue;
+      }
       this.projs.push({
         id: this.nextId++, kind: type, up, x, y,
         vx: (Math.random() - 0.5) * 260,
@@ -583,6 +671,50 @@ export class Engine {
         this.ring(pos.x, pos.y, '#4ade80', 40);
         break;
       }
+      case 'nova': {
+        // взрыв: урон всем врагам в радиусе (улучшение: радиус и урон выше)
+        const radius = 95 + 20 * (up - 1);
+        const dmg = 4 + (up - 1);
+        this.damage(e, dmg, '#ff8fa3');
+        for (const o of this.enemies) {
+          if (o === e || o.dead) continue;
+          const q = pathPoint(o.p);
+          const dx = q.x - pos.x, dy = q.y - pos.y;
+          if (dx * dx + dy * dy < radius * radius) this.damage(o, dmg, '#ff8fa3', false);
+        }
+        this.ring(pos.x, pos.y, '#ff4d6d', radius);
+        this.spark(pos.x, pos.y, '#ff8fa3', 12, 170);
+        break;
+      }
+      case 'stun': {
+        // паралич: цель замирает (улучшение: дольше)
+        this.damage(e, 1, '#ffd27a');
+        e.stunUntil = this.now + 1.2 + 0.4 * (up - 1);
+        this.ring(pos.x, pos.y, '#f59e0b', 42);
+        this.spark(pos.x, pos.y, '#ffd27a', 6, 80);
+        break;
+      }
+      case 'pierce': {
+        // пробой: урон каждому врагу на линии (улучшение: урон выше, пробивает больше)
+        this.damage(e, 2 + (up - 1), '#b3beff');
+        break;
+      }
+      case 'vampire': {
+        // вампир: урон + эссенция (с дросселем, не чаще раза в 0.35 с)
+        this.damage(e, 1 + (up - 1), '#ff9cc7');
+        if (this.now - this.lastVampAt > 0.35) {
+          this.lastVampAt = this.now;
+          this.essence += 1;
+          this.textP(pos.x, pos.y - 30, '1', '#ff9cc7');
+        }
+        this.ring(pos.x, pos.y, '#ff5da2', 34);
+        break;
+      }
+      case 'barrage': {
+        // шквал: каждый снаряд залпа наносит 1 урон
+        this.damage(e, 1, '#8ff5e4');
+        break;
+      }
       default:
         this.damage(e, 1);
     }
@@ -596,16 +728,15 @@ export class Engine {
     // подготовка -> старт волны по таймеру
     if (this.status === 'prep' && this.now >= this.prepUntil) this.startWave();
 
-    // автоматическое заполнение пустых клеток новым случайным шариком
+    // автоматическое заполнение: раз в 2 секунды все пустые клетки
+    // заполняются новыми случайными шариками (поле всегда на месте)
     if (this.now >= this.nextAutoFill) {
       this.nextAutoFill += CONFIG.autoFillInterval;
       const empties: number[] = [];
       this.grid.forEach((o, i) => {
         if (!o) empties.push(i);
       });
-      if (empties.length) {
-        this.placeOrbAt(empties[Math.floor(Math.random() * empties.length)], true);
-      }
+      for (const cell of empties) this.placeOrbAt(cell, true);
     }
 
     // спавн врагов
@@ -629,8 +760,9 @@ export class Engine {
           this.spark(pos.x, pos.y, '#4ade80', 1, 40);
         }
       }
+      const stunned = this.now < e.stunUntil; // паралич: враг замирает
       const slowF = this.now < e.slowUntil ? e.slowFactor : 1;
-      e.p += e.speed * slowF * dt;
+      e.p += (stunned ? 0 : e.speed) * slowF * dt;
       if (e.hp <= 0) e.dead = true;
       else if (e.p >= LEAK_AT) leakedNow.push(e);
     }
@@ -674,18 +806,52 @@ export class Engine {
     if (this.status === 'wave' && !this.spawnPlan.length && !this.enemies.length) {
       const bonus = CONFIG.clearBonusBase + this.wave;
       this.essence += bonus;
-      this.setBanner(`Волна зачищена, бонус ${bonus} эссенции`, 2.2);
       sfx.clear();
       this.emit('clear');
       this.wave++;
       this.status = 'prep';
-      this.prepUntil = this.now + CONFIG.prepTime;
+      const bossWave = this.wave % CONFIG.bossEvery === 0;
+      if (bossWave) {
+        // рулетка: выбираем босса следующей волны ещё в подготовке,
+        // чтобы у игрока было время на подготовку
+        this.pendingBossId = BOSS_IDS[Math.floor(Math.random() * BOSS_IDS.length)];
+        this.prepUntil = this.now + CONFIG.bossPrepTime;
+        if (this.gameMode === 'experimental') this.reshuffleDeck();
+        this.setBanner(`Скоро босс: ${BOSS_DEFS[this.pendingBossId as BossId].name}`, 3);
+      } else {
+        this.prepUntil = this.now + CONFIG.prepTime;
+        this.setBanner(`Волна зачищена, бонус ${bonus} эссенции`, 2.2);
+      }
     }
 
     // --- снаряды: самонаведение с дугой (как в Random Dice) ---
     for (const p of this.projs) {
       p.age += dt;
       p.life -= dt;
+      // пробой: летит прямо и поражает врагов на линии (до pierceLeft целей)
+      if (p.straight) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.trail.unshift({ x: p.x, y: p.y });
+        if (p.trail.length > 5) p.trail.pop();
+        for (const e of this.enemies) {
+          if (e.dead || p.hitIds!.includes(e.id)) continue;
+          const tp = pathPoint(e.p);
+          const dx = tp.x - p.x, dy = tp.y - p.y;
+          const rr = e.radius + 12;
+          if (dx * dx + dy * dy < rr * rr) {
+            this.impact(p, e);
+            p.hitIds!.push(e.id);
+            p.pierceLeft = (p.pierceLeft ?? 1) - 1;
+            if (p.pierceLeft <= 0) {
+              p.life = 0;
+              break;
+            }
+          }
+        }
+        if (p.x < -30 || p.x > STAGE_W + 30 || p.y < -30 || p.y > STAGE_H + 30) p.life = 0;
+        continue;
+      }
       let t = this.enemies.find((e) => e.id === p.targetId) ?? null;
       if (!t) t = this.pickTarget();
       if (t) {

@@ -5,7 +5,17 @@
 // в CONFIG в конце файла, остальной код трогать не нужно.
 // ============================================================
 
-export type OrbType = 'fire' | 'ice' | 'bolt' | 'poison' | 'spiky';
+export type OrbType =
+  | 'fire'
+  | 'ice'
+  | 'bolt'
+  | 'poison'
+  | 'spiky'
+  | 'nova'
+  | 'stun'
+  | 'pierce'
+  | 'vampire'
+  | 'barrage';
 
 // ---------- Размеры игрового поля (логические пиксели) ----------
 // Портретная ориентация: поле рассчитано под вертикальный экран телефона.
@@ -90,7 +100,9 @@ export function pathPoint(p: number) {
   return { x: cx + R * Math.cos(a), y: cy + R * Math.sin(a), tx: -Math.sin(a), ty: Math.cos(a) };
 }
 
-// ---------- Описание типов шариков ----------
+// ---------- Описание типов шариков (всего 10) ----------
+// Пять базовых типов действуют в обоих режимах.
+// Пять дополнительных действуют только в экспериментальном режиме.
 export const TYPE_INFO: Record<
   OrbType,
   { name: string; color: string; dark: string; glow: string; desc: string }
@@ -130,9 +142,88 @@ export const TYPE_INFO: Record<
     glow: 'rgba(177,108,255,',
     desc: 'при соединении лопается: иглы разрушают шарики, разрушенные выстреливают',
   },
+  nova: {
+    name: 'Сверхновая',
+    color: '#ff4d6d',
+    dark: '#5e0d1e',
+    glow: 'rgba(255,77,109,',
+    desc: 'взрыв: 4 ед. урона всем врагам в радиусе 95 пикселей',
+  },
+  stun: {
+    name: 'Паралич',
+    color: '#f59e0b',
+    dark: '#5e3a03',
+    glow: 'rgba(245,158,11,',
+    desc: '1 ед. урона, цель замирает на 1.2 с',
+  },
+  pierce: {
+    name: 'Пробой',
+    color: '#8b9dff',
+    dark: '#1e2a6e',
+    glow: 'rgba(139,157,255,',
+    desc: 'снаряд летит прямо и пробивает до 2 врагов на линии',
+  },
+  vampire: {
+    name: 'Вампир',
+    color: '#ff5da2',
+    dark: '#5e0d33',
+    glow: 'rgba(255,93,162,',
+    desc: '1 ед. урона и 1 эссенция за попадание (не чаще раза в 0.35 с)',
+  },
+  barrage: {
+    name: 'Шквал',
+    color: '#2dd4bf',
+    dark: '#0a4a42',
+    glow: 'rgba(45,212,191,',
+    desc: 'залп из пяти снарядов, каждый наносит 1 ед. урона',
+  },
 };
 
-export const ORB_TYPES: OrbType[] = ['fire', 'ice', 'bolt', 'poison', 'spiky'];
+export const ALL_TYPES: OrbType[] = ['fire', 'ice', 'bolt', 'poison', 'spiky', 'nova', 'stun', 'pierce', 'vampire', 'barrage'];
+// Базовая колода обычного режима
+export const CLASSIC_TYPES: OrbType[] = ['fire', 'ice', 'bolt', 'poison', 'spiky'];
+
+// ---------- Боссы (двое, рулетка выбирает одного перед босс-волной) ----------
+export type BossId = 1 | 2;
+export interface BossDef {
+  id: BossId;
+  name: string;
+  color: string;
+  dark: string;
+  glow: string;
+  hpMult: number; // множитель здоровья относительно CONFIG.bossHp
+  speedMult: number; // множитель скорости относительно CONFIG.bossSpeed
+  radius: number;
+  reward: number;
+  desc: string; // короткое техническое описание для рулетки
+}
+export const BOSS_DEFS: Record<BossId, BossDef> = {
+  1: {
+    id: 1,
+    name: 'Громила',
+    color: '#ff5d5d',
+    dark: '#4d0d0d',
+    glow: 'rgba(255,93,93,',
+    hpMult: 2.3,
+    speedMult: 0.62,
+    radius: 26,
+    reward: 25,
+    desc: 'высокое здоровье, низкая скорость: готовь урон и накопление',
+  },
+  2: {
+    id: 2,
+    name: 'Стриж',
+    color: '#5dd9ff',
+    dark: '#0d3a55',
+    glow: 'rgba(93,217,255,',
+    hpMult: 1.0,
+    speedMult: 1.75,
+    radius: 20,
+    reward: 18,
+    desc: 'стандартное здоровье, высокая скорость: готовь замедление и паралич',
+  },
+};
+export const BOSS_IDS: BossId[] = [1, 2];
 
 // ---------- БАЛАНС (все цифры геймдизайна тут) ----------
 export const CONFIG = {
@@ -143,6 +234,9 @@ export const CONFIG = {
   autoFillInterval: 2.0, // период автоматического заполнения пустых клеток (сек)
   upgradeCosts: [8, 16, 24, 32], // стоимость перехода на следующий уровень улучшения
   maxUpgrade: 4, // максимальный уровень улучшения
+
+  deckSize: 5, // размер колоды в экспериментальном режиме
+  bossPrepTime: 8, // подготовка перед босс-волной (рулетка + время на подготовку)
 
   cooldown: 1.6, // перезарядка шарика после выстрела (сек)
 

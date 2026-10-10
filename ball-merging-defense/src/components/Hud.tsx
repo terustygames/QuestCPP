@@ -15,7 +15,7 @@ import {
   Zap,
 } from 'lucide-react';
 import type { Engine } from '../game/engine';
-import { CONFIG } from '../game/config';
+import { CONFIG, TYPE_INFO } from '../game/config';
 
 function Chip({ icon, value, tone }: { icon: ReactNode; value: ReactNode; tone?: string }) {
   return (
@@ -113,6 +113,27 @@ export function Header({
         </IconBtn>
       </div>
     </header>
+  );
+}
+
+// Колода экспериментального режима: пять типов, из которых сейчас
+// заполняется поле. Меняется каждую пятую волну.
+export function DeckRow({ g }: { g: Engine }) {
+  if (g.gameMode !== 'experimental') return null;
+  return (
+    <div className="flex items-center justify-center gap-2 px-3 pt-1.5">
+      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Колода</span>
+      <div className="flex items-center gap-1.5">
+        {g.deck.map((t) => (
+          <span
+            key={t}
+            title={TYPE_INFO[t].name}
+            className="h-3.5 w-3.5 rounded-full border border-white/30"
+            style={{ background: TYPE_INFO[t].color }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 

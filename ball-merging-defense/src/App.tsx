@@ -5,11 +5,13 @@
 // ============================================================
 
 import { useEffect, useRef, useState } from 'react';
-import { Engine } from './game/engine';
+import { Engine, type GameMode } from './game/engine';
+import { CONFIG, type BossId } from './game/config';
 import { initAudio, setMuted } from './game/audio';
 import { GameStage } from './components/GameStage';
-import { Header, Controls } from './components/Hud';
+import { Header, Controls, DeckRow } from './components/Hud';
 import { TitleOverlay, HelpOverlay, GameOverOverlay } from './components/Overlays';
+import { BossRoulette } from './components/BossRoulette';
 
 // Виброотклик (работает на Android; на iPhone браузеры не дают — просто игнорируем)
 function buzz(pattern: number | number[]) {
@@ -64,6 +66,8 @@ export default function App() {
   const [speed, setSpeed] = useState(1);
   const [muted, setMutedState] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  // номер волны, для которой рулетка уже отыграна (не показывать дважды)
+  const [rouletteWave, setRouletteWave] = useState(0);
 
   // HUD: лёгкая перерисовка 10 раз/сек (цислы, статусы)
   useEffect(() => {
@@ -100,14 +104,15 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
-  const startNew = () => {
+  const startNew = (mode: GameMode) => {
     initAudio();
     const game = new Engine();
     game.onEvent = engRef.current!.onEvent;
     engRef.current = game;
-    game.startGame();
+    game.startGame(mode);
     setPaused(false);
     setHelpOpen(false);
+    setRouletteWave(0);
     setFrame((f) => f + 1);
   };
 
@@ -184,19 +189,37 @@ export default function App() {
       </div>
 
       {playing && (
-        <Controls
-          g={g}
-          onToggleMode={() => {
-            initAudio();
-            g.toggleMode();
-          }}
-          onCallWave={() => g.callWaveNow()}
-        />
+        <>
+          <DeckRow g={g} />
+          <Controls
+            g={g}
+            onToggleMode={() => {
+              initAudio();
+              g.toggleMode();
+            }}
+            onCallWave={() => g.callWaveNow()}
+          />
+        </>
       )}
+
+      {/* рулетка: перед каждой босс-волной (каждая пятая) в подготовке */}
+      {g.status === 'prep' &&
+        g.wave % CONFIG.bossEvery === 0 &&
+        g.pendingBossId > 0 &&
+        rouletteWave !== g.wave && (
+          <BossRoulette
+            bossId={g.pendingBossId as BossId}
+            onDone={() => setRouletteWave(g.wave)}
+            onWaveNow={() => {
+              g.callWaveNow();
+              setRouletteWave(g.wave);
+            }}
+          />
+        )}
 
       {g.status === 'title' && <TitleOverlay onStart={startNew} />}
       {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
-      {g.status === 'gameover' && <GameOverOverlay g={g} onRestart={startNew} />}
+      {g.status === 'gameover' && <GameOverOverlay g={g} onRestart={() => startNew(g.gameMode)} />}
     </div>
   );
 }

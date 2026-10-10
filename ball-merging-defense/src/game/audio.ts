@@ -97,7 +97,24 @@ export const sfx = {
     if (kind === 'fire') tone(320, 110, 0.14, 'sawtooth', 0.09);
     else if (kind === 'ice') tone(880, 1500, 0.09, 'sine', 0.07);
     else if (kind === 'bolt') tone(1250, 320, 0.07, 'square', 0.055);
+    else if (kind === 'nova') {
+      tone(180, 50, 0.2, 'sawtooth', 0.12);
+      noiseBurst(0.12, 0.1);
+    } else if (kind === 'stun') tone(1500, 2200, 0.08, 'square', 0.06);
+    else if (kind === 'pierce') tone(900, 1400, 0.07, 'triangle', 0.08);
+    else if (kind === 'vampire') tone(300, 120, 0.12, 'sine', 0.1);
+    else if (kind === 'barrage') [0, 0.05, 0.1].forEach((d) => tone(520, 320, 0.05, 'triangle', 0.05, d));
     else tone(430, 170, 0.13, 'sine', 0.09);
+  },
+  // тики ленты рулетки босса (по ходу вращения)
+  reelTick() {
+    for (let i = 0; i < 12; i++) tone(1100, 850, 0.035, 'square', 0.045, 0.15 + i * 0.22);
+  },
+  // появление босса
+  bossReveal() {
+    tone(70, 38, 0.6, 'sawtooth', 0.22);
+    tone(140, 60, 0.5, 'square', 0.1, 0.05);
+    noiseBurst(0.35, 0.12, 0.05);
   },
   pop() {
     noiseBurst(0.18, 0.25);

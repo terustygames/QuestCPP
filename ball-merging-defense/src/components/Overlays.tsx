@@ -13,15 +13,18 @@ import {
   X,
   Hand,
   TrendingUp,
+  Trophy,
+  FlaskConical,
+  Shield,
 } from 'lucide-react';
-import type { Engine } from '../game/engine';
+import type { Engine, GameMode } from '../game/engine';
 
 const RULES = [
   {
     icon: <ShieldAlert size={18} />,
     color: 'text-rose-400',
     title: 'Задача',
-    text: 'Шарики автоматически стреляют по врагам на кольцевой трассе. Каждый враг, дошедший до выхода, забирает одну жизнь, босс забирает пять. Каждая пятая волна содержит босса. При нуле жизней оборона считается проваленной.',
+    text: 'Шарики автоматически стреляют по врагам на кольцевой трассе. Каждый враг, дошедший до выхода, забирает одну жизнь, босс забирает пять. При нуле жизней оборона считается проваленной.',
   },
   {
     icon: <MousePointerClick size={18} />,
@@ -33,19 +36,19 @@ const RULES = [
     icon: <Hand size={18} />,
     color: 'text-emerald-300',
     title: 'Размещение',
-    text: 'Пустые клетки заполняются автоматически: каждые две секунды в случайную клетку помещается новый шарик. Нажатие на пустую клетку помещает шарик немедленно. Пустые клетки не требуют эссенции.',
+    text: 'Пустые клетки заполняются автоматически: каждые две секунды все пустые клетки получают новые случайные шарики, поэтому поле всегда в строю. Нажатие на пустую клетку помещает шарик немедленно. Пустые клетки не требуют эссенции.',
   },
   {
     icon: <TrendingUp size={18} />,
     color: 'text-amber-300',
     title: 'Улучшение',
-    text: 'Удерживайте шарик около половины секунды, чтобы улучшить его. Стоимость первого, второго, третьего и четвёртого уровня: 8, 16, 24 и 32 эссенции. Улучшение усиливает именно этот шарик: выше урон огня, сильнее и дольше замедление льда, цепь молнии бьёт до трёх целей, яд действует мощнее и дольше, шипастый выпускает до семи игл.',
+    text: 'Удерживайте шарик около половины секунды, чтобы улучшить его. Стоимость первого, второго, третьего и четвёртого уровня: 8, 16, 24 и 32 эссенции. Улучшение усиливает именно этот шарик: выше урон огня, сильнее и дольше замедление льда, цепь молнии бьёт до трёх целей, яд действует мощнее и дольше, шипастый выпускает до семи игл, эффекты дополнительных типов тоже становятся сильнее.',
   },
   {
     icon: <Flame size={18} />,
     color: 'text-orange-400',
     title: 'Типы шариков',
-    text: 'Огонь наносит три единицы урона цели и одну единицу соседним врагам. Лёд наносит одну единицу урона и замедляет цель. Молния наносит две единицы урона и передаёт разряд ближайшему врагу в радиусе. Яд наносит одну единицу урона и добавляет урон во времени на четыре секунды. Шипастый не стреляет: он лопается и запускает цепную реакцию.',
+    text: 'Базовый набор из пяти типов. Огонь: три единицы урона цели и одна соседним врагам. Лёд: одна единица урона и замедление цели. Молния: две единицы урона и разряд ближайшему врагу в радиусе. Яд: одна единица урона плюс урон во времени на четыре секунды. Шипастый: не стреляет, лопается и запускает цепную реакцию. В экспериментальном режиме действуют ещё пять типов: Сверхновая — взрыв, поражающий врагов в радиусе; Паралич — замораживает цель на месте; Пробой — снаряд летит прямо и пробивает линию врагов; Вампир — одна единица урона и одна эссенция за попадание; Шквал — залп из пяти снарядов.',
   },
   {
     icon: <Asterisk size={18} />,
@@ -58,6 +61,18 @@ const RULES = [
     color: 'text-amber-300',
     title: 'Накопление',
     text: 'Режим «Накопление» отключает выстрелы: соединение одинаковых шариков объединяет их в один и повышает уровень заряда. При возврате в режим «Совмещение» все заряженные шарики лопаются и выпускают залпы, сила которых растёт с уровнем заряда.',
+  },
+  {
+    icon: <Trophy size={18} />,
+    color: 'text-fuchsia-300',
+    title: 'Боссы и рулетка',
+    text: 'Каждая пятая волна — босс-волна. Перед ней крутится рулетка: лента из двух боссов в случайном порядке останавливается под стрелкой по центру, и босс под стрелкой приходит в этой волне. У тебя есть время подготовиться. Громила: высокое здоровье и низкая скорость — готовь урон. Стриж: стандартное здоровье и высокая скорость — готовь замедление и паралич.',
+  },
+  {
+    icon: <FlaskConical size={18} />,
+    color: 'text-violet-300',
+    title: 'Экспериментальный режим',
+    text: 'В экспериментальном режиме колода шариков меняется каждую пятую волну: из десяти возможных типов случайно выбираются пять, и поле пересобирается из новой колоды. Обычный режим использует пять базовых типов и не меняет колоду.',
   },
 ];
 
@@ -93,7 +108,7 @@ function Shell({ children }: { children: ReactNode }) {
   );
 }
 
-export function TitleOverlay({ onStart }: { onStart: () => void }) {
+export function TitleOverlay({ onStart }: { onStart: (mode: GameMode) => void }) {
   return (
     <Shell>
       <div className="font-display bg-gradient-to-r from-cyan-300 via-sky-400 to-violet-400 bg-clip-text text-center text-3xl font-black tracking-wide text-transparent sm:text-4xl">
@@ -102,12 +117,38 @@ export function TitleOverlay({ onStart }: { onStart: () => void }) {
       <p className="mt-2 text-center text-[13px] text-slate-400">
         Соединяй шарики — они стреляют. Не пусти врагов к красной точке.
       </p>
+      <div className="mt-4 space-y-2">
+        <button
+          onClick={() => onStart('normal')}
+          className="flex min-h-[56px] w-full items-center gap-3 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 px-4 text-left text-slate-950 shadow-lg shadow-cyan-500/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <Shield size={22} strokeWidth={2.5} className="shrink-0" />
+          <span className="flex min-w-0 flex-col leading-tight">
+            <span className="text-[15px] font-extrabold">Обычный режим</span>
+            <span className="text-[11px] font-semibold opacity-80">
+              пять базовых шариков, два босса, рулетка
+            </span>
+          </span>
+        </button>
+        <button
+          onClick={() => onStart('experimental')}
+          className="flex min-h-[56px] w-full items-center gap-3 rounded-2xl bg-gradient-to-br from-violet-400 to-fuchsia-600 px-4 text-left text-slate-950 shadow-lg shadow-violet-500/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <FlaskConical size={22} strokeWidth={2.5} className="shrink-0" />
+          <span className="flex min-w-0 flex-col leading-tight">
+            <span className="text-[15px] font-extrabold">Экспериментальный режим</span>
+            <span className="text-[11px] font-semibold opacity-80">
+              колода из пяти случайных типов, меняется каждую пятую волну
+            </span>
+          </span>
+        </button>
+      </div>
       <div className="mt-4">
         <RulesList />
       </div>
       <button
-        onClick={onStart}
-        className="mx-auto mt-5 flex min-h-[52px] items-center gap-2.5 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 px-8 text-lg font-bold text-slate-950 shadow-lg shadow-cyan-500/30 transition-all hover:scale-[1.03] active:scale-95"
+        onClick={() => onStart('normal')}
+        className="mx-auto mt-5 flex min-h-[52px] items-center gap-2.5 rounded-2xl border border-white/15 bg-white/[0.06] px-8 text-lg font-bold text-slate-100 transition-all hover:scale-[1.03] hover:border-white/30 active:scale-95"
       >
         <Play size={20} strokeWidth={3} />
         Начать игру

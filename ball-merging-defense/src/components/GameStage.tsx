@@ -20,12 +20,14 @@ import {
   TRACK,
   PERIMETER,
   LEAK_AT,
+  BOSS_DEFS,
   CONFIG,
   cellXY,
   cellC,
   isAdj,
   pathPoint,
   TYPE_INFO,
+  type BossId,
   type OrbType,
 } from '../game/config';
 import type { Engine } from '../game/engine';
@@ -38,7 +40,101 @@ const EXIT_POS = pathPoint(LEAK_AT);
 type SpriteMap = Record<OrbType, HTMLCanvasElement>;
 let orbSprites: SpriteMap | null = null;
 
-function makeOrbSprite(color: string, dark: string, glow: string): HTMLCanvasElement {
+// Небольшой знак на шарике, чтобы десять типов было различать
+function drawOrbMark(x: CanvasRenderingContext2D, type: OrbType, cx: number, cy: number) {
+  x.save();
+  x.translate(cx, cy);
+  x.strokeStyle = 'rgba(255,255,255,0.8)';
+  x.fillStyle = 'rgba(255,255,255,0.8)';
+  x.lineWidth = 3;
+  x.lineCap = 'round';
+  const R = 15;
+  switch (type) {
+    case 'ice': // снежинка: три перекрещенные линии
+      for (let k = 0; k < 3; k++) {
+        const a = (Math.PI / 3) * k;
+        x.beginPath();
+        x.moveTo(Math.cos(a) * R, Math.sin(a) * R);
+        x.lineTo(-Math.cos(a) * R, -Math.sin(a) * R);
+        x.stroke();
+      }
+      break;
+    case 'bolt': // молния
+      x.beginPath();
+      x.moveTo(3, -R);
+      x.lineTo(-6, 2);
+      x.lineTo(1, 2);
+      x.lineTo(-3, R);
+      x.stroke();
+      break;
+    case 'poison': // капля
+      x.beginPath();
+      x.moveTo(0, -R);
+      x.quadraticCurveTo(R * 0.9, R * 0.3, 0, R * 0.8);
+      x.quadraticCurveTo(-R * 0.9, R * 0.3, 0, -R);
+      x.stroke();
+      break;
+    case 'nova': // четырёхлучевая звезда
+      for (let k = 0; k < 4; k++) {
+        const a = (Math.PI / 2) * k - Math.PI / 2;
+        x.beginPath();
+        x.moveTo(0, 0);
+        x.lineTo(Math.cos(a) * R * 1.25, Math.sin(a) * R * 1.25);
+        x.stroke();
+      }
+      x.beginPath();
+      x.arc(0, 0, 4, 0, Math.PI * 2);
+      x.fill();
+      break;
+    case 'stun': // звездочка (сдвинутые перекрещенные линии)
+      for (let k = 0; k < 3; k++) {
+        const a = (Math.PI / 3) * k + Math.PI / 6;
+        x.beginPath();
+        x.moveTo(Math.cos(a) * R, Math.sin(a) * R);
+        x.lineTo(-Math.cos(a) * R, -Math.sin(a) * R);
+        x.stroke();
+      }
+      break;
+    case 'pierce': // стрелка вверх
+      x.beginPath();
+      x.moveTo(0, R);
+      x.lineTo(0, -R);
+      x.moveTo(-7, -R + 8);
+      x.lineTo(0, -R);
+      x.lineTo(7, -R + 8);
+      x.stroke();
+      break;
+    case 'vampire': // два клыка
+      x.beginPath();
+      x.moveTo(-8, -4);
+      x.lineTo(-2, -4);
+      x.lineTo(-5, 8);
+      x.closePath();
+      x.fill();
+      x.beginPath();
+      x.moveTo(2, -4);
+      x.lineTo(8, -4);
+      x.lineTo(5, 8);
+      x.closePath();
+      x.fill();
+      break;
+    case 'barrage': // три точки
+      {
+        const pts: [number, number][] = [[0, -R * 0.8], [-R * 0.7, R * 0.5], [R * 0.7, R * 0.5]];
+        for (const [px, py] of pts) {
+          x.beginPath();
+          x.arc(px, py, 3.4, 0, Math.PI * 2);
+          x.fill();
+        }
+      }
+      break;
+    default: // огонь и шипастый — без знака
+      break;
+  }
+  x.restore();
+}
+
+function makeOrbSprite(color: string, dark: string, glow: string, type: OrbType): HTMLCanvasElement {
   const S = 128;
   const c = document.createElement('canvas');
   c.width = S;
@@ -74,6 +170,8 @@ function makeOrbSprite(color: string, dark: string, glow: string): HTMLCanvasEle
   x.beginPath();
   x.ellipse(cx - 14, cx - 20, 14, 8, -0.5, 0, Math.PI * 2);
   x.fill();
+  // знак типа (у десяти типов свои метки)
+  drawOrbMark(x, type, cx, cx);
   // лёгкий ободок
   x.strokeStyle = 'rgba(255,255,255,0.22)';
   x.lineWidth = 2;
@@ -87,7 +185,7 @@ function getOrbSprites(): SpriteMap {
   if (!orbSprites) {
     const m = {} as SpriteMap;
     (Object.keys(TYPE_INFO) as OrbType[]).forEach((t) => {
-      m[t] = makeOrbSprite(TYPE_INFO[t].color, TYPE_INFO[t].dark, TYPE_INFO[t].glow);
+      m[t] = makeOrbSprite(TYPE_INFO[t].color, TYPE_INFO[t].dark, TYPE_INFO[t].glow, t);
     });
     orbSprites = m;
   }
@@ -464,9 +562,11 @@ function drawScene(
 
     const body = x.createRadialGradient(ex - r * 0.35, ey - r * 0.4, r * 0.15, ex, ey, r);
     if (e.boss) {
-      body.addColorStop(0, '#d8b4fe');
-      body.addColorStop(0.7, '#7e22ce');
-      body.addColorStop(1, '#3b0764');
+      // два разных босса: Громила (красный) и Стриж (голубой)
+      const def = BOSS_DEFS[(e.bossId || 1) as BossId];
+      body.addColorStop(0, '#ffffff');
+      body.addColorStop(0.4, def.color);
+      body.addColorStop(1, def.dark);
     } else {
       body.addColorStop(0, '#cbd5e1');
       body.addColorStop(0.7, '#64748b');
@@ -483,6 +583,16 @@ function drawScene(
       x.beginPath();
       x.arc(ex, ey, r + 3, 0, Math.PI * 2);
       x.stroke();
+    }
+    if (g.now < e.stunUntil) {
+      // паралич: жёлтое кольцо
+      x.strokeStyle = 'rgba(255,176,32,0.95)';
+      x.lineWidth = 2.5;
+      x.setLineDash([6, 5]);
+      x.beginPath();
+      x.arc(ex, ey, r + 5, vnow * 2, vnow * 2 + Math.PI * 2);
+      x.stroke();
+      x.setLineDash([]);
     }
     if (e.dots.length) {
       x.strokeStyle = 'rgba(74,222,128,0.75)';
@@ -517,6 +627,17 @@ function drawScene(
     if (pct > 0) {
       roundedRect(x, ex - bw / 2, ey - r - 11, bw * pct, 4, 2);
       x.fill();
+    }
+    // имя босса над полоской здоровья
+    if (e.boss) {
+      const def = BOSS_DEFS[(e.bossId || 1) as BossId];
+      x.font = '800 11px Manrope, system-ui, sans-serif';
+      x.textAlign = 'center';
+      x.textBaseline = 'alphabetic';
+      x.fillStyle = 'rgba(0,0,0,0.55)';
+      x.fillText(def.name, ex + 1, ey - r - 17);
+      x.fillStyle = def.color;
+      x.fillText(def.name, ex, ey - r - 18);
     }
   }
 
@@ -638,12 +759,13 @@ function drawScene(
   if (g.status === 'prep') {
     const secs = Math.max(0, Math.ceil(g.prepUntil - g.now));
     drawChip(x, STAGE_W / 2, 44, `До волны ${g.wave}: ${secs} с`, '#fcd34d');
+    const bossName = g.nextWaveBoss && g.pendingBossId ? BOSS_DEFS[g.pendingBossId as BossId].name : '';
     drawChip(
       x,
       STAGE_W / 2,
       STAGE_H - 46,
       g.nextWaveBoss
-        ? `Следующая волна: босс, врагов ${g.nextWaveSize}`
+        ? `Следующая волна: босс ${bossName}, врагов ${g.nextWaveSize}`
         : `Следующая волна: врагов ${g.nextWaveSize}`,
       g.nextWaveBoss ? '#f0abfc' : '#94a3b8',
     );
