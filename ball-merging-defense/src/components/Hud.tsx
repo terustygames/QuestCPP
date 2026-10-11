@@ -15,6 +15,7 @@ import {
   Layers,
   X,
   Zap,
+  Square,
 } from 'lucide-react';
 import type { Engine } from '../game/engine';
 import { CONFIG, TYPE_INFO, typeStatRows } from '../game/config';
@@ -302,6 +303,17 @@ export function Controls({
         {accum ? <Layers size={18} /> : <Combine size={18} />}
         <span className="whitespace-nowrap">{accum ? 'Накопление' : 'Совмещение'}</span>
       </button>
+
+      {g.autoLine && g.mode === 'combine' && (
+        <button
+          onClick={() => g.stopAutoLine()}
+          aria-label="Остановить авто-линию"
+          className="flex min-h-[54px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-2xl border border-rose-400/50 bg-rose-500/15 px-1.5 text-[13px] font-bold text-rose-200 transition-all active:scale-[0.96] sm:text-[15px]"
+        >
+          <Square size={16} />
+          <span className="whitespace-nowrap">Стоп линия</span>
+        </button>
+      )}
 
       {g.status === 'prep' && (
         <button

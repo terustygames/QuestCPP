@@ -40,6 +40,10 @@ import type { OrbType } from './config';
 //  ess      — эссенция за событие: шипастый — за взрыв, вампир — за попадание (+N)
 //  amp      — множитель усиления соседей усилителя (+N к ×2)
 //  xp       — опыт с урона метки: 0.25 = +25% (опыт шарика «Метка»)
+//  autoGap  — авто-линия выдерживает пропажу N шариков (сумма по колоде)
+//  autoPct  — урон авто-залпов, в процентах (20 = +20%)
+//  autoShots — снарядов в каждом авто-залпе (+N)
+//  autoCd   — авто-залп сокращает перезарядку на N секунд
 export type ModKey =
   | 'dmg'
   | 'dmgPct'
@@ -58,7 +62,11 @@ export type ModKey =
   | 'splash'
   | 'ess'
   | 'amp'
-  | 'xp';
+  | 'xp'
+  | 'autoGap'
+  | 'autoPct'
+  | 'autoShots'
+  | 'autoCd';
 
 export type TypeMods = Partial<Record<ModKey, number>>;
 
@@ -326,6 +334,10 @@ export const MOD_TEXT: Record<ModKey, (v: number) => string> = {
   ess: (v) => `эссенции ${signed(v)} за событие`,
   amp: (v) => `усиление соседей ${signed(v)}`,
   xp: (v) => `опыт с урона метки ${signed(v * 100)}%`,
+  autoGap: (v) => `авто-линия выдерживает пропажу шариков ${signed(v)}`,
+  autoPct: (v) => `урон авто-линии ${signed(v)}%`,
+  autoShots: (v) => `снарядов авто-залпа ${signed(v)}`,
+  autoCd: (v) => `авто-залп: перезарядка −${v} с`,
 };
 
 // Список строк для панелей: «урон +1», «перезарядка −0,1 с» и т.д.

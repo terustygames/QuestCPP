@@ -7,8 +7,6 @@ import { Check, Coins, GitBranch, Info, Lock, RotateCcw, Sparkles, X } from 'luc
 import { TYPE_INFO, typeStatRows, type OrbType } from '../game/config';
 import { sfx } from '../game/audio';
 import {
-  BALL_PRICES,
-  buyBall,
   modsFor,
   nodeStatus,
   type NodeStatus,
@@ -60,15 +58,6 @@ export function BallModal({
   const owned = ownsBall(meta, type);
   const prog = treeProgress(meta, type);
   const mods = modsFor(meta)[type];
-  const price = BALL_PRICES[type];
-
-  const buy = () => {
-    const r = buyBall(meta, type);
-    if (r.error) return showToast(r.error);
-    onUpdate(() => r.meta);
-    sfx.buy();
-  };
-
   return (
     <div
       className="fixed inset-0 z-[55] flex items-center justify-center bg-[#04060d]/85 p-3 backdrop-blur-sm"
@@ -91,7 +80,7 @@ export function BallModal({
             <div className="text-[12px] text-slate-400">
               {owned
                 ? `Открыт. Дерево навыков: ${prog.open} из ${prog.total}`
-                : `Не открыт${price !== undefined ? `: ${price} монет в магазине` : ''}`}
+                : 'Не открыт: выпадает из ежедневного сундука'}
             </div>
           </div>
           <button
@@ -145,15 +134,6 @@ export function BallModal({
                 </p>
               </Block>
 
-              {!owned && (
-                <button
-                  onClick={buy}
-                  className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-amber-400/50 bg-amber-500/15 px-4 text-[15px] font-extrabold text-amber-200 transition active:scale-[0.98]"
-                >
-                  <Lock size={16} />
-                  Открыть за <Coins size={15} /> {price ?? 0}
-                </button>
-              )}
             </div>
           ) : (
             <SkillTree type={type} meta={meta} onUpdate={onUpdate} onToast={showToast} />

@@ -19,7 +19,9 @@ export const META_CFG = {
   coinsPerWave: 3,
   // при сбросе дерева монеты возвращаются частично (очки — полностью)
   refundCoinsShare: 0.5,
-  chest: { coinsMin: 60, coinsMax: 150, pointsMin: 1, pointsMax: 3 },
+  // сундук: монеты, очки и шарик, которого ещё нет в коллекции.
+  // Если все шарики уже открыты, вместо шарика — монеты (dupCoins).
+  chest: { coinsMin: 60, coinsMax: 150, pointsMin: 1, pointsMax: 3, dupCoins: 120 },
   boosts: {
     essence: { amount: 40, price: 120, title: 'Запас эссенции', desc: '+40 эссенции на старт забега' },
     lives: { amount: 5, price: 200, title: 'Запас жизней', desc: '+5 жизней на старт забега' },
@@ -27,16 +29,6 @@ export const META_CFG = {
 } as const;
 
 export type BoostKind = keyof typeof META_CFG.boosts;
-
-// Шарики, которые можно купить в магазине (базовые шесть открыты с начала)
-export const BALL_PRICES: Partial<Record<OrbType, number>> = {
-  nova: 600,
-  stun: 600,
-  pierce: 800,
-  vampire: 800,
-  barrage: 1000,
-  mark: 900,
-};
 
 const STORAGE_KEY = 'orbital.meta.v1';
 
@@ -147,15 +139,32 @@ export function chestReady(m: MetaState, today: string): boolean {
   return m.chestDay !== today;
 }
 
+// Открытие сундука: монеты и очки всегда; шарик — случайный из ещё не открытых.
+// Шарики в магазине не продаются, открываются только из сундуков.
 export function openChest(m: MetaState, today: string, rnd: () => number = Math.random) {
   const c = META_CFG.chest;
   const coins = c.coinsMin + Math.floor(rnd() * (c.coinsMax - c.coinsMin + 1));
   const points = c.pointsMin + Math.floor(rnd() * (c.pointsMax - c.pointsMin + 1));
+  const locked = ALL_TYPES.filter((t) => !m.owned.includes(t));
+  const ball: OrbType | null = locked.length ? locked[Math.floor(rnd() * locked.length)] : null;
+  const bonus = ball ? 0 : c.dupCoins;
   return {
-    coins,
+    coins: coins + bonus,
     points,
-    meta: { ...m, coins: m.coins + coins, points: m.points + points, chestDay: today },
+    ball,
+    meta: {
+      ...m,
+      coins: m.coins + coins + bonus,
+      points: m.points + points,
+      owned: ball ? [...m.owned, ball] : m.owned,
+      chestDay: today,
+    },
   };
+}
+
+// Сколько шариков ещё нужно открыть из сундуков
+export function lockedBallsLeft(m: MetaState): number {
+  return ALL_TYPES.filter((t) => !m.owned.includes(t)).length;
 }
 
 // ---------- Итоги забега ----------
@@ -181,13 +190,6 @@ export function applyRun(m: MetaState, waveReached: number): MetaState {
 // ---------- Шарики и колода ----------
 export function ownsBall(m: MetaState, t: OrbType) {
   return m.owned.includes(t);
-}
-
-export function buyBall(m: MetaState, t: OrbType): { meta: MetaState; error?: string } {
-  const price = BALL_PRICES[t];
-  if (price === undefined || ownsBall(m, t)) return { meta: m, error: 'Уже открыт' };
-  if (m.coins < price) return { meta: m, error: `Не хватает монет: нужно ${price}` };
-  return { meta: { ...m, coins: m.coins - price, owned: [...m.owned, t] } };
 }
 
 export function buyBoost(m: MetaState, kind: BoostKind): { meta: MetaState; error?: string } {

@@ -1,10 +1,10 @@
 // Инвентарь: колода из шести шариков и коллекция всех шариков.
 // Тап по шарику — в колоду или из неё. Зажать — описание и дерево навыков.
 import { useState } from 'react';
-import { Check, Coins, Lock } from 'lucide-react';
+import { Check, Gift, Lock } from 'lucide-react';
 import { ALL_TYPES, TYPE_INFO, type OrbType } from '../game/config';
 import { sfx } from '../game/audio';
-import { BALL_PRICES, META_CFG, ownsBall, toggleDeck, treeProgress, type MetaState } from '../game/meta';
+import { META_CFG, ownsBall, toggleDeck, treeProgress, type MetaState } from '../game/meta';
 import { orbSpriteUrl } from './GameStage';
 import { CurrencyChips, Screen, Toast, TopBar, useLongPress, useToast } from './common';
 import { BallModal } from './BallModal';
@@ -61,7 +61,6 @@ function BallTile({
   const press = useLongPress(() => onLong(t));
   const owned = ownsBall(meta, t);
   const prog = treeProgress(meta, t);
-  const price = BALL_PRICES[t] ?? 0;
   const info = TYPE_INFO[t];
   return (
     <button
@@ -96,8 +95,8 @@ function BallTile({
         ) : (
           <span className="flex items-center gap-1 text-slate-500">
             <Lock size={10} />
-            <Coins size={10} />
-            {price}
+            <Gift size={10} />
+            из сундука
           </span>
         )}
       </div>
@@ -122,8 +121,7 @@ export function Inventory({
 
   const tap = (t: OrbType) => {
     if (!ownsBall(meta, t)) {
-      const price = BALL_PRICES[t];
-      return showToast(`${TYPE_INFO[t].name} откроется в магазине${price ? ` за ${price} монет` : ''}`);
+      return showToast(`${TYPE_INFO[t].name} выпадает из ежедневного сундука`);
     }
     const r = toggleDeck(meta, t);
     if (r.error) return showToast(r.error);

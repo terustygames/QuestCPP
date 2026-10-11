@@ -1,23 +1,21 @@
-// Магазин: ежедневный сундук, шарики за монеты, запасы на старт забега.
+// Магазин: ежедневный сундук (монеты, очки и шарики), запасы на старт забега.
+// Шарики в магазине не продаются: они выпадают только из сундуков.
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { Check, Coins, Gift, Lock, Sparkles } from 'lucide-react';
+import { Check, Coins, Gift, Sparkles } from 'lucide-react';
 import { TYPE_INFO, type OrbType } from '../game/config';
 import { sfx } from '../game/audio';
 import {
-  BALL_PRICES,
   META_CFG,
-  buyBall,
   buyBoost,
   chestReady,
+  lockedBallsLeft,
   openChest,
-  ownsBall,
   type BoostKind,
   type MetaState,
 } from '../game/meta';
 import { orbSpriteUrl } from './GameStage';
 import { CurrencyChips, Screen, Toast, TopBar, useToast } from './common';
-import { BallModal } from './BallModal';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -27,6 +25,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
     </section>
   );
 }
+
+type ChestResult = { coins: number; points: number; ball: OrbType | null };
 
 export function Shop({
   meta,
@@ -40,24 +40,15 @@ export function Shop({
   onBack: () => void;
 }) {
   const [toast, showToast] = useToast();
-  // шарик, для которого открыто окно описания и дерева
-  const [detail, setDetail] = useState<OrbType | null>(null);
-  const [lastChest, setLastChest] = useState<{ coins: number; points: number } | null>(null);
+  const [lastChest, setLastChest] = useState<ChestResult | null>(null);
   const canChest = chestReady(meta, today);
+  const left = lockedBallsLeft(meta);
 
   const doChest = () => {
     const r = openChest(meta, today);
     onUpdate(() => r.meta);
-    setLastChest({ coins: r.coins, points: r.points });
+    setLastChest({ coins: r.coins, points: r.points, ball: r.ball });
     sfx.clear();
-  };
-
-  const doBuyBall = (t: OrbType) => {
-    const r = buyBall(meta, t);
-    if (r.error) return showToast(r.error);
-    onUpdate(() => r.meta);
-    sfx.buy();
-    showToast(`Открыт шарик: ${TYPE_INFO[t].name}`);
   };
 
   const doBuyBoost = (k: BoostKind) => {
@@ -82,8 +73,11 @@ export function Shop({
               <div className="min-w-0 flex-1">
                 <div className="text-[15px] font-extrabold text-slate-100">Сундук дня</div>
                 <div className="text-[12px] leading-snug text-slate-400">
-                  Монеты {META_CFG.chest.coinsMin}–{META_CFG.chest.coinsMax} и {META_CFG.chest.pointsMin}–
-                  {META_CFG.chest.pointsMax} очка прокачки. Раз в сутки.
+                  Монеты {META_CFG.chest.coinsMin}–{META_CFG.chest.coinsMax}, {META_CFG.chest.pointsMin}–
+                  {META_CFG.chest.pointsMax} очка прокачки и шарик, которого ещё нет в коллекции. Раз в сутки.
+                </div>
+                <div className="mt-1 text-[12px] font-bold text-amber-200/80">
+                  {left > 0 ? `Шариков ещё не открыто: ${left}` : 'Все шарики открыты'}
                 </div>
               </div>
             </div>
@@ -102,62 +96,27 @@ export function Shop({
               </div>
             )}
             {lastChest && (
-              <div className="mt-3 flex items-center justify-center gap-4 rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-[15px] font-extrabold tabular-nums">
-                <span className="flex items-center gap-1.5 text-amber-200">
-                  <Coins size={16} className="text-amber-300" />+{lastChest.coins}
-                </span>
-                <span className="flex items-center gap-1.5 text-fuchsia-200">
-                  <Sparkles size={16} className="text-fuchsia-300" />+{lastChest.points}
-                </span>
+              <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2">
+                <div className="flex items-center justify-center gap-4 text-[15px] font-extrabold tabular-nums">
+                  <span className="flex items-center gap-1.5 text-amber-200">
+                    <Coins size={16} className="text-amber-300" />+{lastChest.coins}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-fuchsia-200">
+                    <Sparkles size={16} className="text-fuchsia-300" />+{lastChest.points}
+                  </span>
+                </div>
+                {lastChest.ball ? (
+                  <div className="mt-2 flex items-center justify-center gap-2 text-[13px] font-bold text-emerald-300">
+                    <img src={orbSpriteUrl(lastChest.ball)} alt="" draggable={false} className="h-8 w-8" />
+                    Новый шарик: {TYPE_INFO[lastChest.ball].name}
+                  </div>
+                ) : (
+                  <div className="mt-2 text-center text-[12px] text-slate-400">
+                    Все шарики уже открыты: вместо шарика — монеты
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        </Section>
-
-        <Section title="Шарики">
-          <div className="space-y-2">
-            {(Object.keys(BALL_PRICES) as OrbType[]).map((t) => {
-              const price = BALL_PRICES[t] ?? 0;
-              const owned = ownsBall(meta, t);
-              const info = TYPE_INFO[t];
-              return (
-                <div
-                  key={t}
-                  className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3"
-                >
-                  <button
-                    onClick={() => setDetail(t)}
-                    aria-label={`Подробнее: ${info.name}`}
-                    className="shrink-0 rounded-xl transition active:scale-95"
-                  >
-                    <img src={orbSpriteUrl(t)} alt={info.name} draggable={false} className="h-12 w-12 select-none" />
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[14px] font-bold text-slate-100">{info.name}</div>
-                    <div className="text-[11px] leading-snug text-slate-500">{info.desc}</div>
-                  </div>
-                  {owned ? (
-                    <div className="flex shrink-0 items-center gap-1 text-[12px] font-bold text-emerald-300">
-                      <Check size={15} />
-                      Открыт
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => doBuyBall(t)}
-                      className={`flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[13px] font-extrabold transition active:scale-95 ${
-                        meta.coins >= price
-                          ? 'border-amber-400/50 bg-amber-500/15 text-amber-200'
-                          : 'border-white/10 bg-white/[0.04] text-slate-500'
-                      }`}
-                    >
-                      <Lock size={13} />
-                      <Coins size={14} />
-                      {price}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
           </div>
         </Section>
 
@@ -199,7 +158,6 @@ export function Shop({
           </div>
         </Section>
       </div>
-      {detail && <BallModal type={detail} meta={meta} onUpdate={onUpdate} onClose={() => setDetail(null)} />}
       <Toast msg={toast} />
     </Screen>
   );

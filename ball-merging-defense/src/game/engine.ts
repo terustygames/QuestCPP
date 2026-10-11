@@ -175,6 +175,9 @@ export class Engine {
   popQueue: { at: number; cell: number; count: number; amp?: boolean }[] = [];
   popQueued = new Set<number>();
   chainCount = 0;
+  // Авто-линия: id шариков последней проведённой линии. Линия стреляет сама,
+  // когда её шарики перезарядились; новая линия заменяет старую.
+  autoLine: number[] | null = null;
   maxChain = 0;
 
   // --- визуальное излучение стрелочек от усиленных соседей ---
@@ -349,6 +352,7 @@ export class Engine {
     this.prepUntil = this.now + CONFIG.firstPrep;
     this.nextAutoFill = 0;
     this.pendingBossId = 0;
+    this.autoLine = null;
     this.deck = [...cfg.deck];
     this.mods = cfg.mods;
     this.essence = CONFIG.essenceStart + cfg.essenceBonus;
@@ -642,6 +646,7 @@ export class Engine {
       this.sel = null;
       return;
     }
+    this.setAutoLine([a, b]);
     if (this.now < A.cdUntil || this.now < B.cdUntil) {
       this.err('Шарики ещё перезаряжаются');
       this.shake(this.now < A.cdUntil ? a : b);
@@ -671,6 +676,7 @@ export class Engine {
   // стреляют сразу — по 2 снаряда каждый; шипастые в цепочке лопаются;
   // шарики на перезарядке пропускаются (подожди и повтори линию).
   fireChain(cells: number[]) {
+    this.setAutoLine(cells);
     const ready: number[] = [];
     for (const i of cells) {
       const o = this.grid[i];
@@ -701,6 +707,75 @@ export class Engine {
     }
     this.sel = null;
     if (ready.length > 2) this.setBanner(`Цепь: ${ready.length} шариков, +${bonus} к урону`, 1.4);
+  }
+
+  // ---------- Авто-линия ----------
+  // Моды авто-линии суммируются по колоде (узлы дерева любых шариков в колоде):
+  //  autoGap   — сколько шариков линии может пропасть, не сломав её
+  //  autoPct   — % урона авто-залпов
+  //  autoShots — снарядов в каждом авто-залпе (+N к двум базовым)
+  //  autoCd    — секунды, на которые авто-залп сокращает перезарядку
+  autoMod(k: 'autoGap' | 'autoPct' | 'autoShots' | 'autoCd'): number {
+    let sum = 0;
+    for (const t of this.deck) sum += this.m(t, k);
+    return sum;
+  }
+
+  // Запоминаем линию по id шариков. Шипастый в авто-линии не входит:
+  // он лопается при выстреле, а не стреляет.
+  setAutoLine(cells: number[]) {
+    const ids: number[] = [];
+    for (const i of cells) {
+      const o = this.grid[i];
+      if (o && o.type !== 'spiky') ids.push(o.id);
+    }
+    if (ids.length < 2) return;
+    this.autoLine = ids;
+    this.setBanner(`Авто-линия: ${ids.length} шариков стреляют сами, как перезарядятся`, 2.2);
+  }
+
+  stopAutoLine() {
+    if (!this.autoLine) return;
+    this.autoLine = null;
+    this.setBanner('Авто-линия остановлена', 1.6);
+  }
+
+  // Перезарядка авто-залпа: как обычный залп, но короче на autoCd.
+  armAuto(o: OrbState) {
+    const len = Math.max(0.5, CONFIG.cooldown + this.m(o.type, 'cd') - this.autoMod('autoCd'));
+    o.cdLen = len;
+    o.cdUntil = this.now + len;
+  }
+
+  // Каждый кадр: готовые шарики линии стреляют залпом (только в режиме совмещения).
+  runAutoLine() {
+    if (!this.autoLine || this.mode !== 'combine' || this.status === 'gameover') return;
+    const cells: number[] = [];
+    let missing = 0;
+    for (const id of this.autoLine) {
+      const i = this.grid.findIndex((o) => o?.id === id);
+      if (i < 0) missing++;
+      else cells.push(i);
+    }
+    if (missing > this.autoMod('autoGap') || cells.length < 2) {
+      this.autoLine = null;
+      this.setBanner('Авто-линия прервана: шарик убран или слит', 2);
+      return;
+    }
+    const ready = cells.filter((i) => {
+      const o = this.grid[i];
+      return o && o.type !== 'spiky' && this.now >= o.cdUntil;
+    });
+    if (!ready.length) return;
+    const bonus = ready.length;
+    const shots = 2 + this.autoMod('autoShots');
+    const mul = 1 + this.autoMod('autoPct') / 100;
+    for (const i of ready) {
+      const o = this.grid[i];
+      if (!o) continue;
+      this.fireOrb(i, shots, bonus, mul);
+      this.armAuto(o);
+    }
   }
 
   // Переключение режима. Возврат в совмещение = ДЕТОНАЦИЯ всех заряженных.
@@ -742,7 +817,7 @@ export class Engine {
   }
 
   // ============ СТРЕЛЬБА ============
-  fireOrb(cell: number, count: number, bonus = 0) {
+  fireOrb(cell: number, count: number, bonus = 0, dmgMul = 1) {
     const o = this.grid[cell];
     if (!o) return;
     const c = cellC(cell);
@@ -760,7 +835,7 @@ export class Engine {
       }
       this.arrowSpark(c.x, c.y);
     }
-    this.fireOrbAt(c.x, c.y, o.type, finalCount, bonus + this.m(o.type, 'combo'));
+    this.fireOrbAt(c.x, c.y, o.type, finalCount, bonus + this.m(o.type, 'combo'), dmgMul);
     sfx.shoot(o.type);
     o.pulse = this.now;
   }
@@ -1270,6 +1345,9 @@ export class Engine {
         }
       }
     }
+
+    // --- авто-линия: стреляет сама, когда шарики перезарядились ---
+    this.runAutoLine();
 
     // --- награда за цепную реакцию ---
     if (this.chainCount > 0 && !this.needles.length && !this.popQueue.length) {
