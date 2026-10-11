@@ -141,7 +141,7 @@ export const TYPE_INFO: Record<
     color: '#b16cff',
     dark: '#3b1670',
     glow: 'rgba(177,108,255,',
-    desc: 'при соединении лопается: иглы разрушают шарики, разрушенные выстреливают',
+    desc: 'при соединении (с любым шариком) лопает: иглы разрушают шарики и ранят врагов',
   },
   amp: {
     name: 'Усилитель',
@@ -324,6 +324,7 @@ export interface StatRow {
 }
 
 export function typeStatRows(t: OrbType, lvl: number): StatRow[] {
+  const g = Math.max(0, lvl - 1);
   const v = (stat: string) => typeStatValue(t, stat, lvl);
   const n = (stat: string) => typeStatValue(t, stat, lvl + 1);
   const R = (label: string, cur: number, next: number, unit = ''): StatRow => ({
@@ -345,7 +346,10 @@ export function typeStatRows(t: OrbType, lvl: number): StatRow[] {
     case 'poison':
       return [R('Урон', 1, 1), R('Яд, урон во времени', v('dps'), n('dps')), R('Длительность яда', v('dur'), n('dur'), ' с')];
     case 'spiky':
-      return [R('Игл при взрыве', v('x'), n('x'))];
+      return [
+        R('Игл при взрыве', v('x'), n('x')),
+        R('Урон иглы врагам', 1 + g, 2 + g),
+      ];
     case 'amp':
       return [
         R('Урон эхо-снаряда', v('dmg'), n('dmg')),

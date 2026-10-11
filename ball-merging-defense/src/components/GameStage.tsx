@@ -727,7 +727,9 @@ function drawScene(
   x.globalAlpha = 1;
 
   // --- вспышка детонации / урон ---
-  const detLeft = g.detonateFlashUntil - g.now;
+  // Альфа ограничена проектом: если по любой причине таймер вспышки
+  // «залип» в прошлом относительно now, кадр не перекрашивается целиком.
+  const detLeft = Math.min(0.35, Math.max(0, g.detonateFlashUntil - g.now));
   if (detLeft > 0) {
     const a = (detLeft / 0.35) * 0.3;
     const fg = x.createRadialGradient(STAGE_W / 2, STAGE_H / 2, 40, STAGE_W / 2, STAGE_H / 2, STAGE_H * 0.55);
@@ -736,7 +738,7 @@ function drawScene(
     x.fillStyle = fg;
     x.fillRect(0, 0, STAGE_W, STAGE_H);
   }
-  const hurtLeft = g.hurtUntil - g.now;
+  const hurtLeft = Math.min(0.35, Math.max(0, g.hurtUntil - g.now));
   if (hurtLeft > 0) {
     const a = (hurtLeft / 0.35) * 0.5;
     const hg = x.createRadialGradient(STAGE_W / 2, STAGE_H / 2, STAGE_H * 0.28, STAGE_W / 2, STAGE_H / 2, STAGE_H * 0.62);
@@ -994,23 +996,27 @@ export function GameStage({
     if (gs.drag) {
       const h = cellAt(p.x, p.y);
       if (g.mode === 'combine' && gs.chain.length > 0) {
-        // цепочка: только по ОДИНАКОВЫМ шарикам (тип задаёт первый),
+        // цепочка: все обычные шарики на линии — ОДИНОГО типа (тип задаёт
+        // первый обычный шарик), шипастый можно вставить в любую цепь;
         // назад по линии — откат конца
         const last = gs.chain[gs.chain.length - 1];
         const prev = gs.chain[gs.chain.length - 2];
-        const first = g.grid[gs.chain[0]];
+        const baseType = gs.chain
+          .map((i) => g.grid[i]?.type)
+          .find((t) => t !== undefined && t !== 'spiky');
         if (h !== -1 && h !== last) {
           if (h === prev) {
             gs.chain.pop();
-          } else if (
-            first &&
-            g.grid[h] &&
-            g.grid[h].type === first.type &&
-            isAdj(last, h) &&
-            !gs.chain.includes(h) &&
-            gs.chain.length < COLS * ROWS
-          ) {
-            gs.chain.push(h);
+          } else {
+            const hType = g.grid[h]?.type;
+            const matches =
+              hType !== undefined &&
+              (hType === 'spiky' ||
+                (baseType !== undefined ? hType === baseType : true)) &&
+              isAdj(last, h) &&
+              !gs.chain.includes(h) &&
+              gs.chain.length < COLS * ROWS;
+            if (matches) gs.chain.push(h);
           }
         }
         gs.hover = h !== -1 ? h : last;

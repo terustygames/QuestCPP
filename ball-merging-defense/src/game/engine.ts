@@ -394,6 +394,7 @@ export class Engine {
     const lvl = this.typeLevels[o.type];
     const c = cellC(i);
     this.grid[i] = null; // шарик расходуется
+    this.popQueued.delete(i); // чтобы клетка не «залипла» в очереди
     if (this.sel === i) this.sel = null;
     this.ring(c.x, c.y, '#fbbf24', 70);
     this.spark(c.x, c.y, info.color, 12, 150);
@@ -466,12 +467,14 @@ export class Engine {
   // Режим накопления: сливаем два ОДИНАКОВЫХ шарика в один.
   // Уровни заряда СКЛАДЫВАЮТСЯ (шарик 5 и шарик 3 дают 8).
   // Заряд остаётся на шарике, который нажали ВТОРЫМ (b).
+  // Шипастый можно сливать с любым шариком: заряд ляжет на тип
+  // шарика, нажатого вторым.
   mergePair(a: number, b: number) {
     const A = this.grid[a];
     const B = this.grid[b];
     if (!A || !B) return;
-    if (A.type !== B.type) {
-      this.err('Накопление: соединяй только одинаковые шарики');
+    if (A.type !== B.type && A.type !== 'spiky' && B.type !== 'spiky') {
+      this.err('Накопление: одинаковые шарики, шипастый — с любым');
       this.shake(a);
       this.shake(b);
       return;
@@ -495,14 +498,15 @@ export class Engine {
     }
   }
 
-  // Режим совмещения: два соседних шарика стреляют
+  // Режим совмещения: два соседних шарика стреляют.
+  // Цепь — только из одинаковых шариков, НО шипастый можно
+  // соединять с любым другим шариком.
   firePair(a: number, b: number) {
     const A = this.grid[a];
     const B = this.grid[b];
     if (!A || !B) return;
-    // цепь — только из одинаковых шариков
-    if (A.type !== B.type) {
-      this.err('Цепь: только одинаковые шарики');
+    if (A.type !== B.type && A.type !== 'spiky' && B.type !== 'spiky') {
+      this.err('Цепь: только одинаковые шарики (шипастый — с любым)');
       this.shake(a);
       this.shake(b);
       this.sel = null;
@@ -517,15 +521,14 @@ export class Engine {
     const cb = cellC(b);
     this.linkLine(ca.x, ca.y, cb.x, cb.y, '#22d3ee');
 
-    // Оба шара стреляют двумя снарядами: одинаковые типы — «фокус»
-    // по одной цели, разные — каждый сам по себе. Сила каждого
-    // снаряда растёт с уровнем его типа (улучшения в колоде).
+    // Пара — это цепь из двух шариков: комбо-бонус +2 к каждому снаряду.
+    // Шипастый не стреляет — лопает и выпускает иглы.
     if (A.type !== 'spiky') {
-      this.fireOrb(a, 2);
+      this.fireOrb(a, 2, 2);
       A.cdUntil = this.now + CONFIG.cooldown;
     }
     if (B.type !== 'spiky') {
-      this.fireOrb(b, 2);
+      this.fireOrb(b, 2, 2);
       B.cdUntil = this.now + CONFIG.cooldown;
     }
     if (A.type === 'spiky') this.detonateSpiky(a, 0);
@@ -981,11 +984,30 @@ export class Engine {
     }
     this.projs = this.projs.filter((p) => p.life > 0);
 
-    // --- иглы: летят прямо, лопают первый шарик на пути ---
+    // --- иглы: летят прямо, лопают первый шарик на пути,
+    //     а попутно наносят урон первому врагу, которого задевают ---
     for (const n of this.needles) {
       n.x += n.dx * 540 * dt;
       n.y += n.dy * 540 * dt;
       n.life -= dt;
+
+      // Столкновение с врагом: игла бьёт первого врага на своём пути
+      // (урон растёт с уровнем шипастого в колоде).
+      for (const e of this.enemies) {
+        if (e.dead) continue;
+        const ep = pathPoint(e.p);
+        const dx = ep.x - n.x;
+        const dy = ep.y - n.y;
+        const rr = e.radius + 9;
+        if (dx * dx + dy * dy < rr * rr) {
+          this.damage(e, 1 + (this.typeLevels.spiky - 1), '#e9d5ff');
+          this.spark(ep.x, ep.y, '#b16cff', 5, 90);
+          n.life = 0;
+          break;
+        }
+      }
+      if (n.life <= 0) continue;
+
       for (let i = 0; i < this.grid.length; i++) {
         const o = this.grid[i];
         if (!o || this.popQueued.has(i)) continue;
@@ -993,18 +1015,21 @@ export class Engine {
         const along = (c.x - n.x) * n.dx + (c.y - n.y) * n.dy;
         const perp = Math.abs((c.x - n.x) * -n.dy + (c.y - n.y) * n.dx);
         if (perp < 30 && along > -18 && along < 44) {
-          this.popQueued.add(i);
           this.chainCount++;
           if (o.type === 'spiky') {
             this.detonateSpiky(i, n.depth + 1); // цепная реакция!
           } else if (o.level >= 2) {
-            // Заряженный шарик: лопает и стреляет залпом в уровень заряда.
-            // (Баланс: раньше любой шарик давал снаряды — шипы решали всё.)
+            // Заряженный шарик: ставим в очередь лопания, чтобы его не
+            // «съели» дважды в одном кадре (игла + смена режима).
+            this.popQueued.add(i);
             this.popQueue.push({ at: this.now + 0.05, cell: i, count: o.level });
             this.spark(c.x, c.y, '#b16cff', 6, 100);
             sfx.needle();
           } else {
-            // Обычный (не заряженный) шарик: просто лопается, без выстрела
+            // Обычный (не заряженный) шарик: просто лопается, без выстрела.
+            // ВАЖНО: сюда не добавлять popQueued — клетка сразу пустеет и
+            // скоро заполнится заново, а «залипшая» метка делает новый
+            // шарик невидимым для игл и для детонации сменой режима.
             this.grid[i] = null;
             this.ring(c.x, c.y, 'rgba(177,108,255,0.55)', 40);
             this.spark(c.x, c.y, '#b16cff', 4, 70);
