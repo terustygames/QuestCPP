@@ -994,13 +994,22 @@ export function GameStage({
     if (gs.drag) {
       const h = cellAt(p.x, p.y);
       if (g.mode === 'combine' && gs.chain.length > 0) {
-        // цепочка: проводим линию по соседним клеткам, назад — отмена конца
+        // цепочка: только по ОДИНАКОВЫМ шарикам (тип задаёт первый),
+        // назад по линии — откат конца
         const last = gs.chain[gs.chain.length - 1];
         const prev = gs.chain[gs.chain.length - 2];
+        const first = g.grid[gs.chain[0]];
         if (h !== -1 && h !== last) {
           if (h === prev) {
             gs.chain.pop();
-          } else if (g.grid[h] && isAdj(last, h) && !gs.chain.includes(h) && gs.chain.length < COLS * ROWS) {
+          } else if (
+            first &&
+            g.grid[h] &&
+            g.grid[h].type === first.type &&
+            isAdj(last, h) &&
+            !gs.chain.includes(h) &&
+            gs.chain.length < COLS * ROWS
+          ) {
             gs.chain.push(h);
           }
         }

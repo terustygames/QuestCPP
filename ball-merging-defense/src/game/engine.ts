@@ -93,6 +93,7 @@ export interface ProjState {
   straight?: boolean; // летит прямо (пробой), без самонаведения
   pierceLeft?: number; // сколько врагов ещё пробивает
   hitIds?: number[]; // враги, уже поражённые этим снарядом
+  bonus?: number; // бонус комбо: каждый шарик в цепи добавляет урон
 }
 
 export interface NeedleState {
@@ -255,15 +256,9 @@ export class Engine {
   // Случайный тип шарика из текущей колоды.
   // В обычном режиме шипастый выпадает реже остальных.
   private randomOrbType(): OrbType {
-    if (this.gameMode === 'experimental') {
-      return this.deck[Math.floor(Math.random() * this.deck.length)];
-    }
-    const r = Math.random() * 14;
-    if (r < 3) return 'fire';
-    if (r < 6) return 'ice';
-    if (r < 9) return 'bolt';
-    if (r < 12) return 'poison';
-    return 'spiky';
+    // шарики появляются строго из текущей колоды (в обычном режиме —
+    // шесть базовых типов, включая усилитель)
+    return this.deck[Math.floor(Math.random() * this.deck.length)];
   }
 
   // Заполнить всё поле новыми шариками из колоды (каскадное появление).
@@ -505,6 +500,14 @@ export class Engine {
     const A = this.grid[a];
     const B = this.grid[b];
     if (!A || !B) return;
+    // цепь — только из одинаковых шариков
+    if (A.type !== B.type) {
+      this.err('Цепь: только одинаковые шарики');
+      this.shake(a);
+      this.shake(b);
+      this.sel = null;
+      return;
+    }
     if (this.now < A.cdUntil || this.now < B.cdUntil) {
       this.err('Шарики ещё перезаряжаются');
       this.shake(this.now < A.cdUntil ? a : b);
@@ -550,6 +553,8 @@ export class Engine {
       this.linkLine(ca.x, ca.y, cb.x, cb.y, '#22d3ee');
     }
     let fired = 0;
+    // комбо: каждый шарик в цепи добавляет +1 урона всем снарядам цепи
+    const bonus = ready.length;
     for (const i of ready) {
       const o = this.grid[i];
       if (!o) continue;
@@ -557,12 +562,12 @@ export class Engine {
         this.detonateSpiky(i, 0);
         continue;
       }
-      this.fireOrb(i, 2);
+      this.fireOrb(i, 2, bonus);
       o.cdUntil = this.now + CONFIG.cooldown;
       fired++;
     }
     this.sel = null;
-    if (ready.length > 2) this.setBanner(`Цепь: ${ready.length} шариков стреляют`, 1.4);
+    if (ready.length > 2) this.setBanner(`Цепь: ${ready.length} шариков, +${bonus} к урону`, 1.4);
   }
 
   // Переключение режима. Возврат в совмещение = ДЕТОНАЦИЯ всех заряженных.
@@ -596,17 +601,18 @@ export class Engine {
   }
 
   // ============ СТРЕЛЬБА ============
-  fireOrb(cell: number, count: number) {
+  fireOrb(cell: number, count: number, bonus = 0) {
     const o = this.grid[cell];
     if (!o) return;
     const c = cellC(cell);
-    this.fireOrbAt(c.x, c.y, o.type, count);
+    this.fireOrbAt(c.x, c.y, o.type, count, bonus);
     sfx.shoot(o.type);
     o.pulse = this.now;
   }
 
-  // Сила эффектов берётся из глобального улучшения (this.upgradeLevel)
-  fireOrbAt(x: number, y: number, type: OrbType, count: number) {
+  // Сила эффектов берётся из уровня типа (this.typeLevels).
+  // bonus — комбо-бонус: каждый шарик в цепи добавляет +1 к урону снарядов.
+  fireOrbAt(x: number, y: number, type: OrbType, count: number, bonus = 0) {
     const g = this.typeLevels[type] - 1;
     if (type === 'barrage') count = Math.max(count, 5 + g); // залп растёт с уровнем типа
     for (let k = 0; k < count; k++) {
@@ -628,6 +634,7 @@ export class Engine {
           targetId: -1,
           age: 0, seed: Math.random() * 10, life: 1.4, trail: [],
           straight: true, pierceLeft: 2 + g, hitIds: [],
+          bonus,
         });
         continue;
       }
@@ -637,6 +644,7 @@ export class Engine {
         vy: -150 - Math.random() * 160,
         targetId: target ? target.id : -1,
         age: 0, seed: Math.random() * 10, life: 3, trail: [],
+        bonus,
       });
     }
   }
@@ -699,11 +707,13 @@ export class Engine {
   impact(p: ProjState, e: EnemyState) {
     // Сила эффекта — от уровня типа в колоде (1 = базовый, g = 0)
     const g = this.typeLevels[p.kind] - 1;
+    // бонус комбо: каждый шарик в цепи добавил +1 к урону снаряда
+    const b = p.bonus || 0;
     const pos = pathPoint(e.p);
     switch (p.kind) {
       case 'fire': {
-        // улучшение: основной урон растёт (3 + уровень)
-        this.damage(e, 3 + g, '#ff9a3d');
+        // улучшение: основной урон растёт (3 + уровень) + бонус цепи
+        this.damage(e, 3 + g + b, '#ff9a3d');
         this.ring(pos.x, pos.y, '#ff6a3d', 70);
         // осколки по соседним врагам
         for (const o of this.enemies) {
@@ -716,7 +726,7 @@ export class Engine {
       }
       case 'ice': {
         // улучшение: замедление сильнее и дольше
-        this.damage(e, 1, '#9be2ff');
+        this.damage(e, 1 + b, '#9be2ff');
         e.slowUntil = this.now + 2.3 + 0.4 * g;
         e.slowFactor = Math.max(0.2, 0.55 - 0.05 * g);
         this.ring(pos.x, pos.y, '#46c8ff', 44);
@@ -726,7 +736,7 @@ export class Engine {
         // улучшение: цепь бьёт (1 + уровень) врагов, радиус 150 + 30 за уровень
         const chainN = 1 + g;
         const radius = 150 + 30 * g;
-        const chainDmg = 2 + g;
+        const chainDmg = 2 + g + b;
         this.damage(e, chainDmg, '#ffe066');
         const cands = this.enemies
           .filter((o) => o !== e && !o.dead)
@@ -747,7 +757,7 @@ export class Engine {
       }
       case 'poison': {
         // улучшение: яд сильнее и дольше
-        this.damage(e, 1, '#86efac');
+        this.damage(e, 1 + b, '#86efac');
         const dps = 1.2 + 0.6 * g;
         const until = this.now + 4 + 0.5 * g;
         if (e.dots.length < 4) e.dots.push({ until, dps });
@@ -761,7 +771,7 @@ export class Engine {
       case 'nova': {
         // взрыв: урон всем врагам в радиусе (улучшение: радиус и урон выше)
         const radius = 95 + 20 * g;
-        const dmg = 4 + g;
+        const dmg = 4 + g + b;
         this.damage(e, dmg, '#ff8fa3');
         for (const o of this.enemies) {
           if (o === e || o.dead) continue;
@@ -775,7 +785,7 @@ export class Engine {
       }
       case 'stun': {
         // паралич: цель замирает (улучшение: дольше)
-        this.damage(e, 1, '#ffd27a');
+        this.damage(e, 1 + b, '#ffd27a');
         e.stunUntil = this.now + 1.2 + 0.4 * g;
         this.ring(pos.x, pos.y, '#f59e0b', 42);
         this.spark(pos.x, pos.y, '#ffd27a', 6, 80);
@@ -788,7 +798,7 @@ export class Engine {
       }
       case 'vampire': {
         // вампир: урон + эссенция (с дросселем, не чаще раза в 0.35 с)
-        this.damage(e, 1 + g, '#ff9cc7');
+        this.damage(e, 1 + g + b, '#ff9cc7');
         if (this.now - this.lastVampAt > 0.35) {
           this.lastVampAt = this.now;
           this.essence += 1;
@@ -799,12 +809,12 @@ export class Engine {
       }
       case 'barrage': {
         // шквал: каждый снаряд залпа наносит 1 урон
-        this.damage(e, 1, '#8ff5e4');
+        this.damage(e, 1 + b, '#8ff5e4');
         break;
       }
       case 'amp': {
         // эхо-снаряд усилителя: слабый урон (растёт с уровнем типа)
-        this.damage(e, 1 + g, '#d7dee8');
+        this.damage(e, 1 + g + b, '#d7dee8');
         this.ring(pos.x, pos.y, '#d7dee8', 40);
         break;
       }
