@@ -27,6 +27,7 @@ import {
   isAdj,
   pathPoint,
   TYPE_INFO,
+  accumMul,
   type BossId,
   type OrbType,
 } from '../game/config';
@@ -473,12 +474,24 @@ function drawScene(
       x.textAlign = 'center';
       x.textBaseline = 'middle';
       x.fillText(label, c.x + 11 + bw / 2, c.y - 32);
+      // накопление: сколько процентов урона даёт заряд этого шарика
+      if (g.mode === 'accumulate') {
+        const pctLabel = `+${Math.round((accumMul(o.level) - 1) * 100)}%`;
+        x.font = '800 12px Manrope, system-ui, sans-serif';
+        x.textAlign = 'center';
+        x.textBaseline = 'middle';
+        x.lineWidth = 3;
+        x.strokeStyle = 'rgba(0,0,0,0.85)';
+        x.strokeText(pctLabel, c.x + 11 + bw / 2, c.y - 12);
+        x.fillStyle = '#fde68a';
+        x.fillText(pctLabel, c.x + 11 + bw / 2, c.y - 12);
+      }
     }
 
     // перезарядка
     const cd = Math.max(0, o.cdUntil - g.now);
     if (cd > 0) {
-      const pct = cd / CONFIG.cooldown;
+      const pct = cd / (o.cdLen || CONFIG.cooldown);
       x.fillStyle = 'rgba(3,7,18,0.72)';
       x.beginPath();
       x.moveTo(c.x, c.y);

@@ -120,7 +120,7 @@ export function Header({
   );
 }
 
-// Колода в самом низу экрана: пять шариков — типы, из которых сейчас
+// Колода в самом низу экрана: шесть шариков — типы, из которых сейчас
 // заполняется поле. Цифра у шарика — уровень улучшения этого типа
 // (1 = базовый; растёт, когда зажимаешь шарик этого типа на поле).
 // Зажать (или нажать) шарик в колоде — открыть характеристики:
@@ -146,7 +146,7 @@ export function DeckBar({ g, onInfo }: { g: Engine; onInfo: (t: OrbType) => void
 
   return (
     <div
-      className="flex items-center justify-center gap-2 px-3"
+      className="flex items-center justify-center gap-1.5 px-3"
       data-deck-bar
       style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom))' }}
     >
@@ -166,7 +166,7 @@ export function DeckBar({ g, onInfo }: { g: Engine; onInfo: (t: OrbType) => void
             onClick={() => {
               if (!pressFired.current) onInfo(t);
             }}
-            className={`relative flex h-12 w-12 cursor-pointer items-center justify-center rounded-xl border transition-opacity ${
+            className={`relative flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border transition-opacity ${
               lvl > 1 ? 'border-amber-400/40 bg-white/[0.06]' : 'border-white/10 bg-white/[0.04]'
             }`}
           >
@@ -174,7 +174,7 @@ export function DeckBar({ g, onInfo }: { g: Engine; onInfo: (t: OrbType) => void
               src={orbSpriteUrl(t)}
               alt={TYPE_INFO[t].name}
               draggable={false}
-              className="h-9 w-9 select-none"
+              className="h-8 w-8 select-none"
             />
             <span
               className={`absolute -bottom-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-md border px-1 text-[11px] font-extrabold tabular-nums ${
@@ -194,7 +194,17 @@ export function DeckBar({ g, onInfo }: { g: Engine; onInfo: (t: OrbType) => void
 
 // Панель характеристик типа (показывается по зажиму шарика в колоде):
 // текущие значения и что вырастет при следующем улучшении.
-export function DeckInfoPopup({ type, lvl, onClose }: { type: OrbType; lvl: number; onClose: () => void }) {
+export function DeckInfoPopup({
+  type,
+  lvl,
+  mods,
+  onClose,
+}: {
+  type: OrbType;
+  lvl: number;
+  mods: string[];
+  onClose: () => void;
+}) {
   const info = TYPE_INFO[type];
   const rows = typeStatRows(type, lvl);
   return (
@@ -239,6 +249,12 @@ export function DeckInfoPopup({ type, lvl, onClose }: { type: OrbType; lvl: numb
             </div>
           ))}
         </div>
+        {mods.length > 0 && (
+          <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.06] px-3 py-2">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-300/80">Дерево навыков</div>
+            <div className="mt-1 text-[13px] leading-snug text-emerald-200">{mods.join(' · ')}</div>
+          </div>
+        )}
         <p className="mt-3 text-[12px] leading-snug text-slate-500">
           Чтобы улучшить: зажмите шарик «{info.name}» на поле. Шарик исчезнет,
           а уровень типа вырастет. Стоимость: {CONFIG.upgradeCost} эссенции.

@@ -14,11 +14,16 @@ import {
   Hand,
   TrendingUp,
   Trophy,
-  FlaskConical,
-  Shield,
+  Backpack,
+  Coins,
+  Sparkles,
+  Home,
 } from 'lucide-react';
-import type { Engine, GameMode } from '../game/engine';
+import type { Engine } from '../game/engine';
+import { runReward } from '../game/meta';
 
+// Правила для справки в игре (кнопка «?»). Заставка с описаниями убрана:
+// вход в игру — главное меню.
 const RULES = [
   {
     icon: <ShieldAlert size={18} />,
@@ -27,10 +32,16 @@ const RULES = [
     text: 'Шарики автоматически стреляют по врагам на кольцевой трассе. Каждый враг, дошедший до выхода, забирает одну жизнь, босс забирает пять. При нуле жизней оборона считается проваленной.',
   },
   {
+    icon: <Backpack size={18} />,
+    color: 'text-sky-300',
+    title: 'Колода',
+    text: 'Перед забегом собери колоду из шести шариков в инвентаре. Поле заполняется только шариками колоды. Для каждого шарика есть дерево навыков: узлы открываются за очки прокачки и монеты и действуют в каждом забеге.',
+  },
+  {
     icon: <MousePointerClick size={18} />,
     color: 'text-cyan-300',
     title: 'Совмещение',
-    text: 'Цепь — только из ОДИНАКОВЫХ шариков, исключение — шипастый: его можно соединить с любым шариком. Тапни по шарику и по соседнему того же типа, либо проведи линию по соседним шарикам — два и больше, зигзаги и углы разрешены: каждый шарик на линии стреляет сразу, по два снаряда. Комбо-урон: каждый шарик в цепи добавляет +1 урона ко всем снарядам цепи — чем длиннее цепь, тем больнее бьёт. Шипастый в цепи не стреляет: он лопается, и его иглы разрушают шарики и ранят врагов на трассе. Сила снарядов также растёт с уровнем типа в колоде. Перезарядка — 1,3 секунды: дождись её и повтори ту же линию.',
+    text: 'Цепь — только из ОДИНАКОВЫХ шариков, исключение — шипастый: его можно соединить с любым шариком. Тапни по шарику и по соседнему того же типа, либо проведи линию по соседним шарикам — два и больше, зигзаги и углы разрешены: каждый шарик на линии стреляет сразу, по два снаряда. Комбо-урон: каждый шарик в цепи добавляет +1 урона ко всем снарядам цепи — чем длиннее цепь, тем больнее бьёт. Шипастый в цепи не стреляет: он лопается, и его иглы разрушают шарики и ранят врагов на трассе. Перезарядка — 1,3 секунды: дождись её и повтори ту же линию.',
   },
   {
     icon: <Hand size={18} />,
@@ -42,25 +53,25 @@ const RULES = [
     icon: <TrendingUp size={18} />,
     color: 'text-amber-300',
     title: 'Улучшение',
-    text: 'Зажмите шарик на поле около половины секунды: шарик исчезает, а уровень его типа вырастает — это усиливает все шарики этого типа и никуда не исчезает. Каждое улучшение стоит 100 эссенции, улучшать можно неограниченно. Уровни типов видны в колоде внизу экрана; зажмите шарик в колоде — покажет характеристики и что именно вырастет при следующем улучшении: урон, скорость, радиус или что-то ещё, у каждого типа своё.',
+    text: 'Зажмите шарик на поле около половины секунды: шарик исчезает, а уровень его типа вырастает — это усиливает все шарики этого типа и никуда не исчезает. Каждое улучшение стоит 100 эссенции, улучшать можно неограниченно. Уровни типов видны в колоде внизу экрана; зажмите шарик в колоде — покажет характеристики и что именно вырастет при следующем улучшении.',
   },
   {
     icon: <Flame size={18} />,
     color: 'text-orange-400',
     title: 'Типы шариков',
-    text: 'Базовый набор из шести типов. Огонь: три единицы урона цели и одна соседним врагам. Лёд: одна единица урона и замедление цели. Молния: две единицы урона и разряд ближайшему врагу в радиусе. Яд: одна единица урона плюс урон во времени на четыре секунды. Шипастый: не стреляет, лопается при соединении (с любым шариком) и запускает цепную реакцию; его иглы разрушают шарики и ранят врагов. Усилитель — светлый шарик со звуковой волной: даёт четырём соседним шарикам эффект усиления (они излучают серые стрелочки из центра), и при выстреле в режиме совмещения или при взрыве соседние шарики выпускают в два раза больше снарядов. В экспериментальном режиме действуют ещё пять типов: Сверхновая — взрыв, поражающий врагов в радиусе; Паралич — замораживает цель на месте; Пробой — снаряд летит прямо и пробивает линию врагов; Вампир — одна единица урона и одна эссенция за попадание; Шквал — залп из пяти снарядов. Внизу экрана — колода: типы, из которых сейчас заполняется поле, и у каждого — его уровень улучшения.',
+    text: 'Огонь: три единицы урона цели и одна соседним врагам. Лёд: одна единица урона и замедление цели. Молния: две единицы урона и разряд по ближайшим врагам. Яд: одна единица урона плюс урон во времени. Шипастый: не стреляет, лопается при соединении (с любым шариком) и запускает цепную реакцию; его иглы разрушают шарики и ранят врагов. Усилитель — светлый шарик со звуковой волной: даёт четырём соседним шарикам усиление, и их залпы становятся больше. Сверхновая, Паралич, Пробой, Вампир и Шквал открываются в магазине за монеты.',
   },
   {
     icon: <Asterisk size={18} />,
     color: 'text-violet-400',
     title: 'Цепная реакция',
-    text: 'Шипастый можно соединять с любым шариком: в цепи он лопается и запускает реакцию. Также шипастый лопается под ударом иглы. Он выпускает четыре и более иглы (уровень шипастого в колоде добавляет иглы), каждая разрушает первый шарик на пути и ранит первого врага, которого заденет. Любой разрушенный иглой шарик лопается и выпускает снаряды (заряженный — залпом по уровню заряда, а рядом с усилителем — вдвое больше). Если разрушенный шарик снова шипастый, реакция продолжается. Цепь из четырёх и более взрывов приносит бонус эссенции.',
+    text: 'Шипастый можно соединять с любым шариком: в цепи он лопается и запускает реакцию. Также шипастый лопается под ударом иглы. Он выпускает четыре и более иглы, каждая разрушает первый шарик на пути и ранит первого врага, которого заденет. Любой разрушенный иглой шарик лопается и выпускает снаряды (заряженный — залпом по уровню заряда). Если разрушенный шарик снова шипастый, реакция продолжается. Цепь из четырёх и более взрывов приносит бонус эссенции.',
   },
   {
     icon: <Layers size={18} />,
     color: 'text-amber-300',
     title: 'Накопление',
-    text: 'Режим «Накопление» отключает выстрелы: соединение одинаковых шариков объединяет их в один (шипастый можно слить с любым шариком), а уровни заряда складываются — шарик с уровнем 5 и шарик с уровнем 3 дают шарик с уровнем 8. Максимальный уровень заряда — 9. Заряд остаётся на шарике, который нажали вторым. При возврате в режим «Совмещение» все заряженные шарики лопаются и выпускают залпы, сила которых растёт с уровнем заряда.',
+    text: 'Режим «Накопление» отключает выстрелы: соединение одинаковых шариков объединяет их в один (шипастый можно слить с любым шариком), а уровни заряда складываются — шарик с уровнем 5 и шарик с уровнем 3 дают шарик с уровнем 8. Максимальный уровень заряда — 9. При возврате в режим «Совмещение» все заряженные шарики лопаются и выпускают залпы. Каждый уровень заряда добавляет +2% урона всем снарядам своего залпа: заряд 9 — это +18%.',
   },
   {
     icon: <Trophy size={18} />,
@@ -69,10 +80,10 @@ const RULES = [
     text: 'Каждая пятая волна — босс-волна. Перед ней крутится рулетка: лента из двух боссов в случайном порядке останавливается под стрелкой по центру, и босс под стрелкой приходит в этой волне. У тебя есть время подготовиться. Громила: высокое здоровье и низкая скорость — готовь урон. Стриж: стандартное здоровье и высокая скорость — готовь замедление и паралич.',
   },
   {
-    icon: <FlaskConical size={18} />,
-    color: 'text-violet-300',
-    title: 'Экспериментальный режим',
-    text: 'В экспериментальном режиме колода шариков меняется каждую пятую волну: из одиннадцати возможных типов случайно выбираются пять, и поле пересобирается из новой колоды. Обычный режим использует шесть базовых типов и не меняет колоду.',
+    icon: <Coins size={18} />,
+    color: 'text-amber-300',
+    title: 'Награды',
+    text: 'За каждую пройденную волну ты получаешь очки прокачки и монеты. Монеты тратятся в магазине (шарики, запасы, ежедневный сундук), очки и монеты вместе открывают узлы деревьев навыков.',
   },
 ];
 
@@ -108,58 +119,6 @@ function Shell({ children }: { children: ReactNode }) {
   );
 }
 
-export function TitleOverlay({ onStart }: { onStart: (mode: GameMode) => void }) {
-  return (
-    <Shell>
-      <div className="font-display bg-gradient-to-r from-cyan-300 via-sky-400 to-violet-400 bg-clip-text text-center text-3xl font-black tracking-wide text-transparent sm:text-4xl">
-        ОРБИТАЛЬ
-      </div>
-      <p className="mt-2 text-center text-[13px] text-slate-400">
-        Соединяй шарики — они стреляют. Не пусти врагов к красной точке.
-      </p>
-      <div className="mt-4 space-y-2">
-        <button
-          onClick={() => onStart('normal')}
-          className="flex min-h-[56px] w-full items-center gap-3 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 px-4 text-left text-slate-950 shadow-lg shadow-cyan-500/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
-        >
-          <Shield size={22} strokeWidth={2.5} className="shrink-0" />
-          <span className="flex min-w-0 flex-col leading-tight">
-            <span className="text-[15px] font-extrabold">Обычный режим</span>
-            <span className="text-[11px] font-semibold opacity-80">
-              пять базовых шариков, два босса, рулетка
-            </span>
-          </span>
-        </button>
-        <button
-          onClick={() => onStart('experimental')}
-          className="flex min-h-[56px] w-full items-center gap-3 rounded-2xl bg-gradient-to-br from-violet-400 to-fuchsia-600 px-4 text-left text-slate-950 shadow-lg shadow-violet-500/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
-        >
-          <FlaskConical size={22} strokeWidth={2.5} className="shrink-0" />
-          <span className="flex min-w-0 flex-col leading-tight">
-            <span className="text-[15px] font-extrabold">Экспериментальный режим</span>
-            <span className="text-[11px] font-semibold opacity-80">
-              колода из пяти случайных типов, меняется каждую пятую волну
-            </span>
-          </span>
-        </button>
-      </div>
-      <div className="mt-4">
-        <RulesList />
-      </div>
-      <button
-        onClick={() => onStart('normal')}
-        className="mx-auto mt-5 flex min-h-[52px] items-center gap-2.5 rounded-2xl border border-white/15 bg-white/[0.06] px-8 text-lg font-bold text-slate-100 transition-all hover:scale-[1.03] hover:border-white/30 active:scale-95"
-      >
-        <Play size={20} strokeWidth={3} />
-        Начать игру
-      </button>
-      <p className="mt-3 text-center text-[11px] text-slate-500">
-        На компьютере: левая кнопка мыши — выбор, правая — продажа, пробел — смена режима, Enter — вызов волны
-      </p>
-    </Shell>
-  );
-}
-
 export function HelpOverlay({ onClose }: { onClose: () => void }) {
   return (
     <Shell>
@@ -187,7 +146,18 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function GameOverOverlay({ g, onRestart }: { g: Engine; onRestart: () => void }) {
+// Итоги забега: статистика и награды за пройденные волны
+export function GameOverOverlay({
+  g,
+  onRestart,
+  onMenu,
+}: {
+  g: Engine;
+  onRestart: () => void;
+  onMenu: () => void;
+}) {
+  const reward = runReward(g.wave);
+  const surrender = g.endReason === 'surrender';
   const stats = [
     { icon: <Flag size={16} className="text-amber-300" />, label: 'Дошёл до волны', value: g.wave },
     { icon: <Skull size={16} className="text-slate-300" />, label: 'Убито врагов', value: g.kills },
@@ -203,9 +173,11 @@ export function GameOverOverlay({ g, onRestart }: { g: Engine; onRestart: () => 
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-400">
         <Skull size={28} />
       </div>
-      <div className="font-display mt-3 text-center text-2xl font-black text-slate-100">Оборона пала</div>
+      <div className="font-display mt-3 text-center text-2xl font-black text-slate-100">
+        {surrender ? 'Забег завершён' : 'Оборона пала'}
+      </div>
       <p className="mt-1 text-center text-[13px] text-slate-400">
-        Больше шипастых в центре — больше цепных реакций.
+        Награда считается по пройденным волнам: та, на которой ты пал, не засчитывается.
       </p>
       <div className="mx-auto mt-4 grid max-w-xs grid-cols-2 gap-2">
         {stats.map((s) => (
@@ -221,13 +193,37 @@ export function GameOverOverlay({ g, onRestart }: { g: Engine; onRestart: () => 
           </div>
         ))}
       </div>
-      <button
-        onClick={onRestart}
-        className="mx-auto mt-5 flex min-h-[52px] items-center gap-2.5 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 px-8 text-lg font-bold text-slate-950 shadow-lg shadow-cyan-500/30 transition-all hover:scale-[1.03] active:scale-95"
-      >
-        <RotateCcw size={19} strokeWidth={3} />
-        Играть снова
-      </button>
+      <div className="mx-auto mt-3 max-w-xs rounded-2xl border border-amber-400/25 bg-amber-500/[0.06] p-3">
+        <div className="text-center text-[11px] font-bold uppercase tracking-wider text-amber-200/80">
+          Награда: пройдено волн {reward.passed}
+        </div>
+        <div className="mt-2 flex items-center justify-around gap-2">
+          <div className="flex items-center gap-1.5 text-[15px] font-extrabold tabular-nums text-amber-200">
+            <Coins size={16} className="text-amber-300" />
+            +{reward.coins}
+          </div>
+          <div className="flex items-center gap-1.5 text-[15px] font-extrabold tabular-nums text-fuchsia-200">
+            <Sparkles size={16} className="text-fuchsia-300" />
+            +{reward.points}
+          </div>
+        </div>
+      </div>
+      <div className="mt-5 flex flex-col items-stretch gap-2 sm:flex-row sm:justify-center">
+        <button
+          onClick={onRestart}
+          className="flex min-h-[52px] flex-1 items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 px-6 text-lg font-bold text-slate-950 shadow-lg shadow-cyan-500/30 transition-all hover:scale-[1.02] active:scale-95"
+        >
+          <RotateCcw size={19} strokeWidth={3} />
+          Играть снова
+        </button>
+        <button
+          onClick={onMenu}
+          className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/[0.06] px-6 text-[15px] font-bold text-slate-100 transition-all hover:border-white/30 active:scale-95"
+        >
+          <Home size={18} />
+          В меню
+        </button>
+      </div>
     </Shell>
   );
 }

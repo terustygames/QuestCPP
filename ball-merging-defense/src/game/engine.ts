@@ -5,7 +5,6 @@
 // ============================================================
 
 import {
-  ALL_TYPES,
   BOSS_DEFS,
   BOSS_IDS,
   CLASSIC_TYPES,
@@ -15,6 +14,7 @@ import {
   LEAK_AT,
   STAGE_W,
   STAGE_H,
+  accumMul,
   isAdj,
   cellC,
   pathPoint,
@@ -22,6 +22,7 @@ import {
   type BossId,
   type OrbType,
 } from './config';
+import type { TypeMods } from './skills';
 import { sfx } from './audio';
 
 // Четыре соседние клетки (вверх/вниз/влево/вправо)
@@ -38,8 +39,13 @@ export function neighbors4(i: number): number[] {
 
 export type Status = 'title' | 'prep' | 'wave' | 'gameover';
 export type Mode = 'combine' | 'accumulate';
-// Режим игры: обычный (как раньше) или экспериментальный (меняющаяся колода)
-export type GameMode = 'normal' | 'experimental';
+// Параметры забега, которые передаёт меню: колода, дерево навыков, запасы
+export interface RunConfig {
+  deck: OrbType[];
+  mods: Partial<Record<OrbType, TypeMods>>;
+  essenceBonus: number;
+  livesBonus: number;
+}
 // Короткие события для UI (виброотклик на телефоне)
 export type EngineEvent =
   | 'leak'
@@ -55,6 +61,7 @@ export interface OrbState {
   type: OrbType;
   level: number; // 1 — обычный, 2+ — заряженный (накопление)
   cdUntil: number; // время, до которого шарик на перезарядке
+  cdLen: number; // полная длина текущей перезарядки (для кольца на поле)
   bornAt: number; // для анимации появления
   pulse: number; // для анимации "толчка" при слиянии
 }
@@ -94,6 +101,7 @@ export interface ProjState {
   pierceLeft?: number; // сколько врагов ещё пробивает
   hitIds?: number[]; // враги, уже поражённые этим снарядом
   bonus?: number; // бонус комбо: каждый шарик в цепи добавляет урон
+  dmgMul?: number; // накопление: множитель урона всех попаданий снаряда
 }
 
 export interface NeedleState {
@@ -105,6 +113,7 @@ export interface NeedleState {
   ang: number;
   life: number;
   depth: number; // глубина цепной реакции (защита от зацикливания)
+  dmgMul: number; // накопление: множитель урона иглы (заряд шипастого)
 }
 
 export interface Particle {
@@ -127,11 +136,16 @@ export class Engine {
   // --- состояние игры ---
   status: Status = 'title';
   mode: Mode = 'combine';
-  gameMode: GameMode = 'normal';
   now = 0;
   wave = 1;
   lives = CONFIG.lives;
   essence = CONFIG.essenceStart;
+  // почему забег закончился: поражение или сдача (для экрана итогов)
+  endReason: 'loss' | 'surrender' = 'loss';
+  // модификаторы дерева навыков (задаются в startGame)
+  mods: Partial<Record<OrbType, TypeMods>> = {};
+  // множитель урона текущего попадания (накопление: залп заряженного шарика)
+  private hitMul = 1;
 
   // --- сущности ---
   grid: (OrbState | null)[] = Array(COLS * ROWS).fill(null);
@@ -188,9 +202,7 @@ export class Engine {
   // --- автоматическое заполнение пустых клеток ---
   nextAutoFill = 0;
 
-  // --- колода типов шариков ---
-  // В обычном режиме — пять базовых типов.
-  // В экспериментальном — пять случайных из десяти, меняются каждую 5-ю волну.
+  // --- колода типов шариков: шесть шариков, собранных в инвентаре ---
   deck: OrbType[] = [...CLASSIC_TYPES];
   lastVampAt = -10; // дроссель эссенции от вампира
 
@@ -318,6 +330,7 @@ export class Engine {
         type: this.randomOrbType(),
         level: 1,
         cdUntil: 0,
+        cdLen: CONFIG.cooldown,
         bornAt: this.now + i * 0.03,
         pulse: this.now,
       };
@@ -325,35 +338,55 @@ export class Engine {
     this.emitAmpArrows();
   }
 
-  // Экспериментальный режим: новая колода — 5 случайных типов из десяти.
-  // Поле пересобирается под новую колоду.
-  reshuffleDeck(initial = false) {
-    const pool = [...ALL_TYPES];
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    this.deck = pool.slice(0, CONFIG.deckSize);
-    if (!initial) this.refillField();
-    this.setBanner(`Колода: ${this.deck.map((t) => TYPE_INFO[t].name).join(', ')}`, 3.5);
-  }
-
-  startGame(mode: GameMode = 'normal') {
-    this.gameMode = mode;
+  // Старт забега: колода и дерево навыков из меню, запасы на старт.
+  startGame(cfg: RunConfig) {
     this.status = 'prep';
     this.prepUntil = this.now + CONFIG.firstPrep;
     this.nextAutoFill = 0;
     this.pendingBossId = 0;
+    this.deck = [...cfg.deck];
+    this.mods = cfg.mods;
+    this.essence = CONFIG.essenceStart + cfg.essenceBonus;
+    this.lives = CONFIG.lives + cfg.livesBonus;
+    this.endReason = 'loss';
     for (const k of Object.keys(this.typeLevels) as OrbType[]) this.typeLevels[k] = 1;
-    if (mode === 'experimental') {
-      this.reshuffleDeck(true);
-      this.refillField();
-      this.setBanner('Экспериментальный режим. Волна через 9 секунд');
-    } else {
-      this.deck = [...CLASSIC_TYPES];
-      this.refillField();
-      this.setBanner('Поле готово. Волна через 9 секунд');
-    }
+    this.refillField();
+    this.setBanner('Поле готово. Волна через 9 секунд');
+  }
+
+  // Сдача: забег завершается, итоги считаются по пройденным волнам.
+  surrender() {
+    if (this.status !== 'prep' && this.status !== 'wave') return;
+    this.status = 'gameover';
+    this.endReason = 'surrender';
+    this.sel = null;
+    sfx.gameover();
+    this.emit('gameover');
+  }
+
+  // Модификатор дерева навыков для типа шарика (0, если узла нет)
+  m(t: OrbType, k: keyof TypeMods): number {
+    return this.mods[t]?.[k] ?? 0;
+  }
+  // Урон основного попадания: плоский и процентный бонус дерева
+  hitDmg(base: number, t: OrbType): number {
+    return (base + this.m(t, 'dmg')) * (1 + this.m(t, 'dmgPct'));
+  }
+  // Перезарядка шарика после выстрела (с учётом дерева)
+  arm(o: OrbState) {
+    const len = Math.max(0.5, CONFIG.cooldown + this.m(o.type, 'cd'));
+    o.cdLen = len;
+    o.cdUntil = this.now + len;
+  }
+  // Число снарядов залпа: базовое + дерево (шквал — от уровня типа)
+  shotCount(t: OrbType, count: number): number {
+    const g = this.typeLevels[t] - 1;
+    const base = t === 'barrage' ? Math.max(count, 5 + g) : count;
+    return base + this.m(t, 'shots');
+  }
+  // Усиление соседей усилителя: ×2 и дерево усилителя
+  ampFactor(): number {
+    return 2 + this.m('amp', 'amp');
   }
 
   startWave() {
@@ -414,7 +447,15 @@ export class Engine {
   placeOrbAt(cell: number, auto = false) {
     if (this.grid[cell]) return;
     const type = this.randomOrbType();
-    this.grid[cell] = { id: this.nextId++, type, level: 1, cdUntil: 0, bornAt: this.now, pulse: this.now };
+    this.grid[cell] = {
+      id: this.nextId++,
+      type,
+      level: 1,
+      cdUntil: 0,
+      cdLen: CONFIG.cooldown,
+      bornAt: this.now,
+      pulse: this.now,
+    };
     this.popQueued.delete(cell);
     const c = cellC(cell);
     this.ring(c.x, c.y, TYPE_INFO[type].color, auto ? 46 : 60);
@@ -583,11 +624,11 @@ export class Engine {
     // Шипастый не стреляет — лопает и выпускает иглы.
     if (A.type !== 'spiky') {
       this.fireOrb(a, 2, 2);
-      A.cdUntil = this.now + CONFIG.cooldown;
+      this.arm(A);
     }
     if (B.type !== 'spiky') {
       this.fireOrb(b, 2, 2);
-      B.cdUntil = this.now + CONFIG.cooldown;
+      this.arm(B);
     }
     if (A.type === 'spiky') this.detonateSpiky(a, 0);
     if (B.type === 'spiky' && this.grid[b]) this.detonateSpiky(b, 0);
@@ -624,7 +665,7 @@ export class Engine {
         continue;
       }
       this.fireOrb(i, 2, bonus);
-      o.cdUntil = this.now + CONFIG.cooldown;
+      this.arm(o);
       fired++;
     }
     this.sel = null;
@@ -642,6 +683,7 @@ export class Engine {
       this.mode = 'combine';
       this.sel = null;
       let k = 0;
+      let maxLvl = 0;
       for (let i = 0; i < this.grid.length; i++) {
         const o = this.grid[i];
         if (o && o.level >= 2 && !this.popQueued.has(i)) {
@@ -653,10 +695,12 @@ export class Engine {
             amp: this.isAmplified(i),
           });
           k++;
+          maxLvl = Math.max(maxLvl, o.level);
         }
       }
     if (k > 0) {
-      this.setBanner(`Детонация: разрушено ${k}`, 1.6);
+      const pct = Math.round((accumMul(maxLvl) - 1) * 100);
+      this.setBanner(`Детонация: разрушено ${k}, урон залпов +${pct}%`, 2);
       this.detonateFlashUntil = this.now + 0.35;
       sfx.detonate();
       this.emit('detonate');
@@ -671,10 +715,10 @@ export class Engine {
     const o = this.grid[cell];
     if (!o) return;
     const c = cellC(cell);
-    let finalCount = o.type === 'barrage' ? Math.max(count, 5 + (this.typeLevels.barrage - 1)) : count;
-    // Усилитель рядом: соседние шарики выпускают в два раза больше снарядов
+    let finalCount = this.shotCount(o.type, count);
+    // Усилитель рядом: соседние шарики выпускают больше снарядов (×2 и дерево)
     if (this.isAmplified(cell)) {
-      finalCount *= 2;
+      finalCount = Math.round(finalCount * this.ampFactor());
       for (const n of neighbors4(cell)) {
         const no = this.grid[n];
         if (no && no.type === 'amp') {
@@ -685,16 +729,18 @@ export class Engine {
       }
       this.arrowSpark(c.x, c.y);
     }
-    this.fireOrbAt(c.x, c.y, o.type, finalCount, bonus);
+    this.fireOrbAt(c.x, c.y, o.type, finalCount, bonus + this.m(o.type, 'combo'));
     sfx.shoot(o.type);
     o.pulse = this.now;
   }
 
   // Сила эффектов берётся из уровня типа (this.typeLevels).
   // bonus — комбо-бонус: каждый шарик в цепи добавляет +1 к урону снарядов.
-  fireOrbAt(x: number, y: number, type: OrbType, count: number, bonus = 0) {
+  fireOrbAt(x: number, y: number, type: OrbType, count: number, bonus = 0, dmgMul = 1) {
     const g = this.typeLevels[type] - 1;
-    if (type === 'barrage') count = Math.max(count, 5 + g); // залп растёт с уровнем типа
+    // эссенция дерева: за каждый залп
+    const ess = this.m(type, 'ess');
+    if (ess) this.essence += ess;
     for (let k = 0; k < count; k++) {
       const target = this.pickTarget();
       if (type === 'pierce') {
@@ -713,7 +759,7 @@ export class Engine {
           vx: (dx / d) * sp, vy: (dy / d) * sp,
           targetId: -1,
           age: 0, seed: Math.random() * 10, life: 1.4, trail: [],
-          straight: true, pierceLeft: 2 + g, hitIds: [],
+          straight: true, pierceLeft: 2 + g + this.m(type, 'pierce'), hitIds: [], dmgMul,
           bonus,
         });
         continue;
@@ -724,7 +770,7 @@ export class Engine {
         vy: -150 - Math.random() * 160,
         targetId: target ? target.id : -1,
         age: 0, seed: Math.random() * 10, life: 3, trail: [],
-        bonus,
+        bonus, dmgMul,
       });
     }
   }
@@ -747,13 +793,16 @@ export class Engine {
     this.popQueued.delete(cell);
     if (this.sel === cell) this.sel = null;
     const c = cellC(cell);
+    // накопление: заряженный шипастый выпускает иглы с усилением своего заряда
+    const mul = accumMul(o.level);
+    this.essence += this.m('spiky', 'ess');
     this.ring(c.x, c.y, '#b16cff', 110);
     this.spark(c.x, c.y, '#b16cff', 14, 190);
     sfx.pop();
     // Уровень шипастого в колоде добавляет иглы. Четыре главных
     // направления (вверх/вниз/влево/вправо) всегда на месте — соседние
     // шарики достаются гарантированно; остальные разбросаны между ними.
-    const n = 4 + (this.typeLevels.spiky - 1);
+    const n = 4 + (this.typeLevels.spiky - 1) + this.m('spiky', 'needles');
     const angles: number[] = [];
     for (let k = 0; k < 4; k++) angles.push(-Math.PI / 2 + (Math.PI / 2) * k);
     const extra = n - 4;
@@ -768,13 +817,14 @@ export class Engine {
       const dy = Math.sin(a);
       this.needles.push({
         id: this.nextId++, x: c.x + dx * 24, y: c.y + dy * 24,
-        dx, dy, ang: a, life: 1.6, depth,
+        dx, dy, ang: a, life: 1.6, depth, dmgMul: mul,
       });
     }
   }
 
-  damage(e: EnemyState, d: number, color = '#ffffff', show = true) {
+  damage(e: EnemyState, d0: number, color = '#ffffff', show = true) {
     if (e.dead) return;
+    const d = d0 * this.hitMul;
     e.hp -= d;
     e.flashUntil = this.now + 0.08;
     if (show) {
@@ -783,40 +833,52 @@ export class Engine {
     }
   }
 
-  // Попадание снаряда: эффект зависит от типа шарика и глобального улучшения
+  // Попадание снаряда. Множитель залпа накопления (dmgMul) действует на весь
+  // урон этого снаряда: и основной удар, и осколки, цепи, взрывы.
   impact(p: ProjState, e: EnemyState) {
+    this.hitMul = p.dmgMul ?? 1;
+    try {
+      this.impactInner(p, e);
+    } finally {
+      this.hitMul = 1;
+    }
+  }
+
+  private impactInner(p: ProjState, e: EnemyState) {
     // Сила эффекта — от уровня типа в колоде (1 = базовый, g = 0)
     const g = this.typeLevels[p.kind] - 1;
+    const K = p.kind;
     // бонус комбо: каждый шарик в цепи добавил +1 к урону снаряда
     const b = p.bonus || 0;
     const pos = pathPoint(e.p);
     switch (p.kind) {
       case 'fire': {
         // улучшение: основной урон растёт (3 + уровень) + бонус цепи
-        this.damage(e, 3 + g + b, '#ff9a3d');
+        this.damage(e, this.hitDmg(3 + g + b, K), '#ff9a3d');
         this.ring(pos.x, pos.y, '#ff6a3d', 70);
         // осколки по соседним врагам
         for (const o of this.enemies) {
           if (o === e || o.dead) continue;
           const q = pathPoint(o.p);
           const dx = q.x - pos.x, dy = q.y - pos.y;
-          if (dx * dx + dy * dy < 58 * 58) this.damage(o, 1, '#ff6a3d', false);
+          const sr = 58 + this.m(K, 'radius');
+          if (dx * dx + dy * dy < sr * sr) this.damage(o, 1 + this.m(K, 'splash'), '#ff6a3d', false);
         }
         break;
       }
       case 'ice': {
         // улучшение: замедление сильнее и дольше
-        this.damage(e, 1 + b, '#9be2ff');
-        e.slowUntil = this.now + 2.3 + 0.4 * g;
-        e.slowFactor = Math.max(0.2, 0.55 - 0.05 * g);
+        this.damage(e, this.hitDmg(1 + b, K), '#9be2ff');
+        e.slowUntil = this.now + 2.3 + 0.4 * g + this.m(K, 'dur');
+        e.slowFactor = Math.max(0.15, 0.55 - 0.05 * g + this.m(K, 'slow'));
         this.ring(pos.x, pos.y, '#46c8ff', 44);
         break;
       }
       case 'bolt': {
         // улучшение: цепь бьёт (1 + уровень) врагов, радиус 150 + 30 за уровень
-        const chainN = 1 + g;
-        const radius = 150 + 30 * g;
-        const chainDmg = 2 + g + b;
+        const chainN = 1 + g + this.m(K, 'chain');
+        const radius = 150 + 30 * g + this.m(K, 'radius');
+        const chainDmg = this.hitDmg(2 + g + b, K);
         this.damage(e, chainDmg, '#ffe066');
         const cands = this.enemies
           .filter((o) => o !== e && !o.dead)
@@ -837,10 +899,10 @@ export class Engine {
       }
       case 'poison': {
         // улучшение: яд сильнее и дольше
-        this.damage(e, 1 + b, '#86efac');
-        const dps = 1.2 + 0.6 * g;
-        const until = this.now + 4 + 0.5 * g;
-        if (e.dots.length < 4) e.dots.push({ until, dps });
+        this.damage(e, this.hitDmg(1 + b, K), '#86efac');
+        const dps = 1.2 + 0.6 * g + this.m(K, 'dps');
+        const until = this.now + 4 + 0.5 * g + this.m(K, 'dur');
+        if (e.dots.length < 4 + this.m(K, 'stacks')) e.dots.push({ until, dps });
         else {
           e.dots.sort((x, y) => x.until - y.until);
           e.dots[0].until = until;
@@ -850,8 +912,8 @@ export class Engine {
       }
       case 'nova': {
         // взрыв: урон всем врагам в радиусе (улучшение: радиус и урон выше)
-        const radius = 95 + 20 * g;
-        const dmg = 4 + g + b;
+        const radius = 95 + 20 * g + this.m(K, 'radius');
+        const dmg = this.hitDmg(4 + g + b, K);
         this.damage(e, dmg, '#ff8fa3');
         for (const o of this.enemies) {
           if (o === e || o.dead) continue;
@@ -865,20 +927,20 @@ export class Engine {
       }
       case 'stun': {
         // паралич: цель замирает (улучшение: дольше)
-        this.damage(e, 1 + b, '#ffd27a');
-        e.stunUntil = this.now + 1.2 + 0.4 * g;
+        this.damage(e, this.hitDmg(1 + b, K), '#ffd27a');
+        e.stunUntil = this.now + 1.2 + 0.4 * g + this.m(K, 'dur');
         this.ring(pos.x, pos.y, '#f59e0b', 42);
         this.spark(pos.x, pos.y, '#ffd27a', 6, 80);
         break;
       }
       case 'pierce': {
         // пробой: урон каждому врагу на линии (улучшение: урон выше, пробивает больше)
-        this.damage(e, 2 + g, '#b3beff');
+        this.damage(e, this.hitDmg(2 + g, K), '#b3beff');
         break;
       }
       case 'vampire': {
         // вампир: урон + эссенция (с дросселем, не чаще раза в 0.35 с)
-        this.damage(e, 1 + g + b, '#ff9cc7');
+        this.damage(e, this.hitDmg(1 + g + b, K), '#ff9cc7');
         if (this.now - this.lastVampAt > 0.35) {
           this.lastVampAt = this.now;
           this.essence += 1;
@@ -889,12 +951,12 @@ export class Engine {
       }
       case 'barrage': {
         // шквал: каждый снаряд залпа наносит 1 урон
-        this.damage(e, 1 + b, '#8ff5e4');
+        this.damage(e, this.hitDmg(1 + b, K), '#8ff5e4');
         break;
       }
       case 'amp': {
         // эхо-снаряд усилителя: слабый урон (растёт с уровнем типа)
-        this.damage(e, 1 + g + b, '#d7dee8');
+        this.damage(e, this.hitDmg(1 + g + b, K), '#d7dee8');
         this.ring(pos.x, pos.y, '#d7dee8', 40);
         break;
       }
@@ -999,7 +1061,6 @@ export class Engine {
         // чтобы у игрока было время на подготовку
         this.pendingBossId = BOSS_IDS[Math.floor(Math.random() * BOSS_IDS.length)];
         this.prepUntil = this.now + CONFIG.bossPrepTime;
-        if (this.gameMode === 'experimental') this.reshuffleDeck();
         this.setBanner(`Скоро босс: ${BOSS_DEFS[this.pendingBossId as BossId].name}`, 3);
       } else {
         this.prepUntil = this.now + CONFIG.prepTime;
@@ -1077,7 +1138,9 @@ export class Engine {
         const dy = ep.y - n.y;
         const rr = e.radius + 9;
         if (dx * dx + dy * dy < rr * rr) {
-          this.damage(e, 1 + (this.typeLevels.spiky - 1), '#e9d5ff');
+          this.hitMul = n.dmgMul;
+          this.damage(e, this.hitDmg(1 + (this.typeLevels.spiky - 1), 'spiky'), '#e9d5ff');
+          this.hitMul = 1;
           this.spark(ep.x, ep.y, '#b16cff', 5, 90);
           n.life = 0;
           break;
@@ -1130,9 +1193,9 @@ export class Engine {
         } else {
           // Усилитель рядом: залп лопнувшего шарика — в два раза больше снарядов
           const amplified = Boolean(q.amp || this.isAmplified(q.cell));
-          let count = o.type === 'barrage' ? Math.max(q.count, 5 + (this.typeLevels.barrage - 1)) : q.count;
+          let count = this.shotCount(o.type, q.count);
           if (amplified) {
-            count *= 2;
+            count = Math.round(count * this.ampFactor());
             for (const n of neighbors4(q.cell)) {
               const no = this.grid[n];
               if (no && no.type === 'amp') {
@@ -1146,7 +1209,8 @@ export class Engine {
           const c = cellC(q.cell);
           this.ring(c.x, c.y, TYPE_INFO[o.type].color, 54);
           this.spark(c.x, c.y, TYPE_INFO[o.type].color, 7, 110);
-          this.fireOrbAt(c.x, c.y, o.type, count);
+          // накопление: залп заряженного шарика усиливает урон всех своих снарядов
+          this.fireOrbAt(c.x, c.y, o.type, count, 0, accumMul(o.level));
           sfx.popSmall();
         }
       }
