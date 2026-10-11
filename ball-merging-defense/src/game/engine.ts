@@ -446,6 +446,7 @@ export class Engine {
   }
 
   // Режим накопления: сливаем два ОДИНАКОВЫХ шарика в один.
+  // Уровни заряда СКЛАДЫВАЮТСЯ (шарик 5 и шарик 3 дают 8).
   // Заряд остаётся на шарике, который нажали ВТОРЫМ (b).
   mergePair(a: number, b: number) {
     const A = this.grid[a];
@@ -457,12 +458,12 @@ export class Engine {
       this.shake(b);
       return;
     }
-    if (B.level >= CONFIG.maxLevel) {
-      this.err('Шарик заряжен на максимум');
+    if (A.level + B.level > CONFIG.maxLevel) {
+      this.err(`Заряд выше максимума: ${CONFIG.maxLevel}`);
       this.shake(b);
       return;
     }
-    B.level += 1;
+    B.level += A.level;
     B.pulse = this.now;
     this.grid[a] = null;
     this.sel = null;

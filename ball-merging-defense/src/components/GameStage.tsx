@@ -40,17 +40,29 @@ const EXIT_POS = pathPoint(LEAK_AT);
 type SpriteMap = Record<OrbType, HTMLCanvasElement>;
 let orbSprites: SpriteMap | null = null;
 
-// Небольшой знак на шарике, чтобы десять типов было различать
+// Небольшой знак на шарике, чтобы десять типов было различать.
+// Единый стиль: белая фигура на однотонном теле, размер ~30px.
 function drawOrbMark(x: CanvasRenderingContext2D, type: OrbType, cx: number, cy: number) {
   x.save();
   x.translate(cx, cy);
-  x.strokeStyle = 'rgba(255,255,255,0.8)';
-  x.fillStyle = 'rgba(255,255,255,0.8)';
+  x.strokeStyle = 'rgba(255,255,255,0.88)';
+  x.fillStyle = 'rgba(255,255,255,0.88)';
   x.lineWidth = 3;
   x.lineCap = 'round';
+  x.lineJoin = 'round';
   const R = 15;
   switch (type) {
-    case 'ice': // снежинка: три перекрещенные линии
+    case 'fire': // пламя (закруглённый силуэт)
+      {
+        const flame = new Path2D(
+          'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z',
+        );
+        x.scale(1.6, 1.6);
+        x.translate(-12, -12);
+        x.fill(flame);
+      }
+      break;
+    case 'ice': // снежинка: три перекрещенные линии и точка в центре
       for (let k = 0; k < 3; k++) {
         const a = (Math.PI / 3) * k;
         x.beginPath();
@@ -58,6 +70,9 @@ function drawOrbMark(x: CanvasRenderingContext2D, type: OrbType, cx: number, cy:
         x.lineTo(-Math.cos(a) * R, -Math.sin(a) * R);
         x.stroke();
       }
+      x.beginPath();
+      x.arc(0, 0, 3, 0, Math.PI * 2);
+      x.fill();
       break;
     case 'bolt': // молния
       x.beginPath();
@@ -128,7 +143,7 @@ function drawOrbMark(x: CanvasRenderingContext2D, type: OrbType, cx: number, cy:
         }
       }
       break;
-    default: // огонь и шипастый — без знака
+    default: // шипастый — без внутреннего знака (его знаки — внешние иглы)
       break;
   }
   x.restore();
@@ -168,6 +183,18 @@ function getOrbSprites(): SpriteMap {
     orbSprites = m;
   }
   return orbSprites;
+}
+
+// Спрайт шарика как картинка (для панели колоды в HUD).
+// Кодируется один раз на тип — кадр не тратится на перекодировку.
+const spriteUrlCache = new Map<OrbType, string>();
+export function orbSpriteUrl(type: OrbType): string {
+  let u = spriteUrlCache.get(type);
+  if (!u) {
+    u = getOrbSprites()[type].toDataURL();
+    spriteUrlCache.set(type, u);
+  }
+  return u;
 }
 
 // Фон (фон + сетка + трасса) рисуется в отдельный слой один раз,

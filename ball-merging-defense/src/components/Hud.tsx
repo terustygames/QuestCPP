@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import type { Engine } from '../game/engine';
 import { CONFIG, TYPE_INFO } from '../game/config';
+import type { OrbType } from '../game/config';
+import { orbSpriteUrl } from './GameStage';
 
 function Chip({ icon, value, tone }: { icon: ReactNode; value: ReactNode; tone?: string }) {
   return (
@@ -127,23 +129,57 @@ export function Header({
   );
 }
 
-// Колода экспериментального режима: пять типов, из которых сейчас
-// заполняется поле. Меняется каждую пятую волну.
-export function DeckRow({ g }: { g: Engine }) {
-  if (g.gameMode !== 'experimental') return null;
+// Колода внизу экрана: пять шариков — типы, из которых сейчас
+// заполняется поле. У каждого шарика — максимальный уровень заряда
+// этого типа, который есть на поле прямо сейчас (0 — такого шарика
+// на поле нет). В обычном режиме колода — пять базовых типов,
+// в экспериментальном меняется каждую пятую волну.
+export function DeckBar({ g }: { g: Engine }) {
+  const deck: OrbType[] = g.deck.length ? g.deck : [];
+  const maxLevelOf = (t: OrbType) => {
+    let m = 0;
+    for (const o of g.grid) {
+      if (o && o.type === t && o.level > m) m = o.level;
+    }
+    return m;
+  };
   return (
-    <div className="flex items-center justify-center gap-2 px-3 pt-1.5">
-      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Колода</span>
-      <div className="flex items-center gap-1.5">
-        {g.deck.map((t) => (
-          <span
+    <div
+      className="flex items-center justify-center gap-2 px-3"
+      data-deck-bar
+      style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom))' }}
+    >
+      {deck.map((t) => {
+        const lvl = maxLevelOf(t);
+        const none = lvl === 0;
+        return (
+          <div
             key={t}
-            title={TYPE_INFO[t].name}
-            className="h-3.5 w-3.5 rounded-full border border-white/30"
-            style={{ background: TYPE_INFO[t].color }}
-          />
-        ))}
-      </div>
+            data-deck-slot
+            data-type={t}
+            title={`${TYPE_INFO[t].name}: уровень ${lvl}`}
+            className={`relative flex h-12 w-12 items-center justify-center rounded-xl border transition-opacity sm:h-13 sm:w-13 ${
+              none ? 'border-white/5 bg-white/[0.02] opacity-40' : 'border-white/10 bg-white/[0.05]'
+            }`}
+          >
+            <img
+              src={orbSpriteUrl(t)}
+              alt={TYPE_INFO[t].name}
+              draggable={false}
+              className="h-9 w-9 select-none"
+            />
+            <span
+              className={`absolute -bottom-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-md border px-1 text-[11px] font-extrabold tabular-nums ${
+                lvl >= 2
+                  ? 'border-amber-400/50 bg-amber-500/20 text-amber-200'
+                  : 'border-white/15 bg-slate-950 text-slate-400'
+              }`}
+            >
+              {lvl}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -162,7 +198,7 @@ export function Controls({
     <div
       className="flex items-stretch gap-2 px-3"
       style={{
-        paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+        paddingBottom: 4,
         paddingTop: 10,
       }}
     >

@@ -9,7 +9,7 @@ import { Engine, type GameMode } from './game/engine';
 import { CONFIG, type BossId } from './game/config';
 import { initAudio, setMuted } from './game/audio';
 import { GameStage } from './components/GameStage';
-import { Header, Controls, DeckRow } from './components/Hud';
+import { Header, Controls, DeckBar } from './components/Hud';
 import { TitleOverlay, HelpOverlay, GameOverOverlay } from './components/Overlays';
 import { BossRoulette } from './components/BossRoulette';
 
@@ -184,7 +184,6 @@ export default function App() {
 
       {playing && (
         <>
-          <DeckRow g={g} />
           <Controls
             g={g}
             onToggleMode={() => {
@@ -193,6 +192,8 @@ export default function App() {
             }}
             onCallWave={() => g.callWaveNow()}
           />
+          {/* колода в самом низу: пять типов и уровень заряда каждого */}
+          <DeckBar g={g} />
         </>
       )}
 
