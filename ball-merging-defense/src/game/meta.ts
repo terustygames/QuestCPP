@@ -35,6 +35,7 @@ export const BALL_PRICES: Partial<Record<OrbType, number>> = {
   pierce: 800,
   vampire: 800,
   barrage: 1000,
+  mark: 900,
 };
 
 const STORAGE_KEY = 'orbital.meta.v1';
@@ -210,13 +211,17 @@ export function deckReady(m: MetaState) {
 }
 
 // ---------- Деревья навыков ----------
-export type NodeStatus = 'open' | 'ready' | 'locked';
+// open — открыт; ready — можно открыть; locked — не хватает родителя или шарика;
+// blocked — закрыт выбором: открыт другой путь из этой развилки (нужен сброс дерева)
+export type NodeStatus = 'open' | 'ready' | 'locked' | 'blocked';
 
 export function nodeStatus(m: MetaState, n: SkillNode): NodeStatus {
   if (m.nodes.includes(n.id)) return 'open';
   if (!ownsBall(m, n.type)) return 'locked';
   const parentOpen = n.parent === rootId(n.type) || m.nodes.includes(n.parent);
-  return parentOpen ? 'ready' : 'locked';
+  if (!parentOpen) return 'locked';
+  if (n.exclusive.some((id) => m.nodes.includes(id))) return 'blocked';
+  return 'ready';
 }
 
 // Причина, почему узел нельзя открыть сейчас (null — можно)
@@ -225,6 +230,7 @@ export function unlockBlocker(m: MetaState, n: SkillNode): string | null {
   if (st === 'open') return 'Уже открыт';
   if (!ownsBall(m, n.type)) return 'Сначала откройте шарик в магазине';
   if (st === 'locked') return 'Сначала откройте предыдущий узел ветки';
+  if (st === 'blocked') return 'Путь закрыт выбором: сбросьте дерево, чтобы выбрать другой';
   if (m.points < n.points) return `Нужно очков прокачки: ${n.points}`;
   if (m.coins < n.coins) return `Нужно монет: ${n.coins}`;
   return null;

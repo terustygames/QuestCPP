@@ -11,6 +11,7 @@ import {
   buyBall,
   modsFor,
   nodeStatus,
+  type NodeStatus,
   ownsBall,
   resetTree,
   treeProgress,
@@ -22,12 +23,12 @@ import { NODE_BY_ID, TREE_BY_TYPE, describeMods, rootId, type SkillNode } from '
 import { orbSpriteUrl } from './GameStage';
 import { Toast, useToast } from './common';
 
-// Схема дерева в координатах окна (px). Корень — колонка 1, строка 0.
-const CANVAS_W = 280;
+// Схема дерева в координатах окна (px). Сетка 7 колонок по 42 px, корень — колонка 3.
+const CANVAS_W = 336;
 const CANVAS_H = 420;
 const VIEW_H = 250;
 const NODE = 56;
-const COL_X = [52, 140, 228];
+const colX = (c: number) => 42 + c * 42;
 const ROW_Y = [44, 144, 244, 344];
 const MIN_OFFSET = Math.min(0, VIEW_H - CANVAS_H);
 const ROMAN = ['I', 'II', 'III'];
@@ -35,9 +36,9 @@ const ROMAN = ['I', 'II', 'III'];
 const clampOffset = (v: number) => Math.max(MIN_OFFSET, Math.min(0, v));
 
 function nodePos(id: string, type: OrbType) {
-  if (id === rootId(type)) return { x: COL_X[1], y: ROW_Y[0] };
+  if (id === rootId(type)) return { x: colX(3), y: ROW_Y[0] };
   const n = NODE_BY_ID[id];
-  return { x: COL_X[n.col], y: ROW_Y[n.row] };
+  return { x: colX(n.col), y: ROW_Y[n.row] };
 }
 
 type Tab = 'info' | 'tree';
@@ -299,9 +300,17 @@ function SkillTree({
             })}
           </svg>
 
+          {/* развилка: два пути на первом ряду, открыт только один */}
+          <div
+            className="pointer-events-none absolute text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+            style={{ left: colX(3) - 22, top: ROW_Y[1] - 7, width: 44 }}
+          >
+            или
+          </div>
+
           {/* корень: открыт всегда */}
           <NodeDot
-            x={COL_X[1]}
+            x={colX(3)}
             y={ROW_Y[0]}
             selected={sel === rootId(type)}
             onClick={() => pick(rootId(type))}
@@ -317,7 +326,7 @@ function SkillTree({
             return (
               <NodeDot
                 key={n.id}
-                x={COL_X[n.col]}
+                x={colX(n.col)}
                 y={ROW_Y[n.row]}
                 selected={sel === n.id}
                 onClick={() => pick(n.id)}
@@ -395,7 +404,7 @@ function NodeDot({
   selected: boolean;
   onClick: () => void;
   color: string;
-  state: 'open' | 'ready' | 'locked';
+  state: NodeStatus;
   label: string;
   children: ReactNode;
 }) {
@@ -405,7 +414,8 @@ function NodeDot({
       : state === 'ready'
         ? { background: '#0f172a', borderColor: color, color }
         : { background: '#0f172a', borderColor: '#334155', color: '#64748b' };
-  const labelColor = state === 'open' ? '#e2e8f0' : state === 'ready' ? '#cbd5e1' : '#64748b';
+  const labelColor =
+    state === 'open' ? '#e2e8f0' : state === 'ready' ? '#cbd5e1' : state === 'blocked' ? '#475569' : '#64748b';
   return (
     <>
       <button
@@ -446,7 +456,7 @@ function NodeCard({ node, meta, onUnlock }: { node: SkillNode; meta: MetaState; 
       <div className="flex items-baseline justify-between gap-2">
         <div className="text-[15px] font-extrabold text-slate-100">{node.name}</div>
         <div className="shrink-0 text-[11px] text-slate-500">
-          Ветка «{node.branchName}» · {ROMAN[node.tier - 1]}
+          {node.exclusive.length > 0 ? 'Выбор пути' : 'Продолжение'} · {ROMAN[node.tier - 1]}
         </div>
       </div>
       <p className="text-[13px] leading-snug text-slate-300">{node.desc}</p>

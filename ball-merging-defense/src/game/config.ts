@@ -16,7 +16,8 @@ export type OrbType =
   | 'stun'
   | 'pierce'
   | 'vampire'
-  | 'barrage';
+  | 'barrage'
+  | 'mark';
 
 // ---------- Размеры игрового поля (логические пиксели) ----------
 // Портретная ориентация: поле рассчитано под вертикальный экран телефона.
@@ -177,6 +178,13 @@ export const TYPE_INFO: Record<
     glow: 'rgba(255,93,162,',
     desc: '1 ед. урона и 1 эссенция за попадание (не чаще раза в 0.35 с)',
   },
+  mark: {
+    name: 'Метка',
+    color: '#e879f9',
+    dark: '#5b1466',
+    glow: 'rgba(232,121,249,',
+    desc: 'ставит метки на случайных врагов: метка жжёт и превращает урон в опыт самого шарика',
+  },
   barrage: {
     name: 'Шквал',
     color: '#2dd4bf',
@@ -186,7 +194,9 @@ export const TYPE_INFO: Record<
   },
 };
 
-export const ALL_TYPES: OrbType[] = ['fire', 'ice', 'bolt', 'poison', 'spiky', 'amp', 'nova', 'stun', 'pierce', 'vampire', 'barrage'];
+export const ALL_TYPES: OrbType[] = [
+  'fire', 'ice', 'bolt', 'poison', 'spiky', 'amp', 'nova', 'stun', 'pierce', 'vampire', 'barrage', 'mark',
+];
 // Базовая колода обычного режима
 export const CLASSIC_TYPES: OrbType[] = ['fire', 'ice', 'bolt', 'poison', 'spiky', 'amp'];
 
@@ -274,6 +284,8 @@ export const CONFIG = {
   // накопление: каждый уровень заряда добавляет к урону залпа этот процент
   // (заряд 9 → +18%). Множитель действует на все снаряды залпа.
   accumDmgPerLevel: 0.02,
+  // метка: опыт шарика «Метка» растёт на урон метки; до следующего уровня нужно step × уровень
+  markXpStep: 12,
 };
 
 // Множитель урона залпа заряженного шарика (только для заряда 2 и выше)
@@ -312,6 +324,14 @@ export function typeStatValue(t: OrbType, stat: string, lvl: number): number {
       return stat === 'dmg' ? 1 + g : 1; // урон / эссенция за попадание
     case 'barrage':
       return 5 + g; // снарядов в залпе
+    case 'mark':
+      // dmg — урон попадания; dps — урон метки в секунду; dur — длительность метки;
+      // cap — меток на одном враге (без дерева)
+      if (stat === 'dmg') return 1 + g;
+      if (stat === 'dps') return 1 + 0.5 * g;
+      if (stat === 'dur') return 3.5 + 0.5 * g;
+      if (stat === 'cap') return 2;
+      return 1;
     default:
       return 1;
   }
@@ -372,6 +392,13 @@ export function typeStatRows(t: OrbType, lvl: number): StatRow[] {
       return [R('Урон', v('dmg'), n('dmg')), R('Эссенция за попадание', 1, 1)];
     case 'barrage':
       return [R('Снарядов в залпе', v('x'), n('x')), R('Урон снаряда', 1, 1)];
+    case 'mark':
+      return [
+        R('Урон попадания', v('dmg'), n('dmg')),
+        R('Урон метки в секунду', v('dps'), n('dps')),
+        R('Длительность метки', v('dur'), n('dur'), ' с'),
+        R('Меток на одном враге', v('cap'), v('cap')),
+      ];
     default:
       return [];
   }

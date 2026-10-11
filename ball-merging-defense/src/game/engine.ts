@@ -77,6 +77,7 @@ export interface EnemyState {
   slowFactor: number;
   stunUntil: number; // время, до которого враг заморожен (паралич)
   dots: { until: number; dps: number }[]; // яды
+  marks: { until: number; dps: number }[]; // метки шарика «Метка» (урон во времени, даёт опыт)
   reward: number;
   leakDmg: number;
   boss: boolean;
@@ -197,6 +198,7 @@ export class Engine {
     pierce: 1,
     vampire: 1,
     barrage: 1,
+    mark: 1,
   };
 
   // --- автоматическое заполнение пустых клеток ---
@@ -205,6 +207,9 @@ export class Engine {
   // --- колода типов шариков: шесть шариков, собранных в инвентаре ---
   deck: OrbType[] = [...CLASSIC_TYPES];
   lastVampAt = -10; // дроссель эссенции от вампира
+  // опыт шарика «Метка» в текущем забеге: урон меток переходит сюда,
+  // при достижении порога уровень типа «Метка» растёт
+  markXp = 0;
 
   // --- статистика и UI-эффекты ---
   kills = 0;
@@ -350,6 +355,7 @@ export class Engine {
     this.lives = CONFIG.lives + cfg.livesBonus;
     this.endReason = 'loss';
     for (const k of Object.keys(this.typeLevels) as OrbType[]) this.typeLevels[k] = 1;
+    this.markXp = 0;
     this.refillField();
     this.setBanner('Поле готово. Волна через 9 секунд');
   }
@@ -369,8 +375,33 @@ export class Engine {
     return this.mods[t]?.[k] ?? 0;
   }
   // Урон основного попадания: плоский и процентный бонус дерева
+  // Шанс критического попадания (дерево) удваивает урон удара
   hitDmg(base: number, t: OrbType): number {
-    return (base + this.m(t, 'dmg')) * (1 + this.m(t, 'dmgPct'));
+    const v = (base + this.m(t, 'dmg')) * (1 + this.m(t, 'dmgPct'));
+    return Math.random() < this.m(t, 'crit') ? v * 2 : v;
+  }
+
+  // Случайная цель среди всех живых врагов (для шарика «Метка»)
+  randomTarget(): EnemyState | null {
+    const alive = this.enemies.filter((e) => !e.dead);
+    if (!alive.length) return null;
+    return alive[Math.floor(Math.random() * alive.length)];
+  }
+
+  // Опыт шарика «Метка»: порог растёт с уровнем типа
+  markXpNeed(): number {
+    return CONFIG.markXpStep * this.typeLevels.mark;
+  }
+
+  // Урон меток переходит в опыт: один порог — +1 уровень типа «Метка»
+  gainMarkXp(dmg: number) {
+    this.markXp += dmg * (1 + this.m('mark', 'xp'));
+    while (this.markXp >= this.markXpNeed()) {
+      this.markXp -= this.markXpNeed();
+      this.typeLevels.mark += 1;
+      this.setBanner(`Метка выросла: уровень ${this.typeLevels.mark}`, 2);
+      sfx.upgrade();
+    }
   }
   // Перезарядка шарика после выстрела (с учётом дерева)
   arm(o: OrbState) {
@@ -433,7 +464,7 @@ export class Engine {
         ? CONFIG.bossSpeed * def!.speedMult
         : Math.min(CONFIG.enemySpeedCap, CONFIG.enemySpeed + (w - 1) * CONFIG.enemySpeedGrowth),
       radius: boss ? def!.radius : 14,
-      slowUntil: 0, slowFactor: 1, stunUntil: 0, dots: [],
+      slowUntil: 0, slowFactor: 1, stunUntil: 0, dots: [], marks: [],
       reward: boss ? def!.reward : CONFIG.enemyReward,
       leakDmg: boss ? CONFIG.bossLeak : 1,
       boss, bossId: boss ? kind : 0, flashUntil: 0, dead: false,
@@ -738,11 +769,9 @@ export class Engine {
   // bonus — комбо-бонус: каждый шарик в цепи добавляет +1 к урону снарядов.
   fireOrbAt(x: number, y: number, type: OrbType, count: number, bonus = 0, dmgMul = 1) {
     const g = this.typeLevels[type] - 1;
-    // эссенция дерева: за каждый залп
-    const ess = this.m(type, 'ess');
-    if (ess) this.essence += ess;
     for (let k = 0; k < count; k++) {
-      const target = this.pickTarget();
+      // метка стреляет в случайного врага, остальные шарики — в ближних по трассе
+      const target = type === 'mark' ? this.randomTarget() : this.pickTarget();
       if (type === 'pierce') {
         // пробой: прямой выстрел в сторону цели, без самонаведения
         let dx = Math.random() - 0.5;
@@ -941,6 +970,8 @@ export class Engine {
       case 'vampire': {
         // вампир: урон + эссенция (с дросселем, не чаще раза в 0.35 с)
         this.damage(e, this.hitDmg(1 + g + b, K), '#ff9cc7');
+        // дерево: эссенция за каждое попадание (без дросселя)
+        this.essence += this.m(K, 'ess');
         if (this.now - this.lastVampAt > 0.35) {
           this.lastVampAt = this.now;
           this.essence += 1;
@@ -952,6 +983,21 @@ export class Engine {
       case 'barrage': {
         // шквал: каждый снаряд залпа наносит 1 урон
         this.damage(e, this.hitDmg(1 + b, K), '#8ff5e4');
+        break;
+      }
+      case 'mark': {
+        // метка: удар и метка на враге (урон во времени; урон меток идёт в опыт шарика)
+        this.damage(e, this.hitDmg(1 + g + b, K), '#f0abfc');
+        const cap = 2 + this.m(K, 'stacks');
+        const dps = 1 + 0.5 * g + this.m(K, 'dps');
+        const until = this.now + 3.5 + 0.5 * g + this.m(K, 'dur');
+        if (e.marks.length < cap) e.marks.push({ until, dps });
+        else {
+          // все слоты заняты — обновляем метку, которая кончится раньше
+          e.marks.sort((x, y) => x.until - y.until);
+          e.marks[0] = { until, dps };
+        }
+        this.ring(pos.x, pos.y, '#e879f9', 40);
         break;
       }
       case 'amp': {
@@ -997,6 +1043,15 @@ export class Engine {
     // --- враги ---
     const leakedNow: EnemyState[] = [];
     for (const e of this.enemies) {
+      if (e.marks.length) {
+        // метки жгут врага; истёкшие снимаются до тика, живые каждый тик дают урон → опыт
+        e.marks = e.marks.filter((mk) => mk.until > this.now);
+        for (const mk of e.marks) {
+          const d = mk.dps * dt;
+          e.hp -= d;
+          this.gainMarkXp(d);
+        }
+      }
       if (e.dots.length) {
         for (const d of e.dots) e.hp -= d.dps * dt;
         e.dots = e.dots.filter((d) => d.until > this.now);
@@ -1097,7 +1152,7 @@ export class Engine {
         continue;
       }
       let t = this.enemies.find((e) => e.id === p.targetId) ?? null;
-      if (!t) t = this.pickTarget();
+      if (!t) t = p.kind === 'mark' ? this.randomTarget() : this.pickTarget();
       if (t) {
         p.targetId = t.id;
         const tp = pathPoint(t.p);

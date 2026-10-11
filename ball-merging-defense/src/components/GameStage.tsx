@@ -146,6 +146,21 @@ function drawOrbMark(x: CanvasRenderingContext2D, type: OrbType, cx: number, cy:
         }
       }
       break;
+    case 'mark': // метка: прицел — кольцо и четыре засечки
+      x.beginPath();
+      x.arc(0, 0, R * 0.5, 0, Math.PI * 2);
+      x.stroke();
+      x.beginPath();
+      x.moveTo(0, -R * 0.95);
+      x.lineTo(0, -R * 0.35);
+      x.moveTo(0, R * 0.35);
+      x.lineTo(0, R * 0.95);
+      x.moveTo(-R * 0.95, 0);
+      x.lineTo(-R * 0.35, 0);
+      x.moveTo(R * 0.35, 0);
+      x.lineTo(R * 0.95, 0);
+      x.stroke();
+      break;
     case 'amp': // усилитель: точка и две дуги — «взмах звуком»
       x.beginPath();
       x.arc(-9, 0, 3.6, 0, Math.PI * 2);
@@ -611,6 +626,22 @@ function drawScene(
       x.beginPath();
       x.arc(ex, ey, r + 6, 0, Math.PI * 2);
       x.stroke();
+    }
+    if (e.marks.length) {
+      // метка шарика «Метка»: пунктирное кольцо, вращается; по числу меток — точки
+      x.strokeStyle = 'rgba(232,121,249,0.95)';
+      x.lineWidth = 2;
+      x.setLineDash([4, 4]);
+      x.beginPath();
+      x.arc(ex, ey, r + 10, -vnow * 1.5, -vnow * 1.5 + Math.PI * 2);
+      x.stroke();
+      x.setLineDash([]);
+      x.fillStyle = 'rgba(232,121,249,0.95)';
+      for (let k = 0; k < e.marks.length; k++) {
+        x.beginPath();
+        x.arc(ex - 5 + k * 10, ey + r + 13, 2.2, 0, Math.PI * 2);
+        x.fill();
+      }
     }
     if (flash) {
       x.fillStyle = 'rgba(255,255,255,0.7)';

@@ -312,6 +312,11 @@ export default function App() {
               type={deckInfo}
               lvl={g.typeLevels[deckInfo]}
               mods={describeMods(g.mods[deckInfo])}
+              note={
+                deckInfo === 'mark'
+                  ? `Опыт: ${Math.floor(g.markXp)} из ${g.markXpNeed()} — до уровня ${g.typeLevels.mark + 1}`
+                  : undefined
+              }
               onClose={() => setDeckInfo(null)}
             />
           )}
