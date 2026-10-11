@@ -25,7 +25,7 @@ import {
 import { sfx } from './audio';
 
 // Четыре соседние клетки (вверх/вниз/влево/вправо)
-function neighbors4(i: number): number[] {
+export function neighbors4(i: number): number[] {
   const r = Math.floor(i / COLS);
   const c = i % COLS;
   const out: number[] = [];
@@ -109,7 +109,7 @@ export interface NeedleState {
 
 export interface Particle {
   id: number;
-  kind: 'spark' | 'ring' | 'text' | 'line';
+  kind: 'spark' | 'ring' | 'text' | 'line' | 'arrow';
   x: number;
   y: number;
   vx: number;
@@ -157,10 +157,14 @@ export class Engine {
   pendingBossId = 0; // босс следующей босс-волны (выбирает рулетка)
 
   // --- очередь "лопания" шариков (чтобы взрывы шли красиво, с задержкой) ---
-  popQueue: { at: number; cell: number; count: number }[] = [];
+  popQueue: { at: number; cell: number; count: number; amp?: boolean }[] = [];
   popQueued = new Set<number>();
   chainCount = 0;
   maxChain = 0;
+
+  // --- визуальное излучение стрелочек от усиленных соседей ---
+  nextArrowEmit = 0;
+  arrowPhase = 0;
 
   // --- улучшения по типам ---
   // Делается долгим нажатием на шарик на поле: шарик расходится (исчезает),
@@ -251,6 +255,47 @@ export class Engine {
       life: 0.16, maxLife: 0.16, color, size: 3, text: '',
     });
   }
+  // Серая частица-стрелочка, излучаемая из центра усиленного соседнего шарика
+  arrowSpark(x: number, y: number, angle?: number) {
+    const a = angle ?? Math.random() * Math.PI * 2;
+    const spd = 54 + Math.random() * 20;
+    this.parts.push({
+      id: this.nextId++,
+      kind: 'arrow',
+      x,
+      y,
+      vx: Math.cos(a) * spd,
+      vy: Math.sin(a) * spd,
+      life: 0.65,
+      maxLife: 0.65,
+      color: '#cbd5e1',
+      size: 9,
+      text: '',
+      x2: a,
+      y2: 0,
+    });
+  }
+
+  // Находится ли шарик в клетке i под эффектом усиления (рядом с шариком «Усилитель»)
+  isAmplified(i: number): boolean {
+    if (!this.grid[i]) return false;
+    for (const n of neighbors4(i)) {
+      const no = this.grid[n];
+      if (no && no.type === 'amp') return true;
+    }
+    return false;
+  }
+
+  // Излучение серых частиц-стрелочек из центра всех усиленных соседних шариков
+  emitAmpArrows() {
+    for (let i = 0; i < this.grid.length; i++) {
+      if (!this.isAmplified(i)) continue;
+      const c = cellC(i);
+      const a = (this.arrowPhase * 1.9 + i * 1.37) % (Math.PI * 2);
+      this.arrowSpark(c.x, c.y, a);
+    }
+    this.arrowPhase++;
+  }
 
   // ============ УПРАВЛЕНИЕ ИГРОЙ ============
   // Случайный тип шарика из текущей колоды.
@@ -277,6 +322,7 @@ export class Engine {
         pulse: this.now,
       };
     }
+    this.emitAmpArrows();
   }
 
   // Экспериментальный режим: новая колода — 5 случайных типов из десяти.
@@ -369,9 +415,20 @@ export class Engine {
     if (this.grid[cell]) return;
     const type = this.randomOrbType();
     this.grid[cell] = { id: this.nextId++, type, level: 1, cdUntil: 0, bornAt: this.now, pulse: this.now };
+    this.popQueued.delete(cell);
     const c = cellC(cell);
     this.ring(c.x, c.y, TYPE_INFO[type].color, auto ? 46 : 60);
     this.spark(c.x, c.y, TYPE_INFO[type].color, auto ? 4 : 6, 90);
+    if (type === 'amp') {
+      for (const n of neighbors4(cell)) {
+        if (this.grid[n]) {
+          const nc = cellC(n);
+          this.arrowSpark(nc.x, nc.y);
+        }
+      }
+    } else if (this.isAmplified(cell)) {
+      this.arrowSpark(c.x, c.y);
+    }
     if (auto) sfx.place();
     else sfx.buy();
   }
@@ -487,6 +544,7 @@ export class Engine {
     B.level += A.level;
     B.pulse = this.now;
     this.grid[a] = null;
+    this.popQueued.delete(a);
     this.sel = null;
     const c = cellC(b);
     this.ring(c.x, c.y, TYPE_INFO[B.type].color, 70);
@@ -588,7 +646,12 @@ export class Engine {
         const o = this.grid[i];
         if (o && o.level >= 2 && !this.popQueued.has(i)) {
           this.popQueued.add(i);
-          this.popQueue.push({ at: this.now + k * 0.08, cell: i, count: o.level });
+          this.popQueue.push({
+            at: this.now + k * 0.08,
+            cell: i,
+            count: o.level,
+            amp: this.isAmplified(i),
+          });
           k++;
         }
       }
@@ -608,7 +671,21 @@ export class Engine {
     const o = this.grid[cell];
     if (!o) return;
     const c = cellC(cell);
-    this.fireOrbAt(c.x, c.y, o.type, count, bonus);
+    let finalCount = o.type === 'barrage' ? Math.max(count, 5 + (this.typeLevels.barrage - 1)) : count;
+    // Усилитель рядом: соседние шарики выпускают в два раза больше снарядов
+    if (this.isAmplified(cell)) {
+      finalCount *= 2;
+      for (const n of neighbors4(cell)) {
+        const no = this.grid[n];
+        if (no && no.type === 'amp') {
+          const nc = cellC(n);
+          this.ring(nc.x, nc.y, '#d7dee8', 44);
+          no.pulse = this.now;
+        }
+      }
+      this.arrowSpark(c.x, c.y);
+    }
+    this.fireOrbAt(c.x, c.y, o.type, finalCount, bonus);
     sfx.shoot(o.type);
     o.pulse = this.now;
   }
@@ -1018,21 +1095,16 @@ export class Engine {
           this.chainCount++;
           if (o.type === 'spiky') {
             this.detonateSpiky(i, n.depth + 1); // цепная реакция!
-          } else if (o.level >= 2) {
-            // Заряженный шарик: ставим в очередь лопания, чтобы его не
-            // «съели» дважды в одном кадре (игла + смена режима).
-            this.popQueued.add(i);
-            this.popQueue.push({ at: this.now + 0.05, cell: i, count: o.level });
-            this.spark(c.x, c.y, '#b16cff', 6, 100);
-            sfx.needle();
           } else {
-            // Обычный (не заряженный) шарик: просто лопается, без выстрела.
-            // ВАЖНО: сюда не добавлять popQueued — клетка сразу пустеет и
-            // скоро заполнится заново, а «залипшая» метка делает новый
-            // шарик невидимым для игл и для детонации сменой режима.
-            this.grid[i] = null;
-            this.ring(c.x, c.y, 'rgba(177,108,255,0.55)', 40);
-            this.spark(c.x, c.y, '#b16cff', 4, 70);
+            // Любой разрушенный иглой шарик лопается и выпускает снаряды
+            this.popQueued.add(i);
+            this.popQueue.push({
+              at: this.now + 0.05,
+              cell: i,
+              count: o.level,
+              amp: this.isAmplified(i),
+            });
+            this.spark(c.x, c.y, '#b16cff', 6, 100);
             sfx.needle();
           }
           n.life = 0;
@@ -1052,24 +1124,28 @@ export class Engine {
         this.popQueued.delete(q.cell);
         const o = this.grid[q.cell];
         if (!o) continue;
+        if (this.sel === q.cell) this.sel = null;
         if (o.type === 'spiky') {
           this.detonateSpiky(q.cell, 0);
         } else {
+          // Усилитель рядом: залп лопнувшего шарика — в два раза больше снарядов
+          const amplified = Boolean(q.amp || this.isAmplified(q.cell));
+          let count = o.type === 'barrage' ? Math.max(q.count, 5 + (this.typeLevels.barrage - 1)) : q.count;
+          if (amplified) {
+            count *= 2;
+            for (const n of neighbors4(q.cell)) {
+              const no = this.grid[n];
+              if (no && no.type === 'amp') {
+                const nc = cellC(n);
+                this.ring(nc.x, nc.y, '#d7dee8', 44);
+                break;
+              }
+            }
+          }
           this.grid[q.cell] = null;
           const c = cellC(q.cell);
           this.ring(c.x, c.y, TYPE_INFO[o.type].color, 54);
           this.spark(c.x, c.y, TYPE_INFO[o.type].color, 7, 110);
-          // Усилитель рядом: залп лопнувшего шарика — в два раза больше снарядов
-          let count = q.count;
-          for (const n of neighbors4(q.cell)) {
-            const no = this.grid[n];
-            if (no && no.type === 'amp') {
-              count *= 2;
-              const nc = cellC(n);
-              this.ring(nc.x, nc.y, '#d7dee8', 44);
-              break;
-            }
-          }
           this.fireOrbAt(c.x, c.y, o.type, count);
           sfx.popSmall();
         }
@@ -1088,6 +1164,12 @@ export class Engine {
       this.chainCount = 0;
     }
 
+    // --- излучение серых частиц-стрелочек с центра усиленных соседних шариков ---
+    if (this.now >= this.nextArrowEmit) {
+      this.nextArrowEmit = this.now + 0.14;
+      this.emitAmpArrows();
+    }
+
     // --- частицы ---
     for (const pt of this.parts) {
       pt.x += pt.vx * dt;
@@ -1096,6 +1178,6 @@ export class Engine {
       pt.life -= dt;
     }
     this.parts = this.parts.filter((pt) => pt.life > 0);
-    if (this.parts.length > 220) this.parts.splice(0, this.parts.length - 220);
+    if (this.parts.length > 320) this.parts.splice(0, this.parts.length - 320);
   }
 }
