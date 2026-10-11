@@ -1,4 +1,5 @@
 // Компактный HUD под тач-экран: минимум текста, крупные кнопки.
+import { useRef } from 'react';
 import type { ReactNode } from 'react';
 import {
   Heart,
@@ -12,10 +13,11 @@ import {
   HelpCircle,
   Combine,
   Layers,
+  X,
   Zap,
 } from 'lucide-react';
 import type { Engine } from '../game/engine';
-import { CONFIG, TYPE_INFO } from '../game/config';
+import { CONFIG, TYPE_INFO, typeStatRows } from '../game/config';
 import type { OrbType } from '../game/config';
 import { orbSpriteUrl } from './GameStage';
 
@@ -87,17 +89,6 @@ export function Header({
           tone={g.lives <= 5 ? '#fda4af' : undefined}
         />
         <Chip icon={<Gem size={13} className="shrink-0 text-cyan-300" />} value={g.essence} />
-        <Chip
-          icon={<Zap size={13} className="shrink-0 text-amber-300" />}
-          value={
-            <span
-              title="Глобальное улучшение: усиливает все шарики. Можно сделать столько, сколько волна на счётчике"
-              className="tabular-nums"
-            >
-              {g.upgradeLevel} из {g.wave}
-            </span>
-          }
-        />
         {g.status === 'wave' && (
           <Chip icon={<Skull size={13} className="shrink-0 text-slate-300" />} value={g.enemiesLeft} />
         )}
@@ -129,20 +120,30 @@ export function Header({
   );
 }
 
-// Колода внизу экрана: пять шариков — типы, из которых сейчас
-// заполняется поле. У каждого шарика — максимальный уровень заряда
-// этого типа, который есть на поле прямо сейчас (0 — такого шарика
-// на поле нет). В обычном режиме колода — пять базовых типов,
-// в экспериментальном меняется каждую пятую волну.
-export function DeckBar({ g }: { g: Engine }) {
+// Колода в самом низу экрана: пять шариков — типы, из которых сейчас
+// заполняется поле. Цифра у шарика — уровень улучшения этого типа
+// (1 = базовый; растёт, когда зажимаешь шарик этого типа на поле).
+// Зажать (или нажать) шарик в колоде — открыть характеристики:
+// что есть сейчас и что вырастет при следующем улучшении.
+export function DeckBar({ g, onInfo }: { g: Engine; onInfo: (t: OrbType) => void }) {
   const deck: OrbType[] = g.deck.length ? g.deck : [];
-  const maxLevelOf = (t: OrbType) => {
-    let m = 0;
-    for (const o of g.grid) {
-      if (o && o.type === t && o.level > m) m = o.level;
-    }
-    return m;
+  const pressTimer = useRef<number | null>(null);
+  const pressFired = useRef(false);
+
+  const startPress = (t: OrbType) => {
+    pressFired.current = false;
+    pressTimer.current = window.setTimeout(() => {
+      pressFired.current = true;
+      onInfo(t);
+    }, 450);
   };
+  const cancelPress = () => {
+    if (pressTimer.current !== null) {
+      window.clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+  };
+
   return (
     <div
       className="flex items-center justify-center gap-2 px-3"
@@ -150,16 +151,23 @@ export function DeckBar({ g }: { g: Engine }) {
       style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom))' }}
     >
       {deck.map((t) => {
-        const lvl = maxLevelOf(t);
-        const none = lvl === 0;
+        const lvl = g.typeLevels[t];
         return (
           <div
             key={t}
             data-deck-slot
             data-type={t}
-            title={`${TYPE_INFO[t].name}: уровень ${lvl}`}
-            className={`relative flex h-12 w-12 items-center justify-center rounded-xl border transition-opacity sm:h-13 sm:w-13 ${
-              none ? 'border-white/5 bg-white/[0.02] opacity-40' : 'border-white/10 bg-white/[0.05]'
+            role="button"
+            title={`${TYPE_INFO[t].name}: уровень ${lvl}. Зажмите — характеристики`}
+            onPointerDown={() => startPress(t)}
+            onPointerUp={cancelPress}
+            onPointerLeave={cancelPress}
+            onPointerCancel={cancelPress}
+            onClick={() => {
+              if (!pressFired.current) onInfo(t);
+            }}
+            className={`relative flex h-12 w-12 cursor-pointer items-center justify-center rounded-xl border transition-opacity ${
+              lvl > 1 ? 'border-amber-400/40 bg-white/[0.06]' : 'border-white/10 bg-white/[0.04]'
             }`}
           >
             <img
@@ -170,7 +178,7 @@ export function DeckBar({ g }: { g: Engine }) {
             />
             <span
               className={`absolute -bottom-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-md border px-1 text-[11px] font-extrabold tabular-nums ${
-                lvl >= 2
+                lvl > 1
                   ? 'border-amber-400/50 bg-amber-500/20 text-amber-200'
                   : 'border-white/15 bg-slate-950 text-slate-400'
               }`}
@@ -180,6 +188,62 @@ export function DeckBar({ g }: { g: Engine }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Панель характеристик типа (показывается по зажиму шарика в колоде):
+// текущие значения и что вырастет при следующем улучшении.
+export function DeckInfoPopup({ type, lvl, onClose }: { type: OrbType; lvl: number; onClose: () => void }) {
+  const info = TYPE_INFO[type];
+  const rows = typeStatRows(type, lvl);
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#04060d]/85 p-4"
+      onClick={onClose}
+    >
+      <div
+        data-deck-popup
+        className="w-full max-w-sm rounded-3xl border border-white/10 bg-slate-900/95 p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3">
+          <img src={orbSpriteUrl(type)} alt={info.name} className="h-14 w-14 select-none" draggable={false} />
+          <div className="min-w-0 flex-1">
+            <div className="text-lg font-extrabold text-slate-100">{info.name}</div>
+            <div className="text-[12px] text-slate-400">
+              Улучшение: уровень {lvl} (следующее — {lvl + 1})
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Закрыть"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:text-white"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="mt-4 space-y-1.5">
+          {rows.map((r) => (
+            <div
+              key={r.label}
+              className="flex items-baseline justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2"
+            >
+              <span className="text-[13px] text-slate-300">{r.label}</span>
+              <span className="whitespace-nowrap text-[14px] font-extrabold tabular-nums text-slate-100">
+                {r.cur}
+                {r.next && (
+                  <span className="ml-2 text-[12px] font-bold text-amber-300">будет {r.next}</span>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-[12px] leading-snug text-slate-500">
+          Чтобы улучшить: зажмите шарик «{info.name}» на поле. Шарик исчезнет,
+          а уровень типа вырастет. Стоимость: {CONFIG.upgradeCost} эссенции.
+        </p>
+      </div>
     </div>
   );
 }

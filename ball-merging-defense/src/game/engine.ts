@@ -149,11 +149,23 @@ export class Engine {
   chainCount = 0;
   maxChain = 0;
 
-  // --- глобальное улучшение ---
-  // Делается долгим нажатием на любой шарик, действует на ВСЕ шарики,
-  // не привязано к конкретному шарику (не исчезает, когда шарики уходят).
-  // Лимит: столько улучшений, сколько показывает счётчик волны.
-  upgradeLevel = 0;
+  // --- улучшения по типам ---
+  // Делается долгим нажатием на шарик на поле: шарик расходится (исчезает),
+  // а уровень его ТИПА в колоде растёт. Улучшенный уровень действует на все
+  // шарики этого типа и никуда не девается. Стоимость фиксированная:
+  // CONFIG.upgradeCost эссенции за каждое улучшение.
+  typeLevels: Record<OrbType, number> = {
+    fire: 1,
+    ice: 1,
+    bolt: 1,
+    poison: 1,
+    spiky: 1,
+    nova: 1,
+    stun: 1,
+    pierce: 1,
+    vampire: 1,
+    barrage: 1,
+  };
 
   // --- автоматическое заполнение пустых клеток ---
   nextAutoFill = 0;
@@ -278,7 +290,7 @@ export class Engine {
     this.prepUntil = this.now + CONFIG.firstPrep;
     this.nextAutoFill = 0;
     this.pendingBossId = 0;
-    this.upgradeLevel = 0;
+    for (const k of Object.keys(this.typeLevels) as OrbType[]) this.typeLevels[k] = 1;
     if (mode === 'experimental') {
       this.reshuffleDeck(true);
       this.refillField();
@@ -356,33 +368,31 @@ export class Engine {
     else sfx.buy();
   }
 
-  // Глобальное улучшение за эссенцию (долгое нажатие на любой шарик).
-  // Действует на все шарики, не исчезает при удалении шариков,
-  // лимит — номер волны на счётчике.
+  // Улучшение типа (долгое нажатие на шарик на поле): шарик расходится —
+  // исчезает из клетки, а уровень его типа в колоде растёт на 1.
+  // Действует на все шарики этого типа, никуда не исчезает.
+  // Стоимость фиксированная: CONFIG.upgradeCost эссенции за уровень.
   upgradeCell(i: number) {
     const o = this.grid[i];
     if (!o) return;
-    const limit = this.wave;
-    if (this.upgradeLevel >= limit) {
-      this.err(`Лимит улучшений: ${limit} (номер волны)`);
+    if (this.essence < CONFIG.upgradeCost) {
+      this.err(`Не хватает эссенции, нужно ${CONFIG.upgradeCost}`);
       this.shake(i);
       return;
     }
-    const cost = CONFIG.upgradeCostBase * (this.upgradeLevel + 1);
-    if (this.essence < cost) {
-      this.err(`Не хватает эссенции, нужно ${cost}`);
-      this.shake(i);
-      return;
-    }
-    this.essence -= cost;
-    this.upgradeLevel += 1;
+    const info = TYPE_INFO[o.type];
+    this.essence -= CONFIG.upgradeCost;
+    this.typeLevels[o.type] += 1;
+    const lvl = this.typeLevels[o.type];
     const c = cellC(i);
+    this.grid[i] = null; // шарик расходуется
+    if (this.sel === i) this.sel = null;
     this.ring(c.x, c.y, '#fbbf24', 70);
-    this.spark(c.x, c.y, '#fbbf24', 10, 110);
-    this.textP(c.x, c.y - 34, `Улучшение ${this.upgradeLevel}`, '#fcd34d');
-    // лёгкий импульс по всему полю: все шарики получают усиление
+    this.spark(c.x, c.y, info.color, 12, 150);
+    this.textP(c.x, c.y - 30, `${info.name}: ${lvl}`, '#fcd34d');
+    // лёгкий импульс: все шарики этого типа получают усиление
     for (const cell of this.grid) {
-      if (cell) cell.pulse = this.now;
+      if (cell && cell.type === o.type) cell.pulse = this.now;
     }
     sfx.upgrade();
     this.emit('upgrade');
@@ -488,13 +498,15 @@ export class Engine {
     const cb = cellC(b);
     this.linkLine(ca.x, ca.y, cb.x, cb.y, '#22d3ee');
 
-    const mixed = A.type !== B.type; // разные типы -> каждый стреляет дважды
+    // Оба шара стреляют двумя снарядами: одинаковые типы — «фокус»
+    // по одной цели, разные — каждый сам по себе. Сила каждого
+    // снаряда растёт с уровнем его типа (улучшения в колоде).
     if (A.type !== 'spiky') {
-      this.fireOrb(a, mixed ? 2 : 1);
+      this.fireOrb(a, 2);
       A.cdUntil = this.now + CONFIG.cooldown;
     }
     if (B.type !== 'spiky') {
-      this.fireOrb(b, mixed ? 2 : 1);
+      this.fireOrb(b, 2);
       B.cdUntil = this.now + CONFIG.cooldown;
     }
     if (A.type === 'spiky') this.detonateSpiky(a, 0);
@@ -517,7 +529,7 @@ export class Engine {
         const o = this.grid[i];
         if (o && o.level >= 2 && !this.popQueued.has(i)) {
           this.popQueued.add(i);
-          this.popQueue.push({ at: this.now + k * 0.08, cell: i, count: o.level * 2 });
+          this.popQueue.push({ at: this.now + k * 0.08, cell: i, count: o.level });
           k++;
         }
       }
@@ -544,8 +556,8 @@ export class Engine {
 
   // Сила эффектов берётся из глобального улучшения (this.upgradeLevel)
   fireOrbAt(x: number, y: number, type: OrbType, count: number) {
-    const g = this.upgradeLevel;
-    if (type === 'barrage') count = Math.max(count, 5 + g); // залп растёт с улучшением
+    const g = this.typeLevels[type] - 1;
+    if (type === 'barrage') count = Math.max(count, 5 + g); // залп растёт с уровнем типа
     for (let k = 0; k < count; k++) {
       const target = this.pickTarget();
       if (type === 'pierce') {
@@ -599,10 +611,10 @@ export class Engine {
     this.ring(c.x, c.y, '#b16cff', 110);
     this.spark(c.x, c.y, '#b16cff', 14, 190);
     sfx.pop();
-    // Глобальное улучшение добавляет иглы. Четыре главных направления
-    // (вверх/вниз/влево/вправо) всегда на месте — соседние шарики
-    // достаются гарантированно; остальные разбросаны между ними.
-    const n = 4 + this.upgradeLevel;
+    // Уровень шипастого в колоде добавляет иглы. Четыре главных
+    // направления (вверх/вниз/влево/вправо) всегда на месте — соседние
+    // шарики достаются гарантированно; остальные разбросаны между ними.
+    const n = 4 + (this.typeLevels.spiky - 1);
     const angles: number[] = [];
     for (let k = 0; k < 4; k++) angles.push(-Math.PI / 2 + (Math.PI / 2) * k);
     const extra = n - 4;
@@ -634,7 +646,8 @@ export class Engine {
 
   // Попадание снаряда: эффект зависит от типа шарика и глобального улучшения
   impact(p: ProjState, e: EnemyState) {
-    const g = this.upgradeLevel;
+    // Сила эффекта — от уровня типа в колоде (1 = базовый, g = 0)
+    const g = this.typeLevels[p.kind] - 1;
     const pos = pathPoint(e.p);
     switch (p.kind) {
       case 'fire': {
@@ -917,9 +930,17 @@ export class Engine {
           this.chainCount++;
           if (o.type === 'spiky') {
             this.detonateSpiky(i, n.depth + 1); // цепная реакция!
-          } else {
-            this.popQueue.push({ at: this.now + 0.05, cell: i, count: 2 * o.level });
+          } else if (o.level >= 2) {
+            // Заряженный шарик: лопает и стреляет залпом в уровень заряда.
+            // (Баланс: раньше любой шарик давал снаряды — шипы решали всё.)
+            this.popQueue.push({ at: this.now + 0.05, cell: i, count: o.level });
             this.spark(c.x, c.y, '#b16cff', 6, 100);
+            sfx.needle();
+          } else {
+            // Обычный (не заряженный) шарик: просто лопается, без выстрела
+            this.grid[i] = null;
+            this.ring(c.x, c.y, 'rgba(177,108,255,0.55)', 40);
+            this.spark(c.x, c.y, '#b16cff', 4, 70);
             sfx.needle();
           }
           n.life = 0;
@@ -954,9 +975,10 @@ export class Engine {
 
     // --- награда за цепную реакцию ---
     if (this.chainCount > 0 && !this.needles.length && !this.popQueue.length) {
-      if (this.chainCount >= 3) {
-        this.essence += this.chainCount;
-        this.setBanner(`Цепная реакция: ${this.chainCount}, бонус ${this.chainCount} эссенции`, 2);
+      if (this.chainCount >= 4) {
+        const bonus = this.chainCount - 1;
+        this.essence += bonus;
+        this.setBanner(`Цепная реакция: ${this.chainCount}, бонус ${bonus} эссенции`, 2);
         sfx.clear();
       }
       this.maxChain = Math.max(this.maxChain, this.chainCount);

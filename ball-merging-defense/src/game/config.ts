@@ -232,15 +232,15 @@ export const CONFIG = {
   sellBase: 5, // возврат за продажу (+3 за каждый уровень заряда)
 
   autoFillInterval: 2.0, // период автоматического заполнения пустых клеток (сек)
-  upgradeCostBase: 8, // стоимость улучшения = base * (уровень + 1); лимит = номер волны
+  upgradeCost: 100, // стоимость одного улучшения типа (зажим шарика на поле)
 
   deckSize: 5, // размер колоды в экспериментальном режиме
   bossPrepTime: 8, // подготовка перед босс-волной (рулетка + время на подготовку)
 
-  cooldown: 1.6, // перезарядка шарика после выстрела (сек)
+  cooldown: 1.3, // перезарядка шарика после выстрела (сек)
 
   enemyHp: 6, // здоровье обычного врага на 1-й волне
-  enemyHpGrowth: 1.22, // во сколько раз растёт здоровье каждую волну
+  enemyHpGrowth: 1.12, // во сколько раз растёт здоровье каждую волну (милее к концу игры)
   enemySpeed: 62, // скорость врага (px/сек) на 1-й волне
   enemySpeedGrowth: 1.4, // прирост скорости за волну
   enemySpeedCap: 92, // максимум скорости
@@ -254,7 +254,7 @@ export const CONFIG = {
   prepTime: 6, // пауза между волнами (сек)
   firstPrep: 9, // пауза перед самой первой волной
   callBonus: 5, // бонус эссенции за досрочный вызов волны
-  clearBonusBase: 5, // награда за зачистку волны = base + номер волны
+  clearBonusBase: 8, // награда за зачистку волны = base + номер волны
 
   bossEvery: 5, // каждая N-я волна — босс
   bossHp: 45, // здоровье босса (первая босс-волна)
@@ -265,3 +265,88 @@ export const CONFIG = {
 
   maxLevel: 9, // максимум накопления в одном шарике
 };
+
+// ---------- Характеристики типов по уровням ----------
+// Улучшение теперь по типам: зажатый на поле шарик исчезает, а уровень
+// ЕГО ТИПА растёт (стоит фиксированные CONFIG.upgradeCost эссенции).
+// lvl = 1 — базовый уровень. Одни и те же формулы использует движок
+// (сила эффектов) и панель колоды (показ статов «сейчас» и «будет»).
+export function typeStatValue(t: OrbType, stat: string, lvl: number): number {
+  const g = Math.max(0, lvl - 1);
+  switch (t) {
+    case 'fire':
+      return stat === 'dmg' ? 3 + g : 1; // основной урон / урон соседям
+    case 'ice':
+      // slow = множитель скорости врага (0.55 = враг идёт на 55%)
+      return stat === 'slow' ? Math.max(0.15, 0.55 - 0.05 * g) : stat === 'dur' ? 2.3 + 0.4 * g : 1;
+    case 'bolt':
+      return stat === 'dmg' ? 2 + g : stat === 'chain' ? 1 + g : 150 + 30 * g;
+    case 'poison':
+      return stat === 'dps' ? 1.2 + 0.6 * g : stat === 'dur' ? 4 + 0.5 * g : 1;
+    case 'spiky':
+      return 4 + g; // иглы
+    case 'nova':
+      return stat === 'dmg' ? 4 + g : 95 + 20 * g;
+    case 'stun':
+      return 1.2 + 0.4 * g; // длительность паралича, с
+    case 'pierce':
+      return stat === 'dmg' ? 2 + g : 2 + g; // урон / сколько врагов пробивает
+    case 'vampire':
+      return stat === 'dmg' ? 1 + g : 1; // урон / эссенция за попадание
+    case 'barrage':
+      return 5 + g; // снарядов в залпе
+    default:
+      return 1;
+  }
+}
+
+function fmtStat(v: number): string {
+  const r = Math.round(v * 10) / 10;
+  return Number.isInteger(r) ? `${r}` : r.toFixed(1).replace('.', ',');
+}
+
+// Строка характеристики для панели колоды: next пустой, если значение
+// при следующем улучшении не изменится.
+export interface StatRow {
+  label: string;
+  cur: string;
+  next: string;
+}
+
+export function typeStatRows(t: OrbType, lvl: number): StatRow[] {
+  const v = (stat: string) => typeStatValue(t, stat, lvl);
+  const n = (stat: string) => typeStatValue(t, stat, lvl + 1);
+  const R = (label: string, cur: number, next: number, unit = ''): StatRow => ({
+    label,
+    cur: fmtStat(cur) + unit,
+    next: Math.abs(next - cur) > 1e-9 ? fmtStat(next) + unit : '',
+  });
+  switch (t) {
+    case 'fire':
+      return [R('Урон', v('dmg'), n('dmg')), R('Урон соседним врагам', 1, 1)];
+    case 'ice':
+      return [
+        R('Урон', 1, 1),
+        R('Скорость врага', v('slow') * 100, n('slow') * 100, '%'),
+        R('Длительность замедления', v('dur'), n('dur'), ' с'),
+      ];
+    case 'bolt':
+      return [R('Урон', v('dmg'), n('dmg')), R('Целей в цепи', v('chain'), n('chain')), R('Радиус цепи', v('rad'), n('rad'))];
+    case 'poison':
+      return [R('Урон', 1, 1), R('Яд, урон во времени', v('dps'), n('dps')), R('Длительность яда', v('dur'), n('dur'), ' с')];
+    case 'spiky':
+      return [R('Игл при взрыве', v('x'), n('x'))];
+    case 'nova':
+      return [R('Урон', v('dmg'), n('dmg')), R('Радиус взрыва', v('rad'), n('rad'))];
+    case 'stun':
+      return [R('Урон', 1, 1), R('Длительность паралича', v('dur'), n('dur'), ' с')];
+    case 'pierce':
+      return [R('Урон', v('dmg'), n('dmg')), R('Пробивает врагов', v('p'), n('p'))];
+    case 'vampire':
+      return [R('Урон', v('dmg'), n('dmg')), R('Эссенция за попадание', 1, 1)];
+    case 'barrage':
+      return [R('Снарядов в залпе', v('x'), n('x')), R('Урон снаряда', 1, 1)];
+    default:
+      return [];
+  }
+}

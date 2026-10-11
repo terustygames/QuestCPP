@@ -9,7 +9,8 @@ import { Engine, type GameMode } from './game/engine';
 import { CONFIG, type BossId } from './game/config';
 import { initAudio, setMuted } from './game/audio';
 import { GameStage } from './components/GameStage';
-import { Header, Controls, DeckBar } from './components/Hud';
+import { Header, Controls, DeckBar, DeckInfoPopup } from './components/Hud';
+import type { OrbType } from './game/config';
 import { TitleOverlay, HelpOverlay, GameOverOverlay } from './components/Overlays';
 import { BossRoulette } from './components/BossRoulette';
 
@@ -68,6 +69,8 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   // номер волны, для которой рулетка уже отыграна (не показывать дважды)
   const [rouletteWave, setRouletteWave] = useState(0);
+  // тип, для которого открыта панель характеристик из колоды
+  const [deckInfo, setDeckInfo] = useState<OrbType | null>(null);
 
   // HUD: лёгкая перерисовка 10 раз/сек (цислы, статусы)
   useEffect(() => {
@@ -192,8 +195,8 @@ export default function App() {
             }}
             onCallWave={() => g.callWaveNow()}
           />
-          {/* колода в самом низу: пять типов и уровень заряда каждого */}
-          <DeckBar g={g} />
+          {/* колода в самом низу: пять типов и уровень улучшения каждого */}
+          <DeckBar g={g} onInfo={(t) => setDeckInfo(t)} />
         </>
       )}
 
@@ -214,6 +217,13 @@ export default function App() {
 
       {g.status === 'title' && <TitleOverlay onStart={startNew} />}
       {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
+      {deckInfo && playing && (
+        <DeckInfoPopup
+          type={deckInfo}
+          lvl={g.typeLevels[deckInfo]}
+          onClose={() => setDeckInfo(null)}
+        />
+      )}
       {g.status === 'gameover' && <GameOverOverlay g={g} onRestart={() => startNew(g.gameMode)} />}
     </div>
   );

@@ -482,11 +482,8 @@ function drawScene(
       x.arc(c.x, c.y, 40, -Math.PI / 2, -Math.PI / 2 + fx.lpProgress * Math.PI * 2);
       x.stroke();
       if (fx.lpProgress > 0.25) {
-        const lvl = g.upgradeLevel;
-        const label =
-          lvl >= g.wave
-            ? `Лимит улучшений: ${g.wave} (номер волны)`
-            : `Улучшение: ${CONFIG.upgradeCostBase * (lvl + 1)} эссенции (все шарики)`;
+        const tInfo = TYPE_INFO[o.type];
+        const label = `Улучшение ${tInfo.name}: уровень ${g.typeLevels[o.type] + 1} за ${CONFIG.upgradeCost}`;
         x.font = '700 13px Manrope, system-ui, sans-serif';
         const bw = x.measureText(label).width + 18;
         roundedRect(x, c.x - bw / 2, c.y - 62, bw, 22, 11);
