@@ -297,7 +297,7 @@ function OverlayButton({
 }: {
   onClick: () => void;
   primary?: boolean;
-  kbd: string;
+  kbd?: string;
   icon: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -319,7 +319,7 @@ function OverlayButton({
         {icon}
         {children}
       </span>
-      <span className="kbd">{kbd}</span>
+      {kbd && <span className="kbd">{kbd}</span>}
     </button>
   );
 }
@@ -462,7 +462,7 @@ function GameScreen({ onExit }: { onExit: () => void }) {
                 <OverlayButton onClick={restart} kbd="R" icon={<RotateCcw size={16} />}>
                   Начать заново
                 </OverlayButton>
-                <OverlayButton onClick={onExit} kbd="☰" icon={<Home size={16} />}>
+                <OverlayButton onClick={onExit} icon={<Home size={16} />}>
                   В главное меню
                 </OverlayButton>
               </div>

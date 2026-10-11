@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta
+      name="description"
+      content="ОРБИТАЛЬ: соединяй шарики, лопай шипастые, не пусти врагов к выходу."
+    />
+    <meta name="theme-color" content="#05070e" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>ОРБИТАЛЬ</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #05070e;
+        color: #e2e8f0;
+        font-family: system-ui, sans-serif;
+      }
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        text-align: center;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      #boot .logo {
+        font-size: 34px;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        background: linear-gradient(90deg, #67e8f9, #38bdf8, #a78bfa);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      #boot .spinner {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        border: 3px solid rgba(148, 163, 184, 0.25);
+        border-top-color: #22d3ee;
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      #boot .hint {
+        display: none;
+        max-width: 520px;
+        background: rgba(30, 41, 59, 0.7);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 14px;
+        padding: 14px 18px;
+        font-size: 14px;
+        line-height: 1.55;
+        color: #cbd5e1;
+      }
+      #boot .hint b {
+        color: #f8fafc;
+      }
+      #boot .hint code {
+        background: rgba(15, 23, 42, 0.9);
+        border-radius: 6px;
+        padding: 1px 6px;
+        font-size: 13px;
+        color: #67e8f9;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div id="boot">
+        <div class="logo">ОРБИТАЛЬ</div>
+        <div class="spinner"></div>
+        <div class="hint" id="boot-help-player">
+          Загрузка занимает больше времени, чем должна.<br />
+          <b>Чтобы играть:</b> скачайте <code>index.html</code> из папки игры и
+          откройте его двойным кликом в Chrome, Edge, Firefox или Яндекс.Браузере.
+        </div>
+        <div class="hint" id="boot-help-dev">
+          Это <b>страница для разработки</b> — игра с неё запускается только через
+          dev-сервер Vite.<br />
+          <b>Запуск:</b> в папке игры выполните <code>npm install</code> и
+          <code>npm run dev</code>, затем откройте адрес вида
+          <code>http://localhost:5173/dev.html</code>.<br />
+          <b>Просто поиграть:</b> откройте файл <code>index.html</code> из той же
+          папки — он уже собран, установка ничего не требуется.
+        </div>
+      </div>
+    </div>
+    <noscript>Для игры включите JavaScript в браузере.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      (function () {
+        var playerHint = document.getElementById('boot-help-player');
+        var devHint = document.getElementById('boot-help-dev');
+        // В dev.html скрипт приложения — внешний (src="/src/main.tsx").
+        // В собранном index.html он уже встроен, поэтому этого тега нет.
+        var isDevPage = !!document.querySelector('script[src="/src/main.tsx"]');
+        if (location.protocol === 'file:' && isDevPage) {
+          // Открыли dev.html напрямую с диска: Vite не запущен, игра не стартует.
+          devHint.style.display = 'block';
+        }
+        // Если через 10 секунд React так и не смонтировался (#boot на месте) — подсказка.
+        setTimeout(function () {
+          var boot = document.getElementById('boot');
+          if (!boot) return;
+          if (isDevPage) devHint.style.display = 'block';
+          else playerHint.style.display = 'block';
+        }, 10000);
+      })();
+    </script>
+  </body>
+</html>

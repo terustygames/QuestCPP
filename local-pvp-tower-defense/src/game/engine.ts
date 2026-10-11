@@ -4,6 +4,7 @@ import {
   BASE_POS,
   BUILDER_SPEED,
   BUILDER_START,
+  buildZone,
   COIN_LIFE,
   COIN_PERIOD,
   COIN_PICKUP_R,
@@ -271,7 +272,8 @@ export class NeonSiege {
     if (PREVENT.has(e.code)) e.preventDefault();
 
     if (e.code === "Escape" || e.code === "KeyP") {
-      if (!this.over) this.setPaused(!this.paused);
+      // e.repeat — автоповтор при удержании клавиши: иначе пауза мигала бы много раз подряд
+      if (!e.repeat && !this.over) this.setPaused(!this.paused);
       return;
     }
     if (e.code === "KeyM") {
@@ -312,9 +314,8 @@ export class NeonSiege {
   /* ------------------------------------------------------------ действия */
 
   private canBuild(team: TeamId, x: number, y: number): string | null {
-    const minX = team === 0 ? FIELD_MARGIN : MID_X + 26;
-    const maxX = team === 0 ? MID_X - 26 : W - FIELD_MARGIN;
-    if (x < minX || x > maxX || y < FIELD_MARGIN + 10 || y > H - FIELD_MARGIN) return "вне зоны строительства";
+    const z = buildZone(team);
+    if (x < z.minX || x > z.maxX || y < z.minY || y > z.maxY) return "вне зоны строительства";
     for (const path of PATHS) {
       if (distToPath({ x, y }, path) < PATH_CLEARANCE) return "слишком близко к трассе";
     }
@@ -437,10 +438,10 @@ export class NeonSiege {
         b.faceY = dy;
         b.x += dx * BUILDER_SPEED * dt;
         b.y += dy * BUILDER_SPEED * dt;
-        const minX = t === 0 ? FIELD_MARGIN : MID_X + 22;
-        const maxX = t === 0 ? MID_X - 22 : W - FIELD_MARGIN;
-        b.x = clamp(b.x, minX, maxX);
-        b.y = clamp(b.y, FIELD_MARGIN, H - FIELD_MARGIN);
+        // строитель не выходит за зону строительства — ровно те же границы, что у canBuild
+        const z = buildZone(t);
+        b.x = clamp(b.x, z.minX, z.maxX);
+        b.y = clamp(b.y, z.minY, z.maxY);
       }
       b.bob += dt * 3;
       b.trail.push({ x: b.x, y: b.y, life: 0.28 });

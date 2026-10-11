@@ -216,8 +216,22 @@ export function distToPath(p: Vec, path: Vec[]): number {
   return best;
 }
 
-export function pointInField(p: Vec, team: TeamId): boolean {
-  const minX = team === 0 ? FIELD_MARGIN : MID_X + 22;
-  const maxX = team === 0 ? MID_X - 22 : W - FIELD_MARGIN;
-  return p.x >= minX && p.x <= maxX && p.y >= FIELD_MARGIN && p.y <= H - FIELD_MARGIN;
+/**
+ * Зона строительства игрока. Строитель не выходит за её границы, и у края зоны
+ * не появляется «вне зоны строительства»: движение и проверка строительства используют одни числа.
+ */
+export interface BuildZone {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
+/** Отступ от разделительной линии: башня не должна касаться половины соперника. */
+const BUILD_EDGE = 26;
+
+export function buildZone(team: TeamId): BuildZone {
+  return team === 0
+    ? { minX: FIELD_MARGIN, maxX: MID_X - BUILD_EDGE, minY: FIELD_MARGIN + 10, maxY: H - FIELD_MARGIN }
+    : { minX: MID_X + BUILD_EDGE, maxX: W - FIELD_MARGIN, minY: FIELD_MARGIN + 10, maxY: H - FIELD_MARGIN };
 }
