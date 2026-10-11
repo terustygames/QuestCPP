@@ -303,3 +303,43 @@ export function startRun(m: MetaState): { run: RunConfig; meta: MetaState } {
   };
   return { run, meta };
 }
+
+
+export interface PlayerProfile {
+  displayName: string;
+  createdAt: number;
+  updatedAt: number;
+
+  meta: {
+    coins: number;
+    points: number;
+    owned: string[];
+    deck: string[];
+    nodes: string[];
+    boosts: {
+      essence: number;
+      lives: number;
+    };
+    chestDay: string;
+    runs: number;
+    bestWave: number;
+  };
+
+  achievements: Record<string, {
+    unlocked: boolean;
+    unlockedAt: number | null;
+    progress: number;
+  }>;
+
+  stats: {
+    totalKills: number;
+    totalPlayTime: number;
+    totalWins: number;
+    totalLosses: number;
+  };
+
+  settings: {
+    musicVolume: number;
+    soundVolume: number;
+  };
+}
