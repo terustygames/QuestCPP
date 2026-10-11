@@ -711,6 +711,35 @@ function drawScene(
       x.textBaseline = 'middle';
       x.fillStyle = pt.color;
       x.fillText(pt.text, pt.x, pt.y - 26 * t);
+    } else if (pt.kind === 'arrow') {
+      const ang = Math.atan2(pt.vy, pt.vx);
+      const alpha = Math.min(1, (1 - t) * 1.35) * Math.min(1, t * 5 + 0.25);
+      const s = pt.size;
+      x.save();
+      x.translate(pt.x, pt.y);
+      x.rotate(ang);
+      x.globalAlpha = alpha;
+      x.lineCap = 'round';
+      x.lineJoin = 'round';
+      x.strokeStyle = 'rgba(30,41,59,0.85)';
+      x.lineWidth = 4;
+      x.beginPath();
+      x.moveTo(-s * 0.55, 0);
+      x.lineTo(s * 0.55, 0);
+      x.moveTo(s * 0.05, -s * 0.45);
+      x.lineTo(s * 0.55, 0);
+      x.lineTo(s * 0.05, s * 0.45);
+      x.stroke();
+      x.strokeStyle = pt.color;
+      x.lineWidth = 2.2;
+      x.beginPath();
+      x.moveTo(-s * 0.55, 0);
+      x.lineTo(s * 0.55, 0);
+      x.moveTo(s * 0.05, -s * 0.45);
+      x.lineTo(s * 0.55, 0);
+      x.lineTo(s * 0.05, s * 0.45);
+      x.stroke();
+      x.restore();
     } else {
       const len = Math.hypot(pt.x2 - pt.x, pt.y2 - pt.y);
       const ang = Math.atan2(pt.y2 - pt.y, pt.x2 - pt.x);
