@@ -1,6 +1,6 @@
-// Главное меню. Раскладка повторяет референс: верхняя панель с валютой,
-// плавающие иконки с подписями вокруг центрального шара, крупные наклонные
-// кнопки внизу. Стиль — глянцевые светящиеся шары (как на референсе).
+// Главное меню. Верхняя панель с рекордом и валютой; внизу один ряд
+// одинаковых кнопок-плиток (тёмный скруглённый квадрат с иконкой и подписью,
+// как «Магазин»). Центр экрана свободен.
 import type { CSSProperties, ReactNode } from 'react';
 import { Backpack, Gift, Sparkles, Store, Swords } from 'lucide-react';
 import { META_CFG, deckReady, type MetaState } from '../game/meta';
@@ -14,38 +14,36 @@ const STARS = Array.from({ length: 34 }, (_, i) => ({
   o: 0.25 + (i % 5) * 0.12,
 }));
 
-// Глянцевый шар: блик сверху слева, насыщенный край, тёмная кромка
-function orbStyle(hi: string, mid: string, dark: string, glow: string): CSSProperties {
-  return {
-    background: `radial-gradient(circle at 32% 26%, ${hi} 0%, ${mid} 38%, ${dark} 100%)`,
-    boxShadow: `0 0 0 2px rgba(255,255,255,0.12), 0 10px 28px -6px ${glow}, inset 0 -6px 12px rgba(0,0,0,0.25)`,
-  };
-}
+// Глянцевый шар для значка рекорда
+const GOLD: CSSProperties = {
+  background: 'radial-gradient(circle at 32% 26%, #fff6c9 0%, #f7b733 38%, #8a4b0b 100%)',
+  boxShadow: '0 0 0 2px rgba(255,255,255,0.12), 0 10px 28px -6px rgba(247,183,51,0.55), inset 0 -6px 12px rgba(0,0,0,0.25)',
+};
 
-const GOLD = orbStyle('#fff6c9', '#f7b733', '#8a4b0b', 'rgba(247,183,51,0.55)');
-const AZURE = orbStyle('#e0f2fe', '#38bdf8', '#1e3a8a', 'rgba(56,189,248,0.5)');
-
-// Плавающая кнопка с подписью (как «Магазин жетонов» / «Карточный сундук» на референсе)
-function FloatingButton({
+// Кнопка-плитка: тёмный скруглённый квадрат с иконкой, подпись под ним
+function TileButton({
   label,
   sub,
+  subTone = 'amber',
   badge,
+  disabled,
   onClick,
-  style,
   children,
 }: {
   label: string;
   sub?: string;
+  subTone?: 'amber' | 'white';
   badge?: boolean;
+  disabled?: boolean;
   onClick: () => void;
-  style: CSSProperties;
   children: ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
-      className="absolute flex w-[92px] -translate-x-1/2 flex-col items-center text-center transition active:scale-95"
-      style={style}
+      disabled={disabled}
+      aria-label={label}
+      className="flex min-w-0 flex-1 flex-col items-center text-center transition enabled:active:scale-95 disabled:opacity-45"
     >
       <span className="relative flex h-[64px] w-[64px] items-center justify-center rounded-2xl border border-white/15 bg-slate-900/70 shadow-lg shadow-black/40">
         {children}
@@ -53,49 +51,18 @@ function FloatingButton({
           <span className="absolute -right-1.5 -top-1.5 h-3.5 w-3.5 rounded-full border-2 border-slate-950 bg-rose-500" />
         )}
       </span>
-      <span className="mt-1.5 text-[12px] font-extrabold leading-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]">
+      <span className="mt-1.5 w-full truncate text-[12px] font-extrabold leading-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]">
         {label}
       </span>
-      {sub && <span className="text-[11px] font-bold text-amber-300 [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]">{sub}</span>}
-    </button>
-  );
-}
-
-// Крупная наклонная кнопка внизу (как «Режим PvP» и «Кооперация»)
-function SlantButton({
-  label,
-  icon,
-  tone,
-  disabled,
-  onClick,
-}: {
-  label: string;
-  icon: ReactNode;
-  tone: 'gold' | 'azure';
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  const base = tone === 'gold' ? GOLD : AZURE;
-  const edge = tone === 'gold' ? '#7c3e0a' : '#172554';
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="group relative h-[84px] flex-1 transition enabled:active:scale-[0.97] disabled:opacity-45"
-      aria-label={label}
-    >
-      {/* наклонная подложка: нижний «скос» даёт объём, верх — блик */}
-      <span
-        className="absolute inset-0 -skew-x-[12deg] rounded-[14px]"
-        style={{ ...base, boxShadow: `inset 0 -5px 0 ${edge}, ${base.boxShadow}` }}
-      />
-      <span className="absolute inset-x-3 top-1.5 h-[30%] -skew-x-[12deg] rounded-t-[12px] bg-white/25" />
-      <span className="relative flex h-full items-center justify-center gap-2.5 px-3 text-white [text-shadow:0_2px_4px_rgba(0,0,0,0.55)]">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-black/25 ring-2 ring-white/40">
-          {icon}
+      {sub && (
+        <span
+          className={`text-[11px] font-bold [text-shadow:0_1px_3px_rgba(0,0,0,0.9)] ${
+            subTone === 'amber' ? 'text-amber-300' : 'text-white/70'
+          }`}
+        >
+          {sub}
         </span>
-        <span className="font-display text-[20px] font-black uppercase tracking-wide">{label}</span>
-      </span>
+      )}
     </button>
   );
 }
@@ -150,45 +117,10 @@ export function MainMenu({
         <CurrencyChips meta={meta} />
       </header>
 
-      {/* центральный шар-хаб: состояние колоды; нажатие — инвентарь */}
-      <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center">
-        <button
-          onClick={onInventory}
-          aria-label="Колода"
-          className="relative flex h-[168px] w-[168px] flex-col items-center justify-center rounded-full transition active:scale-[0.97]"
-          style={GOLD}
-        >
-          <span className="absolute inset-3 rounded-full border-2 border-white/30" />
-          <span className="font-display text-[11px] font-bold uppercase tracking-[0.2em] text-amber-950/80">Колода</span>
-          <span className="font-display text-[38px] font-black leading-none text-amber-950 tabular-nums">
-            {meta.deck.length}
-            <span className="text-[20px] text-amber-950/60">/{META_CFG.deckSize}</span>
-          </span>
-          <span className="mt-1 text-[11px] font-bold text-amber-950/75">{ready ? 'готова к бою' : 'соберите'}</span>
-        </button>
-        <div className="pointer-events-none absolute left-1/2 top-[38%] h-[240px] w-[240px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10" />
-      </div>
+      {/* центр свободен */}
+      <div className="relative z-10 flex min-h-0 flex-1" />
 
-      {/* плавающие иконки: магазин слева, сундук справа (как на референсе) */}
-      <FloatingButton
-        label="Магазин"
-        onClick={onShop}
-        style={{ left: '22%', top: '38%' }}
-        badge={false}
-      >
-        <Store size={34} className="text-amber-300" />
-      </FloatingButton>
-      <FloatingButton
-        label="Ежедневный сундук"
-        sub={chestReady ? 'готов!' : 'получен'}
-        badge={chestReady}
-        onClick={onShop}
-        style={{ left: '78%', top: '52%' }}
-      >
-        <Gift size={34} className="text-sky-300" />
-      </FloatingButton>
-
-      {/* нижний блок: две крупные наклонные кнопки, как «Режим PvP» / «Кооперация» */}
+      {/* нижний ряд кнопок */}
       <div className="relative z-10 shrink-0 px-3" style={{ paddingBottom: 'max(18px, env(safe-area-inset-bottom))' }}>
         {!ready && (
           <div className="mb-3 flex items-center justify-center gap-1.5 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-center text-[12px] font-bold text-amber-200">
@@ -196,20 +128,29 @@ export function MainMenu({
             Соберите колоду из {META_CFG.deckSize} шариков в инвентаре, чтобы играть
           </div>
         )}
-        <div className="flex gap-3">
-          <SlantButton
-            label="Играть"
-            icon={<Swords size={22} strokeWidth={2.5} />}
-            tone="gold"
-            disabled={!ready}
-            onClick={onPlay}
-          />
-          <SlantButton
+        <div className="flex items-start justify-between gap-1">
+          <TileButton label="Магазин" onClick={onShop}>
+            <Store size={34} className="text-amber-300" />
+          </TileButton>
+          <TileButton
             label="Инвентарь"
-            icon={<Backpack size={22} strokeWidth={2.5} />}
-            tone="azure"
+            sub={`${meta.deck.length}/${META_CFG.deckSize}`}
+            subTone="white"
             onClick={onInventory}
-          />
+          >
+            <Backpack size={32} className="text-sky-300" />
+          </TileButton>
+          <TileButton label="Играть" disabled={!ready} onClick={onPlay}>
+            <Swords size={34} className="text-amber-300" />
+          </TileButton>
+          <TileButton
+            label="Сундук"
+            sub={chestReady ? 'готов!' : 'получен'}
+            badge={chestReady}
+            onClick={onShop}
+          >
+            <Gift size={34} className="text-sky-300" />
+          </TileButton>
         </div>
       </div>
     </div>
