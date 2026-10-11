@@ -166,6 +166,10 @@ export default function App() {
             if (g.mode === 'combine') g.firePair(a, b);
             else g.mergePair(a, b);
           }}
+          onChainFire={(cells) => {
+            initAudio();
+            if (g.mode === 'combine') g.fireChain(cells);
+          }}
           onUpgrade={(i) => {
             initAudio();
             g.upgradeCell(i);

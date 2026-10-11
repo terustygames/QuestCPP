@@ -45,8 +45,10 @@ let orbSprites: SpriteMap | null = null;
 function drawOrbMark(x: CanvasRenderingContext2D, type: OrbType, cx: number, cy: number) {
   x.save();
   x.translate(cx, cy);
-  x.strokeStyle = 'rgba(255,255,255,0.88)';
-  x.fillStyle = 'rgba(255,255,255,0.88)';
+  // усилитель — светлый шарик: знак рисуем тёмным, чтобы читался
+  const ink = type === 'amp' ? 'rgba(15,23,42,0.92)' : 'rgba(255,255,255,0.88)';
+  x.strokeStyle = ink;
+  x.fillStyle = ink;
   x.lineWidth = 3;
   x.lineCap = 'round';
   x.lineJoin = 'round';
@@ -141,6 +143,16 @@ function drawOrbMark(x: CanvasRenderingContext2D, type: OrbType, cx: number, cy:
           x.arc(px, py, 3.4, 0, Math.PI * 2);
           x.fill();
         }
+      }
+      break;
+    case 'amp': // усилитель: точка и две дуги — «взмах звуком»
+      x.beginPath();
+      x.arc(-9, 0, 3.6, 0, Math.PI * 2);
+      x.fill();
+      for (const rr of [8, 15]) {
+        x.beginPath();
+        x.arc(-9, 0, rr, -Math.PI / 3, Math.PI / 3);
+        x.stroke();
       }
       break;
     default: // шипастый — без внутреннего знака (его знаки — внешние иглы)
@@ -319,6 +331,7 @@ export interface StageFx {
   lpProgress: number; // 0..1
   dragFrom: number; // клетка, откуда тащат
   dragHover: number; // клетка, на которой сейчас палец
+  dragChain: number[]; // проведённая цепочка клеток (режим совмещения)
   placeHover: number; // пустая клетка под пальцем (можно поставить)
 }
 
@@ -446,20 +459,20 @@ function drawScene(
         x.arc(c.x, c.y, 33, 0, Math.PI * 2);
         x.stroke();
       }
-      // бейдж уровня заряда
-      x.font = '800 12px Manrope, system-ui, sans-serif';
+      // бейдж уровня заряда (крупный: это главное, что видно при накоплении)
+      x.font = '800 15px Manrope, system-ui, sans-serif';
       const label = `${o.level}`;
-      const bw = x.measureText(label).width + 10;
-      roundedRect(x, c.x + 16, c.y - 38, bw, 18, 9);
-      x.fillStyle = 'rgba(0,0,0,0.75)';
+      const bw = x.measureText(label).width + 14;
+      roundedRect(x, c.x + 11, c.y - 44, bw, 23, 12);
+      x.fillStyle = 'rgba(0,0,0,0.85)';
       x.fill();
-      x.strokeStyle = 'rgba(255,255,255,0.3)';
-      x.lineWidth = 1;
+      x.strokeStyle = 'rgba(251,191,36,0.95)';
+      x.lineWidth = 1.5;
       x.stroke();
-      x.fillStyle = '#ffffff';
+      x.fillStyle = '#fcd34d';
       x.textAlign = 'center';
       x.textBaseline = 'middle';
-      x.fillText(label, c.x + 16 + bw / 2, c.y - 28.5);
+      x.fillText(label, c.x + 11 + bw / 2, c.y - 32);
     }
 
     // перезарядка
@@ -501,7 +514,36 @@ function drawScene(
   }
 
   // --- линия перетаскивания ---
-  if (fx && fx.dragFrom !== -1 && fx.dragHover !== -1) {
+  if (fx && fx.dragChain && fx.dragChain.length > 0) {
+    // цепочка (режим совмещения): линия по клеткам + подсветка + счётчик
+    const pts = fx.dragChain.map(cellC);
+    if (pts.length > 1) {
+      x.strokeStyle = 'rgba(34,211,238,0.85)';
+      x.lineWidth = 4;
+      x.lineCap = 'round';
+      x.lineJoin = 'round';
+      x.beginPath();
+      x.moveTo(pts[0].x, pts[0].y);
+      for (let k = 1; k < pts.length; k++) x.lineTo(pts[k].x, pts[k].y);
+      x.stroke();
+    }
+    for (const i of fx.dragChain) {
+      const cc = cellC(i);
+      x.strokeStyle = 'rgba(34,211,238,0.5)';
+      x.lineWidth = 2.5;
+      x.beginPath();
+      x.arc(cc.x, cc.y, 39, 0, Math.PI * 2);
+      x.stroke();
+    }
+    if (pts.length > 1) {
+      const last = pts[pts.length - 1];
+      x.font = '800 15px Manrope, system-ui, sans-serif';
+      x.fillStyle = '#67e8f9';
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      x.fillText(`${pts.length}`, last.x, last.y - 48);
+    }
+  } else if (fx && fx.dragFrom !== -1 && fx.dragHover !== -1) {
     const a = cellC(fx.dragFrom);
     const b = cellC(fx.dragHover);
     x.strokeStyle = 'rgba(34,211,238,0.8)';
@@ -742,6 +784,7 @@ interface Gesture {
   moved: boolean;
   drag: boolean; // тащим с шариком
   hover: number; // клетка под пальцем (для drag)
+  chain: number[]; // проведённая линия клеток (режим совмещения)
   lpTimer: number | null;
   lpStart: number;
   done: boolean;
@@ -758,6 +801,7 @@ export function GameStage({
   onCellTap,
   onEmptyTap,
   onDragPair,
+  onChainFire,
   onUpgrade,
   onSell,
 }: {
@@ -768,6 +812,7 @@ export function GameStage({
   onCellTap: (i: number) => void;
   onEmptyTap: (i: number) => void;
   onDragPair: (a: number, b: number) => void;
+  onChainFire: (cells: number[]) => void;
   onUpgrade: (i: number) => void;
   onSell: (i: number) => void;
 }) {
@@ -823,12 +868,13 @@ export function GameStage({
       const gs = gesture.current;
       if (gs && !gs.done) {
         if (gs.drag && gs.moved) {
-          // перетаскивание шарика
+          // перетаскивание шарика (или цепочка в режиме совмещения)
           fxRef.current = {
             lpCell: -1,
             lpProgress: 0,
             dragFrom: gs.cell,
             dragHover: gs.hover,
+            dragChain: g.mode === 'combine' ? gs.chain : [],
             placeHover: -1,
           };
         } else if (gs.drag && !gs.moved) {
@@ -839,6 +885,7 @@ export function GameStage({
             lpProgress: Math.min(1, pr),
             dragFrom: -1,
             dragHover: -1,
+            dragChain: [],
             placeHover: -1,
           };
         } else if (!gs.drag && !gs.moved) {
@@ -848,6 +895,7 @@ export function GameStage({
             lpProgress: 0,
             dragFrom: -1,
             dragHover: -1,
+            dragChain: [],
             placeHover: g.grid[gs.cell] ? -1 : gs.cell,
           };
         } else {
@@ -909,6 +957,7 @@ export function GameStage({
       moved: false,
       drag: false,
       hover: -1,
+      chain: hasOrb ? [i] : [],
       lpTimer: null,
       lpStart: performance.now(),
       done: false,
@@ -944,8 +993,22 @@ export function GameStage({
     }
     if (gs.drag) {
       const h = cellAt(p.x, p.y);
-      // подсвечиваем только соседнюю клетку с шариком
-      gs.hover = h !== -1 && h !== gs.cell && isAdj(gs.cell, h) && g.grid[h] ? h : -1;
+      if (g.mode === 'combine' && gs.chain.length > 0) {
+        // цепочка: проводим линию по соседним клеткам, назад — отмена конца
+        const last = gs.chain[gs.chain.length - 1];
+        const prev = gs.chain[gs.chain.length - 2];
+        if (h !== -1 && h !== last) {
+          if (h === prev) {
+            gs.chain.pop();
+          } else if (g.grid[h] && isAdj(last, h) && !gs.chain.includes(h) && gs.chain.length < COLS * ROWS) {
+            gs.chain.push(h);
+          }
+        }
+        gs.hover = h !== -1 ? h : last;
+      } else {
+        // подсвечиваем только соседнюю клетку с шариком
+        gs.hover = h !== -1 && h !== gs.cell && isAdj(gs.cell, h) && g.grid[h] ? h : -1;
+      }
     }
   };
 
@@ -957,6 +1020,19 @@ export function GameStage({
     if (!act || gs.done) return;
     const i = gs.cell;
     if (gs.drag) {
+      if (g.mode === 'combine') {
+        // совмещение: цепочка из 2+ шариков стреляет, простой тап — выбор
+        if (gs.chain.length >= 2) {
+          onChainFire(gs.chain);
+          return;
+        }
+        if (!gs.moved) {
+          onCellTap(i); // обычный тап: выбор / смена выбора
+          return;
+        }
+        // тащили, но цепочка не выросла — отменяем
+        return;
+      }
       if (gs.moved && gs.hover !== -1) {
         onDragPair(gs.cell, gs.hover);
         return;

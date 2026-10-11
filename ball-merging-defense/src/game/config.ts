@@ -11,6 +11,7 @@ export type OrbType =
   | 'bolt'
   | 'poison'
   | 'spiky'
+  | 'amp'
   | 'nova'
   | 'stun'
   | 'pierce'
@@ -142,6 +143,13 @@ export const TYPE_INFO: Record<
     glow: 'rgba(177,108,255,',
     desc: 'при соединении лопается: иглы разрушают шарики, разрушенные выстреливают',
   },
+  amp: {
+    name: 'Усилитель',
+    color: '#d7dee8',
+    dark: '#3d4757',
+    glow: 'rgba(215,222,232,',
+    desc: 'когда соседний шарик взрывается, он стреляет в два раза больше снарядов',
+  },
   nova: {
     name: 'Сверхновая',
     color: '#ff4d6d',
@@ -179,9 +187,9 @@ export const TYPE_INFO: Record<
   },
 };
 
-export const ALL_TYPES: OrbType[] = ['fire', 'ice', 'bolt', 'poison', 'spiky', 'nova', 'stun', 'pierce', 'vampire', 'barrage'];
+export const ALL_TYPES: OrbType[] = ['fire', 'ice', 'bolt', 'poison', 'spiky', 'amp', 'nova', 'stun', 'pierce', 'vampire', 'barrage'];
 // Базовая колода обычного режима
-export const CLASSIC_TYPES: OrbType[] = ['fire', 'ice', 'bolt', 'poison', 'spiky'];
+export const CLASSIC_TYPES: OrbType[] = ['fire', 'ice', 'bolt', 'poison', 'spiky', 'amp'];
 
 // ---------- Боссы (двое, рулетка выбирает одного перед босс-волной) ----------
 export type BossId = 1 | 2;
@@ -285,6 +293,8 @@ export function typeStatValue(t: OrbType, stat: string, lvl: number): number {
       return stat === 'dps' ? 1.2 + 0.6 * g : stat === 'dur' ? 4 + 0.5 * g : 1;
     case 'spiky':
       return 4 + g; // иглы
+    case 'amp':
+      return stat === 'dmg' ? 1 + g : 2; // урон собственного эхо-снаряда / множитель залпа соседа
     case 'nova':
       return stat === 'dmg' ? 4 + g : 95 + 20 * g;
     case 'stun':
@@ -336,6 +346,11 @@ export function typeStatRows(t: OrbType, lvl: number): StatRow[] {
       return [R('Урон', 1, 1), R('Яд, урон во времени', v('dps'), n('dps')), R('Длительность яда', v('dur'), n('dur'), ' с')];
     case 'spiky':
       return [R('Игл при взрыве', v('x'), n('x'))];
+    case 'amp':
+      return [
+        R('Урон эхо-снаряда', v('dmg'), n('dmg')),
+        { label: 'Снаряды соседнего шарика', cur: 'в два раза больше', next: '' },
+      ];
     case 'nova':
       return [R('Урон', v('dmg'), n('dmg')), R('Радиус взрыва', v('rad'), n('rad'))];
     case 'stun':

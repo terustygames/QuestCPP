@@ -24,6 +24,18 @@ import {
 } from './config';
 import { sfx } from './audio';
 
+// Четыре соседние клетки (вверх/вниз/влево/вправо)
+function neighbors4(i: number): number[] {
+  const r = Math.floor(i / COLS);
+  const c = i % COLS;
+  const out: number[] = [];
+  if (r > 0) out.push(i - COLS);
+  if (r < ROWS - 1) out.push(i + COLS);
+  if (c > 0) out.push(i - 1);
+  if (c < COLS - 1) out.push(i + 1);
+  return out;
+}
+
 export type Status = 'title' | 'prep' | 'wave' | 'gameover';
 export type Mode = 'combine' | 'accumulate';
 // Режим игры: обычный (как раньше) или экспериментальный (меняющаяся колода)
@@ -160,6 +172,7 @@ export class Engine {
     bolt: 1,
     poison: 1,
     spiky: 1,
+    amp: 1,
     nova: 1,
     stun: 1,
     pierce: 1,
@@ -482,6 +495,9 @@ export class Engine {
     this.spark(c.x, c.y, TYPE_INFO[B.type].color, 8, 110);
     this.textP(c.x, c.y - 14, `${B.level}`, '#ffffff');
     sfx.merge();
+    if (B.level >= 2) {
+      this.setBanner(`Заряд ${B.level}: переключи на «Совмещение» — шарик взорвётся залпом`, 2.8);
+    }
   }
 
   // Режим совмещения: два соседних шарика стреляют
@@ -512,6 +528,41 @@ export class Engine {
     if (A.type === 'spiky') this.detonateSpiky(a, 0);
     if (B.type === 'spiky' && this.grid[b]) this.detonateSpiky(b, 0);
     this.sel = null;
+  }
+
+  // Цепочка выстрела (режим совмещения): проведённая линия по соседним
+  // шарикам (2 и больше, зигзаги и углы разрешены). Все готовые шарики
+  // стреляют сразу — по 2 снаряда каждый; шипастые в цепочке лопаются;
+  // шарики на перезарядке пропускаются (подожди и повтори линию).
+  fireChain(cells: number[]) {
+    const ready: number[] = [];
+    for (const i of cells) {
+      const o = this.grid[i];
+      if (o && this.now >= o.cdUntil) ready.push(i);
+    }
+    if (!ready.length) {
+      this.err('Шарики в цепи ещё перезаряжаются');
+      return;
+    }
+    for (let k = 1; k < cells.length; k++) {
+      const ca = cellC(cells[k - 1]);
+      const cb = cellC(cells[k]);
+      this.linkLine(ca.x, ca.y, cb.x, cb.y, '#22d3ee');
+    }
+    let fired = 0;
+    for (const i of ready) {
+      const o = this.grid[i];
+      if (!o) continue;
+      if (o.type === 'spiky') {
+        this.detonateSpiky(i, 0);
+        continue;
+      }
+      this.fireOrb(i, 2);
+      o.cdUntil = this.now + CONFIG.cooldown;
+      fired++;
+    }
+    this.sel = null;
+    if (ready.length > 2) this.setBanner(`Цепь: ${ready.length} шариков стреляют`, 1.4);
   }
 
   // Переключение режима. Возврат в совмещение = ДЕТОНАЦИЯ всех заряженных.
@@ -751,6 +802,12 @@ export class Engine {
         this.damage(e, 1, '#8ff5e4');
         break;
       }
+      case 'amp': {
+        // эхо-снаряд усилителя: слабый урон (растёт с уровнем типа)
+        this.damage(e, 1 + g, '#d7dee8');
+        this.ring(pos.x, pos.y, '#d7dee8', 40);
+        break;
+      }
       default:
         this.damage(e, 1);
     }
@@ -967,7 +1024,18 @@ export class Engine {
           const c = cellC(q.cell);
           this.ring(c.x, c.y, TYPE_INFO[o.type].color, 54);
           this.spark(c.x, c.y, TYPE_INFO[o.type].color, 7, 110);
-          this.fireOrbAt(c.x, c.y, o.type, q.count);
+          // Усилитель рядом: залп лопнувшего шарика — в два раза больше снарядов
+          let count = q.count;
+          for (const n of neighbors4(q.cell)) {
+            const no = this.grid[n];
+            if (no && no.type === 'amp') {
+              count *= 2;
+              const nc = cellC(n);
+              this.ring(nc.x, nc.y, '#d7dee8', 44);
+              break;
+            }
+          }
+          this.fireOrbAt(c.x, c.y, o.type, count);
           sfx.popSmall();
         }
       }

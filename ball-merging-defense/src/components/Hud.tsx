@@ -268,6 +268,8 @@ export function Controls({
     >
       <button
         onClick={onToggleMode}
+        data-mode-toggle
+        aria-label="Сменить режим"
         className={`flex min-h-[54px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-2xl border px-1.5 text-[13px] font-bold transition-all active:scale-[0.96] sm:text-[15px] ${
           accum
             ? 'border-amber-400/60 bg-amber-500/20 text-amber-200'
