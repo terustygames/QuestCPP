@@ -12,7 +12,6 @@ import { CONFIG, type BossId, type OrbType } from './game/config';
 import { initAudio, setMuted } from './game/audio';
 import { describeMods } from './game/skills';
 import {
-  chestReady,
   defaultMeta,
   loadMeta,
   rollChest,
@@ -304,7 +303,6 @@ export default function App() {
       {screen === 'menu' && (
         <MainMenu
           meta={meta}
-          chestReady={chestReady(meta, today)}
           onPlay={startNewRun}
           onShop={() => setScreen('shop')}
           onInventory={() => setScreen('inventory')}
@@ -360,14 +358,6 @@ export default function App() {
                 initAudio();
                 if (g.mode === 'combine') g.fireChain(cells);
               }}
-              onUpgrade={(i) => {
-                initAudio();
-                g.upgradeCell(i);
-              }}
-              onSell={(i) => {
-                initAudio();
-                g.sellCell(i);
-              }}
             />
             {paused && playing && (
               <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#04060d]/50">
@@ -409,7 +399,14 @@ export default function App() {
                 onCallWave={() => g.callWaveNow()}
               />
               {/* колода в самом низу: шесть шариков и уровень улучшения каждого */}
-              <DeckBar g={g} onInfo={(t) => setDeckInfo(t)} />
+              <DeckBar
+                g={g}
+                onInfo={(t) => setDeckInfo(t)}
+                onUpgrade={(t) => {
+                  initAudio();
+                  g.upgradeType(t);
+                }}
+              />
             </>
           )}
 

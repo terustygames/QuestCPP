@@ -122,11 +122,18 @@ export function Header({
 }
 
 // Колода в самом низу экрана: шесть шариков — типы, из которых сейчас
-// заполняется поле. Цифра у шарика — уровень улучшения этого типа
-// (1 = базовый; растёт, когда зажимаешь шарик этого типа на поле).
-// Зажать (или нажать) шарик в колоде — открыть характеристики:
-// что есть сейчас и что вырастет при следующем улучшении.
-export function DeckBar({ g, onInfo }: { g: Engine; onInfo: (t: OrbType) => void }) {
+// заполняется поле. Цифра у шарика — уровень улучшения этого типа (1 = базовый).
+// Клик по шарику в колоде — улучшить этот тип (тратится эссенция).
+// Зажать шарик в колоде — открыть характеристики: что есть сейчас и что вырастет.
+export function DeckBar({
+  g,
+  onInfo,
+  onUpgrade,
+}: {
+  g: Engine;
+  onInfo: (t: OrbType) => void;
+  onUpgrade: (t: OrbType) => void;
+}) {
   const deck: OrbType[] = g.deck.length ? g.deck : [];
   const pressTimer = useRef<number | null>(null);
   const pressFired = useRef(false);
@@ -159,13 +166,13 @@ export function DeckBar({ g, onInfo }: { g: Engine; onInfo: (t: OrbType) => void
             data-deck-slot
             data-type={t}
             role="button"
-            title={`${TYPE_INFO[t].name}: уровень ${lvl}. Зажмите — характеристики`}
+            title={`${TYPE_INFO[t].name}: уровень ${lvl}. Нажмите — улучшить, зажмите — характеристики`}
             onPointerDown={() => startPress(t)}
             onPointerUp={cancelPress}
             onPointerLeave={cancelPress}
             onPointerCancel={cancelPress}
             onClick={() => {
-              if (!pressFired.current) onInfo(t);
+              if (!pressFired.current) onUpgrade(t);
             }}
             className={`relative flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border transition-opacity ${
               lvl > 1 ? 'border-amber-400/40 bg-white/[0.06]' : 'border-white/10 bg-white/[0.04]'
@@ -264,8 +271,8 @@ export function DeckInfoPopup({
           </div>
         )}
         <p className="mt-3 text-[12px] leading-snug text-slate-500">
-          Чтобы улучшить: зажмите шарик «{info.name}» на поле. Шарик исчезнет,
-          а уровень типа вырастет. Стоимость: {CONFIG.upgradeCost} эссенции.
+          Чтобы улучшить: нажмите шарик «{info.name}» в колоде внизу. Шарик на поле
+          остаётся, уровень типа растёт. Стоимость: {CONFIG.upgradeCost} эссенции.
         </p>
       </div>
     </div>

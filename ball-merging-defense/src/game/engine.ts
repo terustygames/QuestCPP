@@ -47,6 +47,7 @@ export interface RunConfig {
   mods: Partial<Record<OrbType, TypeMods>>;
   essenceBonus: number;
   livesBonus: number;
+  autoTypes: OrbType[]; // шарики с купленной «Автоатакой»
 }
 // Короткие события для UI (виброотклик на телефоне)
 export type EngineEvent =
@@ -192,6 +193,7 @@ export class Engine {
   // Авто-линия: id шариков последней проведённой линии. Линия стреляет сама,
   // когда её шарики перезарядились; новая линия заменяет старую.
   autoLine: number[] | null = null;
+  autoTypes: OrbType[] = []; // шарики, для которых куплена авто-атака
   maxChain = 0;
 
   // --- визуальное излучение стрелочек от усиленных соседей ---
@@ -367,6 +369,7 @@ export class Engine {
     this.pendingBossId = 0;
     this.autoLine = null;
     this.deck = [...cfg.deck];
+    this.autoTypes = [...cfg.autoTypes];
     this.mods = cfg.mods;
     this.essence = CONFIG.essenceStart + cfg.essenceBonus;
     this.lives = CONFIG.lives + cfg.livesBonus;
@@ -556,46 +559,23 @@ export class Engine {
   // исчезает из клетки, а уровень его типа в колоде растёт на 1.
   // Действует на все шарики этого типа, никуда не исчезает.
   // Стоимость фиксированная: CONFIG.upgradeCost эссенции за уровень.
-  upgradeCell(i: number) {
-    const o = this.grid[i];
-    if (!o) return;
+  // Улучшение типа по клику на колоду: эссенция, шарик с поля не тратится.
+  // Уровень растёт у всех шариков этого типа (их сила берётся из typeLevels).
+  upgradeType(t: OrbType) {
+    if (!this.deck.includes(t)) return;
     if (this.essence < CONFIG.upgradeCost) {
       this.err(`Не хватает эссенции, нужно ${CONFIG.upgradeCost}`);
-      this.shake(i);
       return;
     }
-    const info = TYPE_INFO[o.type];
     this.essence -= CONFIG.upgradeCost;
-    this.typeLevels[o.type] += 1;
-    const lvl = this.typeLevels[o.type];
-    const c = cellC(i);
-    this.grid[i] = null; // шарик расходуется
-    this.popQueued.delete(i); // чтобы клетка не «залипла» в очереди
-    if (this.sel === i) this.sel = null;
-    this.ring(c.x, c.y, '#fbbf24', 70);
-    this.spark(c.x, c.y, info.color, 12, 150);
-    this.textP(c.x, c.y - 30, `${info.name}: ${lvl}`, '#fcd34d');
-    // лёгкий импульс: все шарики этого типа получают усиление
+    this.typeLevels[t] += 1;
+    const lvl = this.typeLevels[t];
+    this.setBanner(`${TYPE_INFO[t].name}: уровень ${lvl}`, 1.4);
     for (const cell of this.grid) {
-      if (cell && cell.type === o.type) cell.pulse = this.now;
+      if (cell && cell.type === t) cell.pulse = this.now;
     }
     sfx.upgrade();
     this.emit('upgrade');
-  }
-
-  // Продажа (ПКМ на десктопе): клетка опустеет и заполнится новым шариком
-  sellCell(i: number) {
-    const o = this.grid[i];
-    if (!o) return;
-    const refund = CONFIG.sellBase + 3 * (o.level - 1);
-    this.essence += refund;
-    this.grid[i] = null;
-    this.popQueued.delete(i);
-    if (this.sel === i) this.sel = null;
-    const c = cellC(i);
-    this.textP(c.x, c.y - 10, `${refund}`, '#7dd3fc');
-    this.spark(c.x, c.y, '#7dd3fc', 6, 80);
-    sfx.sell();
   }
 
   err(msg: string) {
@@ -773,6 +753,15 @@ export class Engine {
       if (o && o.type !== 'spiky') ids.push(o.id);
     }
     if (ids.length < 2) return;
+    // авто-линия только из шариков с купленной «Автоатакой»
+    const lacks = cells.some((i) => {
+      const o = this.grid[i];
+      return o && o.type !== 'spiky' && !this.autoTypes.includes(o.type);
+    });
+    if (lacks) {
+      this.setBanner('Авто-атака этого шарика не куплена: откройте 10 узлов дерева и купите её', 2.2);
+      return;
+    }
     this.autoLine = ids;
     this.setBanner(`Авто-линия: ${ids.length} шариков стреляют сами, как перезарядятся`, 2.2);
   }

@@ -61,6 +61,7 @@ export interface MetaState {
   owned: OrbType[];
   deck: OrbType[];
   nodes: string[]; // открытые узлы деревьев (id)
+  autoAbility: OrbType[]; // шарики, у которых куплена «Автоатака» (авто-линия)
   boosts: Record<BoostKind, number>;
   chestDay: string; // дата последнего открытого ежедневного сундука (YYYY-MM-DD), '' — не открывали
   runs: number;
@@ -82,6 +83,7 @@ export function defaultMeta(): MetaState {
     chestDay: '',
     runs: 0,
     bestWave: 0,
+    autoAbility: [],
   };
 }
 
@@ -160,6 +162,9 @@ export function parseMeta(input: unknown): MetaState {
       owned: ownedFixed,
       deck: fixDeck(d.deck, ownedFixed),
       nodes,
+      autoAbility: Array.isArray(d.autoAbility)
+        ? [...new Set(d.autoAbility.filter((t) => ALL_TYPES.includes(t as OrbType)))] as OrbType[]
+        : [],
       boosts: {
         essence: num(d.boosts?.essence, 0),
         lives: num(d.boosts?.lives, 0),
@@ -416,6 +421,31 @@ export function treeProgress(m: MetaState, t: OrbType) {
   return { open: nodes.filter((n) => m.nodes.includes(n.id)).length, total: nodes.length };
 }
 
+// «Автоатака» шарика: авто-линия этого шарика стреляет сама. Открывается, когда в дереве
+// шарика открыто AUTO_ABILITY.nodes узлов; покупается за монеты и остаётся после сброса дерева.
+export const AUTO_ABILITY = { nodes: 10, price: 10000 };
+
+export function hasAutoAbility(m: MetaState, t: OrbType): boolean {
+  return m.autoAbility.includes(t);
+}
+
+export function autoAbilityBlocker(m: MetaState, t: OrbType): string | null {
+  if (!ownsBall(m, t)) return 'Сначала откройте шарик';
+  if (hasAutoAbility(m, t)) return 'Автоатака уже куплена';
+  const open = openInTree(m, t);
+  if (open < AUTO_ABILITY.nodes) return `Откройте ${AUTO_ABILITY.nodes} узлов дерева: сейчас ${open}`;
+  if (m.coins < AUTO_ABILITY.price) return `Нужно монет: ${AUTO_ABILITY.price}`;
+  return null;
+}
+
+export function buyAutoAbility(m: MetaState, t: OrbType): { meta: MetaState; error?: string } {
+  const why = autoAbilityBlocker(m, t);
+  if (why) return { meta: m, error: why };
+  return {
+    meta: { ...m, coins: m.coins - AUTO_ABILITY.price, autoAbility: [...m.autoAbility, t] },
+  };
+}
+
 // Суммарные эффекты открытых узлов по каждому типу шарика
 export function modsFor(m: MetaState): Partial<Record<OrbType, TypeMods>> {
   const out: Partial<Record<OrbType, TypeMods>> = {};
@@ -441,6 +471,7 @@ export function startRun(m: MetaState): { run: RunConfig; meta: MetaState } {
     mods: modsFor(m),
     essenceBonus: boostE,
     livesBonus: boostL,
+    autoTypes: [...m.autoAbility],
   };
   const meta: MetaState = {
     ...m,

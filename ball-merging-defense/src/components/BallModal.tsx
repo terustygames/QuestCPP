@@ -12,6 +12,10 @@ import {
   nodeStatus,
   type NodeStatus,
   ownsBall,
+  AUTO_ABILITY,
+  autoAbilityBlocker,
+  buyAutoAbility,
+  hasAutoAbility,
   resetTree,
   treeProgress,
   unlockBlocker,
@@ -251,6 +255,16 @@ function SkillTree({
   const prog = treeProgress(meta, type);
   const nextCost = nodePointsCost(meta, type);
 
+  const doBuyAuto = () => {
+    const r = buyAutoAbility(meta, type);
+    if (r.error) return onToast(r.error);
+    onUpdate(() => r.meta);
+    sfx.upgrade();
+    onToast(`«${info.name}»: автоатака куплена`);
+  };
+  const autoOwned = hasAutoAbility(meta, type);
+  const autoWhy = autoAbilityBlocker(meta, type);
+
   return (
     <div className="space-y-3">
       <div
@@ -351,6 +365,34 @@ function SkillTree({
           <Coins size={13} className="text-amber-300" />
           {meta.coins}
         </span>
+      </div>
+
+      {/* автоатака: авто-линия этого шарика стреляет сама */}
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+        <div className="text-[13px] font-bold text-slate-100">Автоатака</div>
+        <div className="mt-0.5 text-[12px] leading-snug text-slate-400">
+          Авто-линия из этого шарика стреляет сама, как перезарядится. Открывается при {AUTO_ABILITY.nodes} узлах дерева.
+        </div>
+        {autoOwned ? (
+          <div className="mt-2 flex items-center gap-1.5 text-[13px] font-bold text-emerald-300">
+            <Check size={15} /> Куплена
+          </div>
+        ) : (
+          <button
+            onClick={doBuyAuto}
+            className={`mt-2 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border px-3 text-[13px] font-bold transition active:scale-[0.98] ${
+              autoWhy === null
+                ? 'border-amber-400/50 bg-amber-500/15 text-amber-200'
+                : 'border-white/10 bg-white/[0.04] text-slate-500'
+            }`}
+          >
+            <Coins size={15} />
+            Купить за {AUTO_ABILITY.price}
+          </button>
+        )}
+        {!autoOwned && autoWhy !== null && (
+          <div className="mt-1.5 text-[11px] text-slate-500">{autoWhy}</div>
+        )}
       </div>
 
       {prog.open > 0 &&

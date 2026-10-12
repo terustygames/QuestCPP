@@ -3,7 +3,7 @@
 // как «Магазин»). Центр экрана свободен.
 import { useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { Backpack, Gift, Menu, Sparkles, Store, Swords } from 'lucide-react';
+import { Backpack, Menu, Sparkles, Store, Swords } from 'lucide-react';
 import { AccountDrawer, type AccountView } from './AccountDrawer';
 import { META_CFG, deckReady, type MetaState } from '../game/meta';
 import { CurrencyChips } from './common';
@@ -71,7 +71,6 @@ function TileButton({
 
 export function MainMenu({
   meta,
-  chestReady,
   onPlay,
   onShop,
   onInventory,
@@ -82,7 +81,6 @@ export function MainMenu({
   onLogout,
 }: {
   meta: MetaState;
-  chestReady: boolean;
   onPlay: () => void;
   onShop: () => void;
   onInventory: () => void;
@@ -176,14 +174,6 @@ export function MainMenu({
           </TileButton>
           <TileButton label="Играть" disabled={!ready} onClick={onPlay}>
             <Swords size={34} className="text-amber-300" />
-          </TileButton>
-          <TileButton
-            label="Сундук"
-            sub={chestReady ? 'готов!' : 'получен'}
-            badge={chestReady}
-            onClick={onShop}
-          >
-            <Gift size={34} className="text-sky-300" />
           </TileButton>
         </div>
       </div>

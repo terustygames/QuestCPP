@@ -5,9 +5,8 @@
 // Управление:
 //   тап по шарику — выбор, тап по соседу — выстрел-слияние
 //   перетаскивание шарика на соседа — выстрел-слияние
-//   долгое нажатие на шарик — улучшение (за эссенцию)
 //   тап по пустой клетке — поставить шарик (бесплатно)
-//   ПКМ на десктопе — продать шарик
+//   улучшение — кликом по шарику в колоде внизу (за эссенцию), на поле не действует
 // ============================================================
 
 import { useEffect, useRef } from 'react';
@@ -900,12 +899,9 @@ interface Gesture {
   drag: boolean; // тащим с шариком
   hover: number; // клетка под пальцем (для drag)
   chain: number[]; // проведённая линия клеток (режим совмещения)
-  lpTimer: number | null;
-  lpStart: number;
   done: boolean;
 }
 
-const LP_TIME = 0.48; // сек, удержание = улучшение
 const MOVE_TOL = 16; // логических px, после этого жест считается движением
 
 export function GameStage({
@@ -917,8 +913,6 @@ export function GameStage({
   onEmptyTap,
   onDragPair,
   onChainFire,
-  onUpgrade,
-  onSell,
 }: {
   g: Engine;
   paused: boolean;
@@ -928,8 +922,6 @@ export function GameStage({
   onEmptyTap: (i: number) => void;
   onDragPair: (a: number, b: number) => void;
   onChainFire: (cells: number[]) => void;
-  onUpgrade: (i: number) => void;
-  onSell: (i: number) => void;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -993,16 +985,7 @@ export function GameStage({
             placeHover: -1,
           };
         } else if (gs.drag && !gs.moved) {
-          // удерживаем шарик — кольцо прогресса улучшения
-          const pr = (performance.now() - gs.lpStart) / (LP_TIME * 1000);
-          fxRef.current = {
-            lpCell: gs.cell,
-            lpProgress: Math.min(1, pr),
-            dragFrom: -1,
-            dragHover: -1,
-            dragChain: [],
-            placeHover: -1,
-          };
+          // шарик на поле не удерживается: зажатие ничего не делает
         } else if (!gs.drag && !gs.moved) {
           // держим палец на пустой клетке — подсветка «поставить сюда»
           fxRef.current = {
@@ -1049,16 +1032,9 @@ export function GameStage({
     return -1;
   };
 
-  const clearLp = (gs: Gesture) => {
-    if (gs.lpTimer !== null) {
-      window.clearTimeout(gs.lpTimer);
-      gs.lpTimer = null;
-    }
-  };
-
   const onPointerDown = (e: React.PointerEvent) => {
     if (gesture.current) return; // один палец
-    if (e.pointerType === 'mouse' && e.button !== 0) return; // только левая кнопка (ПКМ = продажа)
+    if (e.pointerType === 'mouse' && e.button !== 0) return; // только левая кнопка
     const p = toStage(e);
     const i = cellAt(p.x, p.y);
     if (i < 0) return;
@@ -1073,8 +1049,6 @@ export function GameStage({
       drag: false,
       hover: -1,
       chain: hasOrb ? [i] : [],
-      lpTimer: null,
-      lpStart: performance.now(),
       done: false,
     };
     // Тап по соседу уже выбранного — немедленное действие (быстрый отклик)
@@ -1083,15 +1057,7 @@ export function GameStage({
       gesture.current = null;
       return;
     }
-    if (hasOrb) {
-      gs.drag = true;
-      gs.lpTimer = window.setTimeout(() => {
-        if (gesture.current === gs && !gs.moved) {
-          gs.done = true;
-          onUpgrade(i);
-        }
-      }, LP_TIME * 1000);
-    }
+    if (hasOrb) gs.drag = true;
     gesture.current = gs;
   };
 
@@ -1101,10 +1067,6 @@ export function GameStage({
     const p = toStage(e);
     if (Math.hypot(p.x - gs.sx, p.y - gs.sy) > MOVE_TOL) {
       gs.moved = true;
-      if (gs.lpTimer !== null) {
-        window.clearTimeout(gs.lpTimer);
-        gs.lpTimer = null;
-      }
     }
     if (gs.drag) {
       const h = cellAt(p.x, p.y);
@@ -1143,7 +1105,6 @@ export function GameStage({
   const finish = (e: React.PointerEvent, act: boolean) => {
     const gs = gesture.current;
     if (!gs || e.pointerId !== gs.pointerId) return;
-    clearLp(gs);
     gesture.current = null;
     if (!act || gs.done) return;
     const i = gs.cell;
@@ -1186,13 +1147,8 @@ export function GameStage({
         onPointerMove={onPointerMove}
         onPointerUp={(e) => finish(e, true)}
         onPointerCancel={(e) => finish(e, false)}
-        // ПКМ на десктопе = продажа (на телефоне продажи нет, поле заполняется само)
-        onContextMenu={(e) => {
-          e.preventDefault();
-          const p = toStage(e);
-          const i = cellAt(p.x, p.y);
-          if (i >= 0 && g.grid[i]) onSell(i);
-        }}
+        // ПКМ на поле ничего не делает (продажи и удаления шариков нет)
+        onContextMenu={(e) => e.preventDefault()}
       />
     </div>
   );
