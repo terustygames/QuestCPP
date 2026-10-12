@@ -21,13 +21,19 @@ export interface BoardSnapshot {
   grid: (OrbState | 0)[];
   enemies: EnemyState[];
   puddles: Puddle[];
-  projs: ProjState[];
+  projs: WireProj[];
   needles: NeedleState[];
   clouds?: GasCloud[];
   traps?: TrapState[]; // мины и бомбы на поле (показываются напарнику)
 }
 
 const r1 = (v: number) => Math.round(v * 10) / 10;
+const r2 = (v: number) => Math.round(v * 100) / 100;
+
+// Снаряд в снимке: только то, что нужно напарнику для показа (он снаряды не считает —
+// попадания и урон идут у владельца). Поля targetId, hitIds, pierceLeft, bonus, dmgMul,
+// emitAcc, straight не отправляются.
+export type WireProj = Pick<ProjState, 'id' | 'kind' | 'x' | 'y' | 'vx' | 'vy' | 'age' | 'life' | 'seed' | 'trail'>;
 
 export function snapshotOf(g: Engine): BoardSnapshot {
   return {
@@ -77,15 +83,16 @@ export function snapshotOf(g: Engine): BoardSnapshot {
     })),
     // снаряды и шипы: позиции и направление; короткий след (до 3 точек)
     projs: g.projs.map((p) => ({
-      ...p,
+      id: p.id,
+      kind: p.kind,
       x: r1(p.x),
       y: r1(p.y),
       vx: r1(p.vx),
       vy: r1(p.vy),
       life: r1(p.life),
       age: r1(p.age),
+      seed: r2(p.seed),
       trail: p.trail.slice(0, 3).map((t) => ({ x: r1(t.x), y: r1(t.y) })),
-      hitIds: p.hitIds ? [...p.hitIds] : undefined,
     })),
     needles: g.needles.map((n) => ({ ...n, x: r1(n.x), y: r1(n.y), dx: r1(n.dx), dy: r1(n.dy), ang: r1(n.ang), life: r1(n.life) })),
   };
@@ -127,7 +134,18 @@ export function applySnapshot(g: Engine, s: BoardSnapshot): void {
     marks: e.marks ?? [],
   }));
   g.puddles = s.puddles ?? [];
-  g.projs = (s.projs ?? []).map((p) => ({ ...p, trail: p.trail ?? [] }));
+  // у напарника снаряды только для показа: поля урона и попаданий не нужны
+  g.projs = (s.projs ?? []).map((p) => ({
+    ...p,
+    trail: p.trail ?? [],
+    targetId: 0,
+    hitIds: undefined,
+    pierceLeft: undefined,
+    bonus: undefined,
+    dmgMul: undefined,
+    emitAcc: undefined,
+    straight: undefined,
+  })) as ProjState[];
   g.needles = s.needles ?? [];
   g.clouds = s.clouds ?? [];
   g.traps = s.traps ?? [];
