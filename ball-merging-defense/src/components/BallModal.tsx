@@ -29,11 +29,11 @@ import { Toast, useToast } from './common';
 // Схема дерева в координатах окна (px). Сетка 4 колонки по 90 px (подписи 84 px не перекрываются).
 // Корень — между колонками 1 и 2 (колонка 1.5), см. skills.ts TREE_SLOTS.
 const CANVAS_W = 360;
-const CANVAS_H = 420;
+const CANVAS_H = 520;
 const VIEW_H = 250;
 const NODE = 56;
 const colX = (c: number) => 45 + c * 90;
-const ROW_Y = [44, 144, 244, 344];
+const ROW_Y = [44, 144, 244, 344, 444];
 const MIN_OFFSET = Math.min(0, VIEW_H - CANVAS_H);
 const ROMAN = ['I', 'II', 'III'];
 const tierLabel = (tier: number) => (tier === 0 ? 'Авто-линия' : ROMAN[tier - 1]);
@@ -371,7 +371,7 @@ function SkillTree({
       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
         <div className="text-[13px] font-bold text-slate-100">Автоатака</div>
         <div className="mt-0.5 text-[12px] leading-snug text-slate-400">
-          Авто-линия из этого шарика стреляет сама, как перезарядится. Открывается при {AUTO_ABILITY.nodes} узлах дерева.
+          Авто-линия из этого шарика стреляет сама, как перезарядится. Лежит в самом конце левой ветки дерева: откройте путь до неё.
         </div>
         {autoOwned ? (
           <div className="mt-2 flex items-center gap-1.5 text-[13px] font-bold text-emerald-300">

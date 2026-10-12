@@ -421,9 +421,12 @@ export function treeProgress(m: MetaState, t: OrbType) {
   return { open: nodes.filter((n) => m.nodes.includes(n.id)).length, total: nodes.length };
 }
 
-// «Автоатака» шарика: авто-линия этого шарика стреляет сама. Открывается, когда в дереве
-// шарика открыто AUTO_ABILITY.nodes узлов; покупается за монеты и остаётся после сброса дерева.
-export const AUTO_ABILITY = { nodes: 10, price: 10000 };
+// «Автоатака» шарика: авто-линия этого шарика стреляет сама. Лежит в самом конце одной ветки
+// дерева (узел `auto`): покупка открывается, когда этот узел открыт. Покупка за монеты,
+// остаётся после сброса дерева.
+export const AUTO_ABILITY = { price: 10000 };
+
+export const autoNodeId = (t: OrbType) => `${t}:auto`;
 
 export function hasAutoAbility(m: MetaState, t: OrbType): boolean {
   return m.autoAbility.includes(t);
@@ -432,8 +435,7 @@ export function hasAutoAbility(m: MetaState, t: OrbType): boolean {
 export function autoAbilityBlocker(m: MetaState, t: OrbType): string | null {
   if (!ownsBall(m, t)) return 'Сначала откройте шарик';
   if (hasAutoAbility(m, t)) return 'Автоатака уже куплена';
-  const open = openInTree(m, t);
-  if (open < AUTO_ABILITY.nodes) return `Откройте ${AUTO_ABILITY.nodes} узлов дерева: сейчас ${open}`;
+  if (!m.nodes.includes(autoNodeId(t))) return 'Откройте путь до автоатаки: последний узел левой ветки';
   if (m.coins < AUTO_ABILITY.price) return `Нужно монет: ${AUTO_ABILITY.price}`;
   return null;
 }
