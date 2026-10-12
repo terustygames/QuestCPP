@@ -176,7 +176,7 @@ export default function App() {
         await createCloudProfile(seed, loginOf(user));
       } catch (e) {
         await deleteCurrentPlayer().catch(() => undefined);
-        throw new Error(`Облачное сохранение недоступно: ${errorMessage(e)}`);
+        throw new Error(errorMessage(e)); // уже содержит «Облачное сохранение недоступно»
       }
       cloudLoaded.current = true;
       setMeta(seed);
