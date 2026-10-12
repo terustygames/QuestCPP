@@ -14,11 +14,13 @@ import {
   type User,
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyA5uh7T_pimoWZR0960cuMgmk10J6jaCHo',
   authDomain: 'random-balls.firebaseapp.com',
   projectId: 'random-balls',
+  databaseURL: 'https://random-balls-default-rtdb.europe-west1.firebasedatabase.app',
   storageBucket: 'random-balls.firebasestorage.app',
   messagingSenderId: '978166781680',
   appId: '1:978166781680:web:2e693f12f7e8755d01d435',
@@ -28,6 +30,8 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+// Realtime Database — комнаты кооператива (см. services/rooms.ts)
+export const rtdb = getDatabase(app);
 
 const ACCOUNT_DOMAIN = 'orbital.app';
 export const LOGIN_RE = /^[a-z0-9_]{3,20}$/;
