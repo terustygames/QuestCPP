@@ -1204,9 +1204,9 @@ export class Engine {
       kind: 'bomb',
       born: this.now,
       arm: 0,
-      boomAt: this.now + fuse,
+      boomAt: 0, // 0 — ещё не сработала: ждёт врага у себя
       fuse,
-      life: fuse + 0.5,
+      life: CONFIG.bomb.life,
       dmgMul,
       x: q.x,
       y: q.y,
@@ -1216,24 +1216,35 @@ export class Engine {
     this.spark(q.x, q.y, TYPE_INFO.bomb.color, 5, 60);
   }
 
-  // Мины и бомбы: мина взрывается, когда враг подходит близко (после взвода),
-  // бомба — в свой срок. Взрыв бьёт всех врагов моего поля в радиусе.
+  // Враг подошёл к точке ближе trigger (плюс его радиус)
+  private enemyNear(x: number, y: number, trigger: number): boolean {
+    return this.allEnemies().some((e) => {
+      if (e.dead) return false;
+      const q = this.at(e);
+      const dx = q.x - x, dy = q.y - y;
+      const rr = trigger + e.radius;
+      return dx * dx + dy * dy < rr * rr;
+    });
+  }
+
+  // Мины и бомбы: мина взрывается, когда враг подходит близко (после взвода).
+  // Бомба лежит, пока враг не подойдёт близко: тогда запускается фитиль, и она
+  // взрывается через fuse секунд. Без врагов гаснет через life.
+  // Взрыв бьёт всех врагов моего поля в радиусе.
   private updateTraps() {
     if (!this.traps.length) return;
     const keep: TrapState[] = [];
     for (const t of this.traps) {
-      if (this.now >= t.born + t.life) continue;
       let boom = false;
       if (t.kind === 'bomb') {
-        boom = this.now >= t.boomAt;
-      } else if (this.now >= t.arm) {
-        boom = this.allEnemies().some((e) => {
-          if (e.dead) return false;
-          const q = this.at(e);
-          const dx = q.x - t.x, dy = q.y - t.y;
-          const rr = CONFIG.mine.trigger + e.radius;
-          return dx * dx + dy * dy < rr * rr;
-        });
+        if (!t.boomAt) {
+          if (this.enemyNear(t.x, t.y, CONFIG.bomb.trigger)) t.boomAt = this.now + t.fuse;
+          else if (this.now >= t.born + t.life) continue;
+        }
+        boom = t.boomAt > 0 && this.now >= t.boomAt;
+      } else {
+        if (this.now >= t.born + t.life) continue;
+        boom = this.now >= t.arm && this.enemyNear(t.x, t.y, CONFIG.mine.trigger);
       }
       if (boom) this.explodeTrap(t);
       else keep.push(t);

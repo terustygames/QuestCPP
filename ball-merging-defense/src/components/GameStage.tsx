@@ -507,7 +507,9 @@ function drawGas(x: CanvasRenderingContext2D, c: GasCloud, vnow: number) {
 // Мина и бомба на трассе. Мина: тёмный круг с шипами, после взвода горит красным.
 // Бомба: пунктир — зона взрыва, дуга — сколько осталось до взрыва.
 function drawTrap(x: CanvasRenderingContext2D, t: TrapState, now: number, vnow: number) {
-  if (now < t.born || now >= t.born + t.life) return;
+  // сработавшая бомба держит фитиль и после срока жизни: её скрывает только взрыв
+  const expired = now >= t.born + t.life && !(t.kind === 'bomb' && t.boomAt > 0);
+  if (now < t.born || expired) return;
   if (t.kind === 'mine') {
     const armed = now >= t.arm;
     const info = TYPE_INFO.mine;
@@ -542,7 +544,8 @@ function drawTrap(x: CanvasRenderingContext2D, t: TrapState, now: number, vnow: 
   }
   const info = TYPE_INFO.bomb;
   const fuse = t.fuse || 1;
-  const left = Math.min(1, Math.max(0, (t.boomAt - now) / fuse));
+  // до срабатывания (враг ещё не пришёл) дуги нет; после — оставшееся время фитиля
+  const left = t.boomAt ? Math.min(1, Math.max(0, (t.boomAt - now) / fuse)) : 1;
   x.save();
   // зона взрыва
   x.setLineDash([5, 5]);
