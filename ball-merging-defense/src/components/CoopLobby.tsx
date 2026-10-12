@@ -19,7 +19,8 @@ export function CoopLobby({
   account: AccountView;
   deckReady: boolean;
   onBack: () => void;
-  onStart: (code: string) => void;
+  // isHost: хост играет вариант трассы A (слева снизу), гость — B (зеркало)
+  onStart: (code: string, isHost: boolean) => void;
 }) {
   const [code, setCode] = useState<string | null>(null);
   const [info, setInfo] = useState<RoomInfo | null>(null);
@@ -29,6 +30,8 @@ export function CoopLobby({
   const started = useRef(false);
   const onStartRef = useRef(onStart);
   onStartRef.current = onStart;
+  const uidRef = useRef(account.uid);
+  uidRef.current = account.uid;
 
   // Подписка на комнату
   useEffect(() => {
@@ -44,7 +47,7 @@ export function CoopLobby({
       setInfo(next);
       if (next.status === 'playing' && !started.current) {
         started.current = true;
-        onStartRef.current(code);
+        onStartRef.current(code, next.host === uidRef.current);
       }
     });
   }, [code]);

@@ -55,36 +55,50 @@ export function isAdj(a: number, b: number) {
 }
 
 // ---------- Трасса врагов: ломаная линия по полю ----------
-// Спавн — левый нижний угол поля, путь идёт вдоль низа и правой стороны,
-// затем вдоль верха к центру и выходит в середине верхнего края.
-// В кооперативе у каждого игрока выход стоит на стыке полей: поле напарника
-// повёрнуто на 180°, и оба пути сходятся в одну общую точку в центре экрана.
-export const TRACK_PTS = [
-  { x: 26, y: 550 }, // спавн
-  { x: 614, y: 550 },
-  { x: 614, y: 110 },
-  { x: 320, y: 110 },
-  { x: 320, y: 0 }, // выход (середина верхнего края поля)
-];
-const SEG_LEN = TRACK_PTS.slice(1).map((p, i) => Math.hypot(p.x - TRACK_PTS[i].x, p.y - TRACK_PTS[i].y));
-// Длина пути от спавна до выхода
+// Схема (вид со стороны хоста, «мой стол» внизу):
+//   спавн (слева сверху у друга) ... линия поперёк середины ... выход (справа в центре)
+//   спавн (слева снизу, у меня) — вверх по левому краю — к середине — вправо к выходу.
+// Вариант A (хост): спавн в левом нижнем углу, путь вверх по левому краю и вправо по верхнему краю.
+// Вариант B (гость): зеркало A по горизонтали. После поворота поля друга на 180° его спавн
+// окажется слева сверху, а выход — справа в середине, рядом с выходом хоста.
+export type TrackSide = 'A' | 'B';
+export const TRACK_VARIANTS: Record<TrackSide, { x: number; y: number }[]> = {
+  A: [
+    { x: 26, y: 550 }, // спавн
+    { x: 26, y: 0 }, // вверх по левому краю до середины поля
+    { x: 614, y: 0 }, // вправо до выхода
+  ],
+  B: [
+    { x: 614, y: 550 },
+    { x: 614, y: 0 },
+    { x: 26, y: 0 },
+  ],
+};
+export const TRACK_PTS = TRACK_VARIANTS.A;
+function segLengths(pts: { x: number; y: number }[]): number[] {
+  return pts.slice(1).map((p, i) => Math.hypot(p.x - pts[i].x, p.y - pts[i].y));
+}
+const SEG_LEN = segLengths(TRACK_VARIANTS.A);
+// Длина пути от спавна до выхода (одинаковая у обоих вариантов)
 export const PERIMETER = SEG_LEN.reduce((a, b) => a + b, 0);
 // Враг «утёк», когда дошёл до выхода
 export const LEAK_AT = PERIMETER;
-// Прежний путь (кольцо) до выхода — 1847 px. Скорости врагов умножаются на этот коэффициент,
-// чтобы новый путь проходился за то же время, что и прежний.
+// Длина прежнего кольцевого пути — 1847 px. Скорости врагов умножаются на этот коэффициент,
+// чтобы путь по новой трассе проходился за то же время, что и прежний (баланс волн не меняется).
 export const PATH_SPEED_SCALE = 1847.3 / PERIMETER;
 
 // Точка на трассе по пройденной дистанции p (+ касательная tx,ty куда он идёт).
 // За пределами пути значение зажимается: до спавна — спавн, после — выход.
-export function pathPoint(p: number) {
+export function pathPoint(p: number, side: TrackSide = 'A') {
+  const pts = TRACK_VARIANTS[side];
+  const lens = side === 'A' ? SEG_LEN : segLengths(pts);
   const d = Math.min(PERIMETER, Math.max(0, p));
   let rest = d;
-  for (let i = 0; i < SEG_LEN.length; i++) {
-    const a = TRACK_PTS[i];
-    const b = TRACK_PTS[i + 1];
-    const L = SEG_LEN[i];
-    if (rest <= L || i === SEG_LEN.length - 1) {
+  for (let i = 0; i < lens.length; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
+    const L = lens[i];
+    if (rest <= L || i === lens.length - 1) {
       const t = L > 0 ? Math.min(1, rest / L) : 0;
       return {
         x: a.x + (b.x - a.x) * t,
@@ -95,7 +109,7 @@ export function pathPoint(p: number) {
     }
     rest -= L;
   }
-  const last = TRACK_PTS[TRACK_PTS.length - 1];
+  const last = pts[pts.length - 1];
   return { x: last.x, y: last.y, tx: 0, ty: -1 };
 }
 

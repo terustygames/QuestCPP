@@ -16,7 +16,8 @@ import {
   CELL,
   COLS,
   ROWS,
-  TRACK_PTS,
+  TRACK_VARIANTS,
+  type TrackSide,
   PERIMETER,
   LEAK_AT,
   BOSS_DEFS,
@@ -34,8 +35,6 @@ import {
 import type { Engine } from '../game/engine';
 import { chargeTint } from '../game/charger';
 
-const SPAWN_POS = pathPoint(0);
-const EXIT_POS = pathPoint(LEAK_AT);
 
 // ---------- Кеш спрайтов (рисуем один раз, потом только drawImage) ----------
 
@@ -228,24 +227,29 @@ export function orbSpriteUrl(type: OrbType): string {
 
 // Фон (фон + сетка + трасса) рисуется в отдельный слой один раз,
 // на каждый кадр его просто копируем.
-let staticLayer: HTMLCanvasElement | null = null;
-let staticW = 0;
-let staticH = 0;
+// Кэш слоёв по варианту трассы и размеру холста (поле игрока и поле напарника могут различаться)
+const staticLayers = new Map<string, HTMLCanvasElement>();
+function getStaticLayer(w: number, h: number, side: TrackSide): HTMLCanvasElement {
+  const key = `${side}:${w}x${h}`;
+  let layer = staticLayers.get(key);
+  if (!layer) {
+    if (staticLayers.size > 8) staticLayers.clear();
+    layer = buildStaticLayer(w, h, side);
+    staticLayers.set(key, layer);
+  }
+  return layer;
+}
 
 function roundedRect(x: CanvasRenderingContext2D, px: number, py: number, w: number, h: number, r: number) {
   x.beginPath();
   x.roundRect(px, py, w, h, r);
 }
 
-function buildStaticLayer(w: number, h: number) {
-  // одинаковый размер — слой уже готов (два поля кооператива делят его)
-  if (staticLayer && staticW === w && staticH === h) return;
-  staticLayer = document.createElement('canvas');
-  staticLayer.width = w;
-  staticLayer.height = h;
-  staticW = w;
-  staticH = h;
-  const x = staticLayer.getContext('2d')!;
+function buildStaticLayer(w: number, h: number, side: TrackSide): HTMLCanvasElement {
+  const layerCanvas = document.createElement('canvas');
+  layerCanvas.width = w;
+  layerCanvas.height = h;
+  const x = layerCanvas.getContext('2d')!;
   const s = w / STAGE_W;
   x.setTransform(s, 0, 0, s, 0, 0);
 
@@ -256,7 +260,7 @@ function buildStaticLayer(w: number, h: number) {
   // ТРАССА — плоская дорожка: два цвета, без свечения
   const trackPath = () => {
     x.beginPath();
-    TRACK_PTS.forEach((pt, i) => (i === 0 ? x.moveTo(pt.x, pt.y) : x.lineTo(pt.x, pt.y)));
+    TRACK_VARIANTS[side].forEach((pt, i) => (i === 0 ? x.moveTo(pt.x, pt.y) : x.lineTo(pt.x, pt.y)));
   };
   trackPath();
   x.strokeStyle = '#10141f';
@@ -267,6 +271,7 @@ function buildStaticLayer(w: number, h: number) {
   x.strokeStyle = '#232a40';
   x.lineWidth = 26;
   x.stroke();
+  return layerCanvas;
 }
 
 // ---------- Вспомогательные функции рисования ----------
@@ -283,14 +288,14 @@ function uText(x: CanvasRenderingContext2D, mode: 'fill' | 'stroke', text: strin
   x.restore();
 }
 
-function drawChevrons(x: CanvasRenderingContext2D, vnow: number) {
+function drawChevrons(x: CanvasRenderingContext2D, vnow: number, side: TrackSide) {
   // Бегущие стрелки направления — единственная анимация трассы
   const n = 8;
   const step = PERIMETER / n;
   const off = (vnow * 26) % step;
   x.fillStyle = 'rgba(148,180,255,0.30)';
   for (let i = 0; i < n; i++) {
-    const p = pathPoint((i * step + off) % PERIMETER);
+    const p = pathPoint((i * step + off) % PERIMETER, side);
     const a = Math.atan2(p.ty, p.tx);
     x.save();
     x.translate(p.x, p.y);
@@ -374,25 +379,25 @@ function drawScene(
   flip = false,
 ) {
   FLIP = flip;
-  const sx = staticW / STAGE_W;
-  const sy = staticH / STAGE_H;
+  const W = x.canvas.width;
+  const H = x.canvas.height;
+  const side = g.trackSide;
+  const sx = W / STAGE_W;
+  const sy = H / STAGE_H;
   // поле: обычное или перевёрнутое на 180° (поле напарника)
-  const board = () => (flip ? x.setTransform(-sx, 0, 0, -sy, staticW, staticH) : x.setTransform(sx, 0, 0, sy, 0, 0));
+  const board = () => (flip ? x.setTransform(-sx, 0, 0, -sy, W, H) : x.setTransform(sx, 0, 0, sy, 0, 0));
   board();
 
-  // фон + сетка + трасса
-  if (staticLayer && staticW === x.canvas.width && staticH === x.canvas.height) {
-    x.setTransform(flip ? -1 : 1, 0, 0, flip ? -1 : 1, flip ? staticW : 0, flip ? staticH : 0);
-    x.drawImage(staticLayer, 0, 0);
-    board();
-  } else {
-    x.fillStyle = '#161b2c';
-    x.fillRect(0, 0, STAGE_W, STAGE_H);
-  }
+  // фон + сетка + трасса (слой кэшируется; у поля напарника он переворачивается)
+  x.setTransform(flip ? -1 : 1, 0, 0, flip ? -1 : 1, flip ? W : 0, flip ? H : 0);
+  x.drawImage(getStaticLayer(W, H, side), 0, 0);
+  board();
 
-  drawChevrons(x, vnow);
-  drawBeacon(x, SPAWN_POS.x, SPAWN_POS.y, '#22c55e', vnow, 0);
-  drawBeacon(x, EXIT_POS.x, EXIT_POS.y, '#ef4444', vnow, 1.7);
+  const spawnP = pathPoint(0, side);
+  const exitP = pathPoint(LEAK_AT, side);
+  drawChevrons(x, vnow, side);
+  drawBeacon(x, spawnP.x, spawnP.y, '#22c55e', vnow, 0);
+  drawBeacon(x, exitP.x, exitP.y, '#ef4444', vnow, 1.7);
 
   const active = g.status === 'prep' || g.status === 'wave';
   const sel = g.sel;
@@ -618,7 +623,7 @@ function drawScene(
       // полоса не уходит в начало трассы: pathPoint по кольцу иначе нарисует её с другой стороны
       const from = Math.max(-pd.radius, -pd.p);
       for (let s = from; s <= pd.radius; s += 4) {
-        const q = pathPoint(pd.p + s);
+        const q = pathPoint(pd.p + s, g.trackSide);
         if (s === from) x.moveTo(q.x, q.y);
         else x.lineTo(q.x, q.y);
       }
@@ -628,7 +633,7 @@ function drawScene(
 
   // --- враги ---
   for (const e of g.enemies) {
-    const pos = pathPoint(e.p);
+    const pos = pathPoint(e.p, g.trackSide);
     const wob = Math.sin(e.id * 1.7 + e.p * 0.02) * 5;
     const ex = pos.x - pos.ty * wob;
     const ey = pos.y + pos.tx * wob;
@@ -991,12 +996,11 @@ export function GameStage({
       const s = Math.min(cw / STAGE_W, ch / STAGE_H);
       const w = Math.max(1, Math.floor(STAGE_W * s));
       const h = Math.max(1, Math.floor(STAGE_H * s));
-      const d = dpr();
+      const d = readOnly ? 1 : dpr();
       cv.style.width = `${w}px`;
       cv.style.height = `${h}px`;
       cv.width = Math.round(w * d);
       cv.height = Math.round(h * d);
-      buildStaticLayer(cv.width, cv.height);
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -1004,9 +1008,18 @@ export function GameStage({
 
     let raf = 0;
     let last = performance.now();
+    let lastDraw = 0;
     const loop = (t: number) => {
       const dt = Math.min(0.05, (t - last) / 1000);
       last = t;
+      // поле напарника: рисуем не чаще 30 кадров/с (экономия батареи и отклика)
+      if (readOnly && t - lastDraw < 33) {
+        const live = g.status === 'prep' || g.status === 'wave';
+        if (live && !frozenRef.current) g.extrapolate(dt);
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+      lastDraw = t;
       const active = g.status === 'prep' || g.status === 'wave';
       if (readOnly) {
         if (active && !frozenRef.current) g.extrapolate(dt);

@@ -391,7 +391,7 @@ export default function App() {
   };
 
   // Кооператив: старт забега вдвоём (по коду комнаты, когда хост начал игру)
-  const startCoopRun = (code: string) => {
+  const startCoopRun = (code: string, isHost: boolean) => {
     initAudio();
     clearRun();
     const prepared = prepareRun(meta);
@@ -399,7 +399,8 @@ export default function App() {
     setSettlement(null);
     const game = newEngine();
     engRef.current = game;
-    game.startGame({ ...prepared.run, coop: true, livesBonus: 0 });
+    // вариант трассы: хост — слева снизу (A), гость — зеркало (B)
+    game.startGame({ ...prepared.run, coop: true, livesBonus: 0, trackSide: isHost ? 'A' : 'B' });
     attachCoop(code, account.uid, game);
     setPaused(false);
     setHelpOpen(false);

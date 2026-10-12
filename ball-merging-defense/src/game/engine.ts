@@ -23,6 +23,7 @@ import {
   isAdj,
   cellC,
   pathPoint,
+  type TrackSide,
   TYPE_INFO,
   type BossId,
   type OrbType,
@@ -53,6 +54,7 @@ export interface RunConfig {
   livesBonus: number;
   autoTypes: OrbType[]; // шарики с купленной «Автоатакой»
   coop?: boolean; // кооператив: волны стартует синхронизация, без таймера
+  trackSide?: TrackSide; // вариант трассы (кооператив: хост A, гость B)
 }
 // Короткие события для UI (виброотклик на телефоне)
 export type EngineEvent =
@@ -201,6 +203,7 @@ export class Engine {
   autoLine: number[] | null = null;
   autoTypes: OrbType[] = []; // шарики, для которых куплена авто-атака
   coop = false; // кооператив: старт волны внешний (см. services/coopSession.ts)
+  trackSide: TrackSide = 'A'; // вариант трассы: A — хост, B — гость (зеркало)
   leakDamage = 0; // всего урона от утечек (для общих жизней в кооперативе)
   maxChain = 0;
 
@@ -379,6 +382,7 @@ export class Engine {
     this.deck = [...cfg.deck];
     this.autoTypes = [...cfg.autoTypes];
     this.coop = !!cfg.coop;
+    this.trackSide = cfg.trackSide ?? 'A';
     this.leakDamage = 0;
     this.mods = cfg.mods;
     this.essence = CONFIG.essenceStart + cfg.essenceBonus;
@@ -430,7 +434,7 @@ export class Engine {
       radius: CONFIG.charger.puddleRadius,
       until: this.now + CONFIG.charger.puddleDuration,
     });
-    const pos = pathPoint(p);
+    const pos = this.pt(p);
     this.spark(pos.x, pos.y, '#c084fc', 10, 120);
     this.textP(pos.x, pos.y - 16, 'Лужа эликсира', '#d8b4fe');
     sfx.pop();
@@ -497,6 +501,11 @@ export class Engine {
     sfx.waveStart();
   }
 
+  // Точка трассы для этого поля (вариант A или B)
+  pt(p: number) {
+    return pathPoint(p, this.trackSide);
+  }
+
   // Кооператив: принудительный конец забега (общие жизни закончились)
   forceGameOver() {
     if (this.status === 'gameover') return;
@@ -513,6 +522,19 @@ export class Engine {
       const slowF = this.now < e.slowUntil ? e.slowFactor : 1;
       e.p += e.speed * slowF * dt;
     }
+    // снаряды и шипы летят по последней скорости (между снимками)
+    for (const p of this.projs) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+    }
+    for (const n of this.needles) {
+      n.x += n.dx * 540 * dt;
+      n.y += n.dy * 540 * dt;
+      n.life -= dt;
+    }
+    this.projs = this.projs.filter((p) => p.life > 0);
+    this.needles = this.needles.filter((n) => n.life > 0);
   }
 
   callWaveNow() {
@@ -925,7 +947,7 @@ export class Engine {
         let dx = Math.random() - 0.5;
         let dy = -1;
         if (target) {
-          const tp = pathPoint(target.p);
+          const tp = this.pt(target.p);
           dx = tp.x - x;
           dy = tp.y - y;
         }
@@ -1005,7 +1027,7 @@ export class Engine {
     e.hp -= d;
     e.flashUntil = this.now + 0.08;
     if (show) {
-      const pos = pathPoint(e.p);
+      const pos = this.pt(e.p);
       this.textP(pos.x, pos.y - 18, String(Math.round(d)), color);
     }
   }
@@ -1027,7 +1049,7 @@ export class Engine {
     const K = p.kind;
     // бонус комбо: каждый шарик в цепи добавил +1 к урону снаряда
     const b = p.bonus || 0;
-    const pos = pathPoint(e.p);
+    const pos = this.pt(e.p);
     switch (p.kind) {
       case 'fire': {
         // улучшение: основной урон растёт (3 + уровень) + бонус цепи
@@ -1036,7 +1058,7 @@ export class Engine {
         // осколки по соседним врагам
         for (const o of this.enemies) {
           if (o === e || o.dead) continue;
-          const q = pathPoint(o.p);
+          const q = this.pt(o.p);
           const dx = q.x - pos.x, dy = q.y - pos.y;
           const sr = 58 + this.m(K, 'radius');
           if (dx * dx + dy * dy < sr * sr) this.damage(o, 1 + this.m(K, 'splash'), '#ff6a3d', false);
@@ -1060,7 +1082,7 @@ export class Engine {
         const cands = this.enemies
           .filter((o) => o !== e && !o.dead)
           .map((o) => {
-            const q = pathPoint(o.p);
+            const q = this.pt(o.p);
             const dx = q.x - pos.x, dy = q.y - pos.y;
             return { o, q, d2: dx * dx + dy * dy };
           })
@@ -1094,7 +1116,7 @@ export class Engine {
         this.damage(e, dmg, '#ff8fa3');
         for (const o of this.enemies) {
           if (o === e || o.dead) continue;
-          const q = pathPoint(o.p);
+          const q = this.pt(o.p);
           const dx = q.x - pos.x, dy = q.y - pos.y;
           if (dx * dx + dy * dy < radius * radius) this.damage(o, dmg, '#ff8fa3', false);
         }
@@ -1205,7 +1227,7 @@ export class Engine {
         for (const d of e.dots) e.hp -= d.dps * dt;
         e.dots = e.dots.filter((d) => d.until > this.now);
         if (Math.random() < dt * 6) {
-          const pos = pathPoint(e.p);
+          const pos = this.pt(e.p);
           this.spark(pos.x, pos.y, '#4ade80', 1, 40);
         }
       }
@@ -1222,7 +1244,7 @@ export class Engine {
       this.lives -= e.leakDmg;
       this.leakDamage += e.leakDmg;
       this.leaked++;
-      const pos = pathPoint(LEAK_AT);
+      const pos = this.pt(LEAK_AT);
       this.spark(pos.x, pos.y, '#ef4444', 12, 150);
       this.ring(pos.x, pos.y, '#ef4444', 70);
       this.textP(pos.x, pos.y - 20, `-${e.leakDmg}`, '#f87171');
@@ -1238,7 +1260,7 @@ export class Engine {
       if (e.chargeT > 0 && this.chargeLevel(e) >= 1) this.spawnPuddle(e.p);
       this.essence += e.reward;
       this.kills++;
-      const pos = pathPoint(e.p);
+      const pos = this.pt(e.p);
       this.spark(pos.x, pos.y, e.boss ? '#c084fc' : e.mini ? '#f59e0b' : '#fbbf24', e.boss ? 18 : e.mini ? 13 : 9, e.boss ? 200 : 130);
       this.textP(pos.x, pos.y - 14, `${e.reward}`, '#fcd34d');
       this.emit('kill');
@@ -1287,7 +1309,7 @@ export class Engine {
         if (p.trail.length > 5) p.trail.pop();
         for (const e of this.enemies) {
           if (e.dead || p.hitIds!.includes(e.id)) continue;
-          const tp = pathPoint(e.p);
+          const tp = this.pt(e.p);
           const dx = tp.x - p.x, dy = tp.y - p.y;
           const rr = e.radius + 12;
           if (dx * dx + dy * dy < rr * rr) {
@@ -1307,7 +1329,7 @@ export class Engine {
       if (!t) t = p.kind === 'mark' ? this.randomTarget() : this.pickTarget();
       if (t) {
         p.targetId = t.id;
-        const tp = pathPoint(t.p);
+        const tp = this.pt(t.p);
         const dx = tp.x - p.x, dy = tp.y - p.y;
         const dist = Math.hypot(dx, dy) || 1;
         const maxSp = 520;
@@ -1340,7 +1362,7 @@ export class Engine {
       // (урон растёт с уровнем шипастого в колоде).
       for (const e of this.enemies) {
         if (e.dead) continue;
-        const ep = pathPoint(e.p);
+        const ep = this.pt(e.p);
         const dx = ep.x - n.x;
         const dy = ep.y - n.y;
         const rr = e.radius + 9;
