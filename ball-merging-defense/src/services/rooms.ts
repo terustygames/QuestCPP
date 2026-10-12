@@ -65,33 +65,21 @@ export async function createRoom(login: string): Promise<string> {
   throw new Error('Не удалось создать комнату, попробуйте ещё раз');
 }
 
-// Входит в комнату по коду; комната на два игрока
+// Входит в комнату по коду; комната на два игрока.
+// Сначала читаем комнату с сервера (get), а не транзакцией: транзакция без данных
+// в кэше сразу отменяется, и комната ошибочно считалась бы ненайденной.
 export async function joinRoom(input: string, login: string): Promise<string> {
   const uid = myUid();
   const code = normalizeCode(input);
   if (code.length !== CODE_LEN) throw new Error(`Код комнаты — ${CODE_LEN} символов`);
-  let error: string | null = null;
-  const res = await runTransaction(roomRef(code, 'info'), (cur: RoomInfo | null) => {
-    if (!cur) {
-      error = 'Комната с таким кодом не найдена';
-      return;
-    }
-    if (cur.status !== 'lobby' && !(cur.players ?? {})[uid]) {
-      error = 'Игра в этой комнате уже идёт';
-      return;
-    }
-    const players = { ...(cur.players ?? {}) };
-    if (!players[uid]) {
-      if (Object.keys(players).length >= ROOM_SIZE) {
-        error = 'Комната уже заполнена';
-        return;
-      }
-      players[uid] = { login, joinedAt: Date.now() };
-    }
-    return { ...cur, players };
-  });
-  if (error) throw new Error(error);
-  if (!res.committed) throw new Error('Не удалось войти, попробуйте ещё раз');
+  const snap = await get(roomRef(code, 'info'));
+  const cur = (snap.val() as RoomInfo | null) ?? null;
+  if (!cur) throw new Error('Комната с таким кодом не найдена');
+  const players = { ...(cur.players ?? {}) };
+  if (players[uid]) return code; // уже в этой комнате (например, после перезапуска)
+  if (cur.status !== 'lobby') throw new Error('Игра в этой комнате уже идёт');
+  if (Object.keys(players).length >= ROOM_SIZE) throw new Error('Комната уже заполнена');
+  await set(roomRef(code, `info/players/${uid}`), { login, joinedAt: Date.now() });
   return code;
 }
 
