@@ -36,7 +36,6 @@ const LABEL_W = 76;
 const colX = (c: number) => 40 + c * 78;
 const ROW_Y = [44, 144, 244, 344, 444];
 const ROMAN = ['I', 'II', 'III'];
-const tierLabel = (tier: number) => (tier === 0 ? 'Авто-линия' : ROMAN[tier - 1]);
 
 
 function nodePos(id: string, type: OrbType) {
@@ -85,8 +84,8 @@ export function BallModal({
             <div className="font-display truncate text-lg font-bold text-slate-100">{info.name}</div>
             <div className="text-[12px] text-slate-400">
               {owned
-                ? `Открыт. Дерево навыков: ${prog.open} из ${prog.total}`
-                : 'Не открыт: выпадает из сундуков (ежедневного и после забега)'}
+                ? `Открыт · узлов ${prog.open} из ${prog.total}`
+                : 'Не открыт'}
             </div>
           </div>
           <button
@@ -108,7 +107,7 @@ export function BallModal({
             <div className="space-y-4">
               <p className="text-[14px] leading-relaxed text-slate-300">{info.desc}</p>
 
-              <Block title="Характеристики (первый уровень)">
+              <Block title="Характеристики">
                 <div className="space-y-1.5">
                   {typeStatRows(type, 1).map((r) => (
                     <div
@@ -133,12 +132,8 @@ export function BallModal({
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[13px] text-slate-500">Пока ничего не открыто. Откройте узлы на вкладке «Дерево».</p>
+                  <p className="text-[13px] text-slate-500">Пока пусто</p>
                 )}
-                <p className="mt-2 text-[12px] leading-snug text-slate-500">
-                  Бонусы действуют, пока шарик стоит в колоде. Узлы открываются за очки прокачки этого шарика (ОП) и монеты.
-                  Каждый следующий узел дерева дороже на 1 ОП.
-                </p>
               </Block>
 
             </div>
@@ -355,28 +350,21 @@ function SkillTree({
                 color={info.color}
                 state={st}
                 label={n.name}
+                // прогресс: сколько ОП набрано на открытие выбранного узла
+                bar={sel === n.id && (st === 'ready' || st === 'locked') ? { cur: meta.pts[type], need: nextCost } : undefined}
               >
                 <span className="text-[13px] font-extrabold">{ROMAN[n.tier - 1]}</span>
               </NodeDot>
             );
           })}
         </div>
-        <div className="pointer-events-none absolute bottom-1.5 right-2 text-[10px] text-slate-500">
-          тяни вверх / вниз
-        </div>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3">
-        {node ? (
+      {node && (
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3">
           <NodeCard node={node} meta={meta} onUnlock={() => unlock(node.id)} />
-        ) : (
-          <div className="text-[13px] leading-snug text-slate-300">
-            <div className="text-[14px] font-bold text-slate-100">Ядро: {info.name}</div>
-            Открыто всегда. Ветки растут от ядра: каждый узел открывается после предыдущего в своей ветке.
-            Выбери узел, чтобы увидеть описание.
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between gap-2 text-[12px] text-slate-400">
         <span>
@@ -395,7 +383,7 @@ function SkillTree({
       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
         <div className="text-[13px] font-bold text-slate-100">Автоатака</div>
         <div className="mt-0.5 text-[12px] leading-snug text-slate-400">
-          Авто-линия из этого шарика стреляет сама, как перезарядится. Лежит в самом конце левой ветки дерева: откройте путь до неё.
+          Авто-линия стреляет сама после перезарядки.
         </div>
         {autoOwned ? (
           <div className="mt-2 flex items-center gap-1.5 text-[13px] font-bold text-emerald-300">
@@ -426,7 +414,7 @@ function SkillTree({
             onClick={doReset}
             className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-rose-400/50 bg-rose-500/15 px-3 text-[13px] font-bold text-rose-200 transition active:scale-[0.98]"
           >
-            Точно сбросить: все ОП шарика вернутся, монеты — наполовину
+            Точно сбросить: ОП вернутся, монеты наполовину
           </button>
         ) : (
           <button
@@ -449,6 +437,7 @@ function NodeDot({
   color,
   state,
   label,
+  bar,
   children,
 }: {
   x: number;
@@ -458,6 +447,7 @@ function NodeDot({
   color: string;
   state: NodeStatus;
   label: string;
+  bar?: { cur: number; need: number }; // полоска очков прокачки под выбранным узлом
   children: ReactNode;
 }) {
   const style =
@@ -487,9 +477,30 @@ function NodeDot({
       >
         {children}
       </button>
+      {bar && (
+        <div
+          className="pointer-events-none absolute"
+          style={{ left: x - 32, top: y + NODE / 2 + 5, width: 64 }}
+        >
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${Math.min(100, (bar.cur / Math.max(1, bar.need)) * 100)}%`, background: color }}
+            />
+          </div>
+          <div className="mt-0.5 text-center text-[10px] font-bold tabular-nums text-slate-200">
+            {bar.cur} / {bar.need}
+          </div>
+        </div>
+      )}
       <div
         className="pointer-events-none absolute text-center text-[11px] font-semibold leading-tight"
-        style={{ left: x - LABEL_W / 2, top: y + NODE / 2 + 5, width: LABEL_W, color: labelColor }}
+        style={{
+          left: x - LABEL_W / 2,
+          top: y + NODE / 2 + 5 + (bar ? 26 : 0),
+          width: LABEL_W,
+          color: labelColor,
+        }}
       >
         {label}
       </div>
@@ -506,14 +517,8 @@ function NodeCard({ node, meta, onUnlock }: { node: SkillNode; meta: MetaState; 
   const notEnoughCoins = meta.coins < node.coins;
   return (
     <div className="space-y-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <div className="text-[15px] font-extrabold text-slate-100">{node.name}</div>
-        <div className="shrink-0 text-[11px] text-slate-500">
-          {node.exclusive.length > 0 ? 'Выбор пути' : 'Продолжение'} · {tierLabel(node.tier)}
-        </div>
-      </div>
-      <p className="text-[13px] leading-snug text-slate-300">{node.desc}</p>
-      <p className="text-[12px] font-semibold text-emerald-200">{effects}</p>
+      <div className="text-[15px] font-extrabold text-slate-100">{node.name}</div>
+      <p className="text-[13px] font-semibold text-emerald-200">{effects}</p>
       <div className="flex items-center gap-3 text-[13px] font-bold tabular-nums">
         <span className={`flex items-center gap-1 ${notEnoughPts && st !== 'open' ? 'text-rose-300' : 'text-fuchsia-200'}`}>
           <Sparkles size={14} />

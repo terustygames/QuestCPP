@@ -239,6 +239,8 @@ export default function App() {
   const [, setFrame] = useState(0);
   const [paused, setPaused] = useState(!!boot.saved);
   const [speed, setSpeed] = useState(1);
+  // кооператив: мой голос за скорость (null — голоса нет); скорость меняется, когда голоса совпали
+  const [speedVote, setSpeedVote] = useState<number | null>(null);
   const [muted, setMutedState] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   // номер волны, для которой рулетка уже отыграна (не показывать дважды)
@@ -381,9 +383,14 @@ export default function App() {
     remoteRef.current = other;
     setRemoteLeft(false);
     setRemoteLogin('');
+    setSpeedVote(null);
     const session = new CoopSession(code, uid, game, other, {
       onRemoteLeft: (v) => setRemoteLeft(v),
       onRemoteLogin: (name) => setRemoteLogin(name),
+      onSpeed: (agreed, mine) => {
+        setSpeed(agreed);
+        setSpeedVote(mine);
+      },
     });
     coopRef.current = session;
     session.start();
@@ -499,9 +506,20 @@ export default function App() {
             g={g}
             paused={paused}
             speed={speed}
+            speedPending={coopOn && speedVote !== null && speedVote !== speed}
             muted={muted}
             onPause={() => playing && setPaused((p) => !p)}
-            onSpeed={() => setSpeed((s) => (s === 1 ? 2 : 1))}
+            onSpeed={() => {
+              // кооп: голос; скорость поменяется, когда проголосуют оба
+              if (coopRef.current) {
+                const pending = speedVote !== null && speedVote !== speed;
+                // повторное нажатие отзывает свой голос
+                const next = pending ? speed : speed === 1 ? 2 : 1;
+                coopRef.current.vote(next as 1 | 2);
+                return;
+              }
+              setSpeed((s) => (s === 1 ? 2 : 1));
+            }}
             onMute={toggleMute}
             onHelp={() => setHelpOpen(true)}
           />

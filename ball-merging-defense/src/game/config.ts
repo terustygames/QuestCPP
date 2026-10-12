@@ -18,7 +18,10 @@ export type OrbType =
   | 'vampire'
   | 'barrage'
   | 'mark'
-  | 'gas';
+  | 'gas'
+  | 'mine'
+  | 'bomb'
+  | 'resonance';
 
 // ---------- Размеры игрового поля (логические пиксели) ----------
 // Портретная ориентация: поле рассчитано под вертикальный экран телефона.
@@ -196,10 +199,32 @@ export const TYPE_INFO: Record<
     glow: 'rgba(45,212,191,',
     desc: 'залп из пяти снарядов, каждый наносит 1 ед. урона',
   },
+  mine: {
+    name: 'Мина',
+    color: '#94a3b8',
+    dark: '#1e293b',
+    glow: 'rgba(148,163,184,',
+    desc: 'ставит мину на трассе впереди врага: взрывается, когда враг подходит близко',
+  },
+  bomb: {
+    name: 'Бомба',
+    color: '#f97316',
+    dark: '#7c2d12',
+    glow: 'rgba(249,115,22,',
+    desc: 'сбрасывает бомбу туда, где враг окажется через 1,5 с',
+  },
+  resonance: {
+    name: 'Резонанс',
+    color: '#67e8f9',
+    dark: '#164e63',
+    glow: 'rgba(103,232,249,',
+    desc: 'метит врага: помеченный враг получает больше урона от всех шариков',
+  },
 };
 
 export const ALL_TYPES: OrbType[] = [
   'fire', 'ice', 'bolt', 'poison', 'spiky', 'amp', 'nova', 'stun', 'pierce', 'vampire', 'barrage', 'mark', 'gas',
+  'mine', 'bomb', 'resonance',
 ];
 // Базовая колода обычного режима
 export const CLASSIC_TYPES: OrbType[] = ['fire', 'ice', 'bolt', 'poison', 'spiky', 'amp'];
@@ -337,6 +362,30 @@ export const CONFIG = {
     tick: 0.4, // раз в сколько секунд облако жжёт врагов внутри
     slow: 0.6, // скорость врагов внутри облака (×; 0.6 = на 40% медленнее)
   },
+
+  // Мина: ставится на трассе впереди врага, взрывается, когда враг подходит близко.
+  mine: {
+    radius: 62, // радиус взрыва, px
+    dmg: 3, // урон взрыва по всем врагам в радиусе
+    arm: 0.4, // с: сколько мина взводится после установки
+    trigger: 26, // px: враг ближе этого (плюс его радиус) подрывает мину
+    life: 25, // с: сколько мина лежит на трассе
+    ahead: 70, // px по трассе впереди цели, куда ставится мина
+  },
+
+  // Бомба: падает в точку, где цель окажется через fuse секунд, и взрывается.
+  bomb: {
+    radius: 85, // радиус взрыва, px
+    dmg: 6, // урон взрыва
+    fuse: 1.5, // с: задержка до взрыва
+  },
+
+  // Резонанс: снаряд метит врага. Помеченный враг получает больше урона от всех источников.
+  resonance: {
+    dmg: 1, // урон снаряда
+    mul: 1.25, // урон по помеченному врагу (×; 1.25 = +25%)
+    dur: 3, // с: сколько держится метка
+  },
 };
 
 // Радиус облака газа в момент c.age: быстро разрастается и останавливается
@@ -383,10 +432,28 @@ export function typeStatValue(t: OrbType, stat: string, lvl: number): number {
       return 5 + g; // снарядов в залпе
     case 'gas':
       // rad — радиус облака; dur — длительность; dmg — урон за тик; slow — скорость врагов внутри
-      if (stat === 'rad') return CONFIG.gas.radius + 15 * g;
+      if (stat === 'rad') return CONFIG.gas.radius;
       if (stat === 'dur') return CONFIG.gas.duration + 0.4 * g;
       if (stat === 'dmg') return 1 + g;
       if (stat === 'slow') return CONFIG.gas.slow;
+      return 1;
+    case 'mine':
+      // dmg — урон взрыва; rad — радиус; arm — время взвода, с
+      if (stat === 'dmg') return CONFIG.mine.dmg + g;
+      if (stat === 'rad') return CONFIG.mine.radius;
+      if (stat === 'arm') return CONFIG.mine.arm;
+      return 1;
+    case 'bomb':
+      // dmg — урон взрыва; rad — радиус; dur — задержка до взрыва, с
+      if (stat === 'dmg') return CONFIG.bomb.dmg + g;
+      if (stat === 'rad') return CONFIG.bomb.radius;
+      if (stat === 'dur') return CONFIG.bomb.fuse;
+      return 1;
+    case 'resonance':
+      // dmg — урон снаряда; mul — урон по помеченному врагу (×); dur — длительность метки
+      if (stat === 'dmg') return CONFIG.resonance.dmg + g;
+      if (stat === 'mul') return CONFIG.resonance.mul + 0.05 * g;
+      if (stat === 'dur') return CONFIG.resonance.dur;
       return 1;
     case 'mark':
       // dmg — урон попадания; dps — урон метки в секунду; dur — длительность метки;
@@ -463,6 +530,24 @@ export function typeStatRows(t: OrbType, lvl: number): StatRow[] {
         R('Радиус облака', v('rad'), n('rad')),
         R('Длительность облака', v('dur'), n('dur'), ' с'),
         R('Скорость врагов в облаке', v('slow') * 100, n('slow') * 100, '%'),
+      ];
+    case 'mine':
+      return [
+        R('Урон взрыва', v('dmg'), n('dmg')),
+        R('Радиус взрыва', v('rad'), n('rad')),
+        R('Взводится за', CONFIG.mine.arm, CONFIG.mine.arm, ' с'),
+      ];
+    case 'bomb':
+      return [
+        R('Урон взрыва', v('dmg'), n('dmg')),
+        R('Радиус взрыва', v('rad'), n('rad')),
+        R('Взрыв через', v('dur'), v('dur'), ' с'),
+      ];
+    case 'resonance':
+      return [
+        R('Урон', v('dmg'), n('dmg')),
+        R('Урон по помеченному врагу', (v('mul') - 1) * 100, (n('mul') - 1) * 100, '%'),
+        R('Длительность метки', v('dur'), n('dur'), ' с'),
       ];
     case 'mark':
       return [

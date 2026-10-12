@@ -63,6 +63,7 @@ export function Header({
   muted,
   onPause,
   onSpeed,
+  speedPending = false,
   onMute,
   onHelp,
 }: {
@@ -72,6 +73,7 @@ export function Header({
   muted: boolean;
   onPause: () => void;
   onSpeed: () => void;
+  speedPending?: boolean; // кооп: мой голос ждёт напарника
   onMute: () => void;
   onHelp: () => void;
 }) {
@@ -101,12 +103,14 @@ export function Header({
         </IconBtn>
         <button
           onClick={onSpeed}
-          title="Скорость игры"
+          title={speedPending ? 'Ждём голос напарника' : 'Скорость игры'}
           aria-label="Скорость игры"
           className={`h-9 rounded-lg border px-2 text-[12px] font-extrabold transition active:scale-90 ${
-            speed === 2
-              ? 'border-cyan-400/50 bg-cyan-500/15 text-cyan-300'
-              : 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'
+            speedPending
+              ? 'border-dashed border-amber-300/70 bg-amber-400/10 text-amber-200'
+              : speed === 2
+                ? 'border-cyan-400/50 bg-cyan-500/15 text-cyan-300'
+                : 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'
           }`}
         >
           {speed}
@@ -161,6 +165,8 @@ export function DeckBar({
     >
       {deck.map((t) => {
         const lvl = g.typeLevels[t];
+        // серый: улучшить нельзя (нет эссенции на улучшение)
+        const can = g.canUpgrade(t);
         return (
           <div
             key={t}
@@ -176,14 +182,18 @@ export function DeckBar({
               if (!pressFired.current) onUpgrade(t);
             }}
             className={`relative flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border transition-opacity ${
-              lvl > 1 ? 'border-amber-400/40 bg-white/[0.06]' : 'border-white/10 bg-white/[0.04]'
+              !can
+                ? 'border-white/10 bg-white/[0.02]'
+                : lvl > 1
+                  ? 'border-amber-400/40 bg-white/[0.06]'
+                  : 'border-white/10 bg-white/[0.04]'
             }`}
           >
             <img
               src={orbSpriteUrl(t)}
               alt={TYPE_INFO[t].name}
               draggable={false}
-              className="h-8 w-8 select-none"
+              className={`h-8 w-8 select-none ${can ? '' : 'opacity-45 grayscale'}`}
             />
             <span
               className={`absolute -bottom-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-md border px-1 text-[11px] font-extrabold tabular-nums ${

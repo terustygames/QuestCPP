@@ -105,6 +105,9 @@ export const sfx = {
     else if (kind === 'vampire') tone(300, 120, 0.12, 'sine', 0.1);
     else if (kind === 'barrage') [0, 0.05, 0.1].forEach((d) => tone(520, 320, 0.05, 'triangle', 0.05, d));
     else if (kind === 'amp') tone(660, 990, 0.08, 'triangle', 0.07);
+    else if (kind === 'mine') tone(180, 360, 0.06, 'square', 0.05); // щелчок установки
+    else if (kind === 'bomb') tone(600, 260, 0.14, 'triangle', 0.06); // свист сброса
+    else if (kind === 'resonance') tone(1320, 1760, 0.16, 'sine', 0.07); // камертон
     else if (kind === 'gas') {
       tone(260, 90, 0.2, 'sawtooth', 0.035);
       noiseBurst(0.18, 0.05);
@@ -152,6 +155,16 @@ export const sfx = {
     for (let i = 0; i < 5; i++) {
       noiseBurst(0.12, 0.14, i * 0.07);
       tone(200 + i * 40, 60, 0.12, 'square', 0.09, i * 0.07);
+    }
+  },
+  // взрыв мины (резкий, короткий) и бомбы (низкий, длинный)
+  boom(kind: string) {
+    if (kind === 'bomb') {
+      tone(140, 40, 0.42, 'sawtooth', 0.16);
+      noiseBurst(0.3, 0.16);
+    } else {
+      tone(320, 70, 0.14, 'square', 0.09);
+      noiseBurst(0.1, 0.12);
     }
   },
   gameover() {

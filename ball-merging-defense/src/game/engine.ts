@@ -97,6 +97,24 @@ export interface EnemyState {
   chargeT: number; // заряжающийся моб: секунд до полной зарядки (выбрано при создании); 0 — обычный
   bornAt: number; // время появления (для заряда)
   foreign?: boolean; // враг напарника (копия, см. Engine.setForeign)
+  vulnUntil?: number; // резонанс: до какого времени враг помечен
+  vulnMul?: number; // резонанс: множитель урона по помеченному врагу (×)
+}
+
+// Мина и бомба: лежат на трассе, срабатывают сами. Рисуются у обоих игроков.
+export interface TrapState {
+  id: number;
+  kind: 'mine' | 'bomb';
+  x: number;
+  y: number;
+  born: number; // время установки
+  arm: number; // мина: время, когда она становится активной
+  boomAt: number; // бомба: время взрыва
+  fuse: number; // бомба: полная задержка (для полоски на поле)
+  life: number; // сколько держится на поле, с
+  radius: number; // радиус взрыва, px
+  dmg: number; // база урона взрыва
+  dmgMul: number; // накопление: множитель урона взрыва
 }
 
 // Лужа эликсира: остаётся на трассе после смерти полностью заряженного моба
@@ -192,6 +210,7 @@ export class Engine {
   enemies: EnemyState[] = [];
   projs: ProjState[] = [];
   clouds: GasCloud[] = []; // облака газа (шарик «Газ»)
+  traps: TrapState[] = []; // мины и бомбы на трассе (шарики «Мина» и «Бомба»)
   needles: NeedleState[] = [];
   parts: Particle[] = [];
 
@@ -254,6 +273,9 @@ export class Engine {
     barrage: 1,
     mark: 1,
     gas: 1,
+    mine: 1,
+    bomb: 1,
+    resonance: 1,
   };
 
   // --- автоматическое заполнение пустых клеток ---
@@ -415,6 +437,7 @@ export class Engine {
     for (const k of Object.keys(this.typeLevels) as OrbType[]) this.typeLevels[k] = 1;
     this.markDrainAcc = 0;
     this.clouds = [];
+    this.traps = [];
     this.refillField();
     this.setBanner('Поле готово. Волна через 9 секунд');
   }
@@ -544,18 +567,34 @@ export class Engine {
   }
 
   // Кооператив: список врагов напарника со снимка (копии, см. at())
-  setForeign(list: EnemyState[]) {
+  // srcNow — часы напарника в момент снимка: его времена (замедление, паралич, метка,
+  // рождение) переводятся на мои часы, иначе сравнение с моим now было бы неверным.
+  setForeign(list: EnemyState[], srcNow = this.now) {
+    const shift = this.now - srcNow;
     this.foreign = list
       .filter((e) => !e.dead)
-      .map((e) => ({ ...e, id: e.id + FOREIGN_BASE, foreign: true, dots: [], marks: [] }));
+      .map((e) => ({
+        ...e,
+        id: e.id + FOREIGN_BASE,
+        foreign: true,
+        dots: [],
+        marks: [],
+        slowUntil: e.slowUntil + shift,
+        stunUntil: e.stunUntil + shift,
+        bornAt: e.bornAt + shift,
+        vulnUntil: e.vulnUntil === undefined ? undefined : e.vulnUntil + shift,
+      }));
   }
 
   // Кооператив: удар по моему врагу от напарника (его снаряд или игла)
+  // Урон уже посчитан у напарника (с его уязвимостью), здесь только вычитаем.
   applyHit(id: number, d: number) {
     const e = this.enemies.find((x) => x.id === id && !x.dead);
     if (!e) return;
-    this.hitMul = 1;
-    this.damage(e, d, '#7dd3fc');
+    e.hp -= d;
+    e.flashUntil = this.now + 0.08;
+    const pos = this.at(e);
+    this.textP(pos.x, pos.y - 18, String(Math.round(d)), '#7dd3fc');
   }
 
   // Кооператив: награда за убийство, которую получил напарник
@@ -696,6 +735,11 @@ export class Engine {
   // Стоимость фиксированная: CONFIG.upgradeCost эссенции за уровень.
   // Улучшение типа по клику на колоду: эссенция, шарик с поля не тратится.
   // Уровень растёт у всех шариков этого типа (их сила берётся из typeLevels).
+  // Можно ли сейчас улучшить тип: он в колоде и хватает эссенции (для серого вида в колоде)
+  canUpgrade(t: OrbType): boolean {
+    return this.deck.includes(t) && this.essence >= CONFIG.upgradeCost;
+  }
+
   upgradeType(t: OrbType) {
     if (!this.deck.includes(t)) return;
     if (this.essence < CONFIG.upgradeCost) {
@@ -1002,18 +1046,20 @@ export class Engine {
       }
       this.arrowSpark(c.x, c.y);
     }
-    this.fireOrbAt(c.x, c.y, o.type, finalCount, bonus + this.m(o.type, 'combo'), dmgMul);
+    this.fireOrbAt(c.x, c.y, o.type, finalCount, bonus + this.m(o.type, 'combo'), dmgMul, this.isAmplified(cell));
     sfx.shoot(o.type);
     o.pulse = this.now;
   }
 
   // Сила эффектов берётся из уровня типа (this.typeLevels).
   // bonus — комбо-бонус: каждый шарик в цепи добавляет +1 к урону снарядов.
-  fireOrbAt(x: number, y: number, type: OrbType, count: number, bonus = 0, dmgMul = 1) {
+  // amp — рядом усилитель: газ выпускает два облака вместо одного (радиус от прокачки не растёт)
+  fireOrbAt(x: number, y: number, type: OrbType, count: number, bonus = 0, dmgMul = 1, amp = false) {
     const g = this.typeLevels[type] - 1;
     if (type === 'gas') {
-      // газ не летит: каждый выстрел — облако у самого продвинутого врага (чуть в стороне)
-      for (let k = 0; k < count; k++) {
+      // газ не летит: одно облако на выстрел (два с усилителем) у самого продвинутого врага
+      const n = amp ? 2 : 1;
+      for (let k = 0; k < n; k++) {
         const target = this.pickTarget();
         if (!target) break;
         const tp = this.at(target);
@@ -1025,6 +1071,15 @@ export class Engine {
           dmgMul,
           g,
         );
+      }
+      return;
+    }
+    if (type === 'mine' || type === 'bomb') {
+      // мина и бомба не летят: ставятся на трассе у самого продвинутого врага
+      for (let k = 0; k < count; k++) {
+        const target = this.pickTarget();
+        if (!target) break;
+        this.placeTrap(type, target, k, bonus, dmgMul, g);
       }
       return;
     }
@@ -1071,7 +1126,7 @@ export class Engine {
       y,
       age: 0,
       life: CONFIG.gas.duration + 0.4 * g + this.m('gas', 'dur'),
-      rMax: CONFIG.gas.radius + 15 * g + this.m('gas', 'radius'),
+      rMax: CONFIG.gas.radius + this.m('gas', 'radius'),
       nextTick: CONFIG.gas.tick,
       dmg: 1 + g + bonus,
       slowF: Math.max(0.2, CONFIG.gas.slow + this.m('gas', 'slow')),
@@ -1079,6 +1134,97 @@ export class Engine {
       seed: Math.random() * 10,
     });
     this.spark(x, y, TYPE_INFO.gas.color, 6, 60);
+  }
+
+  // Точка на трассе впереди врага (dist — px по трассе). У напарника — зеркально.
+  private pointAhead(e: EnemyState, dist: number): { x: number; y: number } {
+    const q = pathPoint(e.p + dist);
+    return e.foreign ? { x: q.x, y: -q.y } : { x: q.x, y: q.y };
+  }
+
+  // Мина ставится впереди цели на трассе; бомба — туда, где цель будет через fuse секунд.
+  private placeTrap(kind: 'mine' | 'bomb', target: EnemyState, k: number, bonus: number, dmgMul: number, g: number) {
+    const jit = k * 26;
+    const base = {
+      id: this.nextId++,
+      kind,
+      born: this.now,
+      arm: 0,
+      boomAt: 0,
+      fuse: 0,
+      life: CONFIG.mine.life,
+      dmgMul,
+    };
+    if (kind === 'mine') {
+      const p = this.pointAhead(target, CONFIG.mine.ahead + jit);
+      this.traps.push({
+        ...base,
+        x: p.x,
+        y: p.y,
+        arm: this.now + CONFIG.mine.arm,
+        radius: CONFIG.mine.radius + this.m('mine', 'radius'),
+        dmg: CONFIG.mine.dmg + g + bonus,
+      });
+    } else {
+      const fuse = Math.max(0.6, CONFIG.bomb.fuse + this.m('bomb', 'dur'));
+      const speed = target.speed * (this.now < target.slowUntil ? target.slowFactor : 1);
+      const p = this.pointAhead(target, speed * fuse + jit);
+      this.traps.push({
+        ...base,
+        x: p.x,
+        y: p.y,
+        boomAt: this.now + fuse,
+        fuse,
+        life: fuse + 0.5,
+        radius: CONFIG.bomb.radius + this.m('bomb', 'radius'),
+        dmg: CONFIG.bomb.dmg + g + bonus,
+      });
+    }
+    this.spark(this.traps[this.traps.length - 1].x, this.traps[this.traps.length - 1].y, TYPE_INFO[kind].color, 5, 60);
+  }
+
+  // Мины и бомбы: мина взрывается, когда враг подходит близко (после взвода),
+  // бомба — в свой срок. Взрыв бьёт всех врагов моего поля в радиусе.
+  private updateTraps() {
+    if (!this.traps.length) return;
+    const keep: TrapState[] = [];
+    for (const t of this.traps) {
+      if (this.now >= t.born + t.life) continue;
+      let boom = false;
+      if (t.kind === 'bomb') {
+        boom = this.now >= t.boomAt;
+      } else if (this.now >= t.arm) {
+        boom = this.allEnemies().some((e) => {
+          if (e.dead) return false;
+          const q = this.at(e);
+          const dx = q.x - t.x, dy = q.y - t.y;
+          const rr = CONFIG.mine.trigger + e.radius;
+          return dx * dx + dy * dy < rr * rr;
+        });
+      }
+      if (boom) this.explodeTrap(t);
+      else keep.push(t);
+    }
+    this.traps = keep;
+  }
+
+  private explodeTrap(t: TrapState) {
+    const color = TYPE_INFO[t.kind].color;
+    this.hitMul = t.dmgMul;
+    try {
+      for (const e of this.allEnemies()) {
+        if (e.dead) continue;
+        const q = this.at(e);
+        const dx = q.x - t.x, dy = q.y - t.y;
+        const rr = t.radius + e.radius;
+        if (dx * dx + dy * dy < rr * rr) this.damage(e, this.hitDmg(t.dmg, t.kind), color, false);
+      }
+    } finally {
+      this.hitMul = 1;
+    }
+    this.ring(t.x, t.y, color, t.radius * 2);
+    this.spark(t.x, t.y, color, 12, 170);
+    sfx.boom(t.kind);
   }
 
   // Облака: разрастаются, замедляют врагов внутри, раз в тик жгут их.
@@ -1160,7 +1306,9 @@ export class Engine {
 
   damage(e: EnemyState, d0: number, color = '#ffffff', show = true) {
     if (e.dead) return;
-    const d = d0 * this.hitMul;
+    let d = d0 * this.hitMul;
+    // резонанс: помеченный враг получает больше урона от всех источников
+    if (this.now < (e.vulnUntil ?? 0)) d *= e.vulnMul ?? 1;
     if (e.foreign) {
       // враг напарника: урон уходит ему и применяется у него; здесь только цифра
       const key = String(e.id - FOREIGN_BASE);
@@ -1324,6 +1472,18 @@ export class Engine {
         this.ring(pos.x, pos.y, '#d7dee8', 40);
         break;
       }
+      case 'resonance': {
+        // резонанс: слабый удар и метка — помеченный враг получает больше урона от всех шариков
+        this.damage(e, this.hitDmg(CONFIG.resonance.dmg + g + b, K), '#67e8f9');
+        const dur = CONFIG.resonance.dur + this.m(K, 'dur');
+        const mul = CONFIG.resonance.mul + 0.05 * g + this.m(K, 'vuln');
+        // метка уже стоит — берём большее значение, а не складываем
+        const active = this.now < (e.vulnUntil ?? 0);
+        e.vulnMul = active ? Math.max(e.vulnMul ?? 1, mul) : mul;
+        e.vulnUntil = this.now + dur;
+        this.ring(pos.x, pos.y, '#67e8f9', 44);
+        break;
+      }
       default:
         this.damage(e, 1);
     }
@@ -1367,6 +1527,7 @@ export class Engine {
     // --- враги ---
     this.puddles = this.puddles.filter((pd) => pd.until > this.now);
     this.updateClouds(dt);
+    this.updateTraps();
     const leakedNow: EnemyState[] = [];
     for (const e of this.enemies) {
       if (e.marks.length) {
@@ -1603,7 +1764,7 @@ export class Engine {
           this.ring(c.x, c.y, TYPE_INFO[o.type].color, 54);
           this.spark(c.x, c.y, TYPE_INFO[o.type].color, 7, 110);
           // накопление: залп заряженного шарика усиливает урон всех своих снарядов
-          this.fireOrbAt(c.x, c.y, o.type, count, 0, accumMul(o.level));
+          this.fireOrbAt(c.x, c.y, o.type, count, 0, accumMul(o.level), amplified);
           sfx.popSmall();
         }
       }

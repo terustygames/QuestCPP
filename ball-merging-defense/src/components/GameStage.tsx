@@ -32,7 +32,7 @@ import {
   type BossId,
   type OrbType,
 } from '../game/config';
-import type { Engine, GasCloud } from '../game/engine';
+import type { Engine, GasCloud, TrapState } from '../game/engine';
 import { chargeTint } from '../game/charger';
 
 
@@ -168,6 +168,46 @@ function drawOrbMark(x: CanvasRenderingContext2D, type: OrbType, cx: number, cy:
       for (const rr of [8, 15]) {
         x.beginPath();
         x.arc(-9, 0, rr, -Math.PI / 3, Math.PI / 3);
+        x.stroke();
+      }
+      break;
+    case 'mine': // мина: круг с шипами и точкой-лампочкой
+      x.beginPath();
+      x.arc(0, 0, R * 0.42, 0, Math.PI * 2);
+      x.fill();
+      for (let k = 0; k < 8; k++) {
+        const a = (k * Math.PI) / 4;
+        x.beginPath();
+        x.moveTo(Math.cos(a) * R * 0.6, Math.sin(a) * R * 0.6);
+        x.lineTo(Math.cos(a) * R * 0.95, Math.sin(a) * R * 0.95);
+        x.stroke();
+      }
+      break;
+    case 'bomb': // бомба: круг с фитилём
+      x.beginPath();
+      x.arc(-2, 2, R * 0.66, 0, Math.PI * 2);
+      x.stroke();
+      x.beginPath();
+      x.moveTo(4, -6);
+      x.quadraticCurveTo(8, -13, 14, -13);
+      x.stroke();
+      x.beginPath();
+      x.arc(15, -13, 2.6, 0, Math.PI * 2);
+      x.fill();
+      break;
+    case 'resonance': // резонанс: камертон — две ножки и дуги волны
+      x.beginPath();
+      x.moveTo(-6, -13);
+      x.lineTo(-6, 8);
+      x.moveTo(6, -13);
+      x.lineTo(6, 8);
+      x.stroke();
+      x.beginPath();
+      x.arc(0, -13, 6, Math.PI, 0);
+      x.stroke();
+      for (const rr of [13]) {
+        x.beginPath();
+        x.arc(0, 0, rr, -Math.PI / 3, Math.PI / 3);
         x.stroke();
       }
       break;
@@ -442,9 +482,75 @@ function drawGas(x: CanvasRenderingContext2D, c: GasCloud, vnow: number) {
   x.stroke();
 }
 
-// Облака, иглы и снаряды одного поля. Рисуются в текущей системе координат (setView).
+// Мина и бомба на трассе. Мина: тёмный круг с шипами, после взвода горит красным.
+// Бомба: пунктир — зона взрыва, дуга — сколько осталось до взрыва.
+function drawTrap(x: CanvasRenderingContext2D, t: TrapState, now: number, vnow: number) {
+  if (now < t.born || now >= t.born + t.life) return;
+  if (t.kind === 'mine') {
+    const armed = now >= t.arm;
+    const info = TYPE_INFO.mine;
+    x.save();
+    x.globalAlpha = armed ? 1 : 0.5;
+    x.fillStyle = info.dark;
+    x.beginPath();
+    x.arc(t.x, t.y, 10, 0, Math.PI * 2);
+    x.fill();
+    x.strokeStyle = info.color;
+    x.lineWidth = 2;
+    for (let k = 0; k < 8; k++) {
+      const a = (k * Math.PI) / 4;
+      x.beginPath();
+      x.moveTo(t.x + Math.cos(a) * 10, t.y + Math.sin(a) * 10);
+      x.lineTo(t.x + Math.cos(a) * 15, t.y + Math.sin(a) * 15);
+      x.stroke();
+    }
+    x.fillStyle = armed ? '#fb7185' : '#64748b';
+    x.beginPath();
+    x.arc(t.x, t.y, 3.5, 0, Math.PI * 2);
+    x.fill();
+    if (armed) {
+      x.strokeStyle = `rgba(251,113,133,${(0.35 + 0.25 * Math.sin(vnow * 5)).toFixed(3)})`;
+      x.lineWidth = 1.5;
+      x.beginPath();
+      x.arc(t.x, t.y, 17 + 2 * Math.sin(vnow * 5), 0, Math.PI * 2);
+      x.stroke();
+    }
+    x.restore();
+    return;
+  }
+  const info = TYPE_INFO.bomb;
+  const fuse = t.fuse || 1;
+  const left = Math.min(1, Math.max(0, (t.boomAt - now) / fuse));
+  x.save();
+  // зона взрыва
+  x.setLineDash([5, 5]);
+  x.strokeStyle = `${info.glow}0.55)`;
+  x.lineWidth = 1.5;
+  x.beginPath();
+  x.arc(t.x, t.y, t.radius, 0, Math.PI * 2);
+  x.stroke();
+  x.setLineDash([]);
+  // тело бомбы и дуга оставшегося времени
+  x.fillStyle = info.dark;
+  x.beginPath();
+  x.arc(t.x, t.y, 10, 0, Math.PI * 2);
+  x.fill();
+  x.fillStyle = info.color;
+  x.beginPath();
+  x.arc(t.x, t.y, 7 + (1 - left) * 2 + Math.sin(vnow * 8) * 0.5, 0, Math.PI * 2);
+  x.fill();
+  x.strokeStyle = '#fed7aa';
+  x.lineWidth = 2.5;
+  x.beginPath();
+  x.arc(t.x, t.y, 13, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - left));
+  x.stroke();
+  x.restore();
+}
+
+// Облака, мины, бомбы, иглы и снаряды одного поля. Рисуются в текущей системе координат (setView).
 function drawShots(x: CanvasRenderingContext2D, g: Engine, vnow: number) {
   for (const c of g.clouds) drawGas(x, c, vnow);
+  for (const t of g.traps) drawTrap(x, t, g.now, vnow);
   // --- иглы ---
   for (const n of g.needles) {
     const dx = Math.cos(n.ang) * 14;
@@ -786,6 +892,19 @@ function drawScene(
       x.stroke();
     }
 
+    // резонанс: помеченный враг обведён пунктиром
+    if (g.now < (e.vulnUntil ?? 0)) {
+      x.save();
+      x.strokeStyle = 'rgba(103,232,249,0.9)';
+      x.lineWidth = 1.8;
+      x.setLineDash([4, 4]);
+      x.lineDashOffset = -vnow * 12;
+      x.beginPath();
+      x.arc(ex, ey, r + 6, 0, Math.PI * 2);
+      x.stroke();
+      x.restore();
+    }
+
     if (g.now < e.slowUntil) {
       x.strokeStyle = 'rgba(70,200,255,0.85)';
       x.lineWidth = 2;
@@ -1106,7 +1225,7 @@ export function GameStage({
       // поле напарника: время идёт по снимкам; перерисовка не чаще 30 раз в секунду
       if (rem) {
         const remLive = rem.status === 'prep' || rem.status === 'wave';
-        if (remLive && !frozenRef.current) rem.extrapolate(dt);
+        if (remLive && !frozenRef.current) rem.extrapolate(dt * speedRef.current);
         if (rctx && t - lastRemote >= 33) {
           lastRemote = t;
           rctx.setTransform(1, 0, 0, 1, 0, 0);

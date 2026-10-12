@@ -5,6 +5,8 @@
 //   rooms/{code}/ready/{uid}    — номер волны, к которой игрок готов
 //   rooms/{code}/boards/{uid}   — снимок поля (JSON-строка, см. game/boardSnapshot.ts)
 //   rooms/{code}/inbox/{uid}    — очередь сообщений игроку (попадания по его врагам, награды); читает и удаляет сам игрок
+//   rooms/{code}/speed/{uid}    — заявка игрока на скорость: 1 или 2 (голосование, см. coopSession.ts)
+//   rooms/{code}/speed/value    — согласованная скорость: 1 или 2 (ставится, когда заявки обоих совпали)
 // Отдельные узлы нужны, чтобы доски не приходили вместе с лобби и не тянули лишний трафик.
 // Правила доступа — в консоли Firebase (раздел про Realtime Database в CONTEXT.md).
 import {
@@ -149,6 +151,15 @@ export function watchInbox(code: string, uid: string, cb: (payload: string) => v
     remove(snap.ref).catch(() => undefined);
     if (typeof v === 'string') cb(v);
   });
+}
+
+// Голосование за ускорение: заявка игрока и согласованное значение
+export function setSpeedVote(code: string, uid: string, speed: 1 | 2): Promise<void> {
+  return set(roomRef(code, `speed/${uid}`), speed);
+}
+
+export function setAgreedSpeed(code: string, speed: 1 | 2): Promise<void> {
+  return set(roomRef(code, 'speed/value'), speed);
 }
 
 // Отметка «вышел из матча» (напарник увидит серое поле)

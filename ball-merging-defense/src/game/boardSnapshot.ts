@@ -4,7 +4,7 @@
 // пустые массивы RTDB не хранит вовсе, поэтому при чтении они восстанавливаются.
 // Числа округляются до 0.1 (для картинки этого достаточно) — снимок короче.
 
-import type { Engine, EnemyState, GasCloud, NeedleState, OrbState, ProjState, Puddle, Status, Mode } from './engine';
+import type { Engine, EnemyState, GasCloud, NeedleState, OrbState, ProjState, Puddle, Status, Mode, TrapState } from './engine';
 import { COLS, ROWS } from './config';
 import type { OrbType } from './config';
 
@@ -24,6 +24,7 @@ export interface BoardSnapshot {
   projs: ProjState[];
   needles: NeedleState[];
   clouds?: GasCloud[];
+  traps?: TrapState[]; // мины и бомбы на поле (показываются напарнику)
 }
 
 const r1 = (v: number) => Math.round(v * 10) / 10;
@@ -53,8 +54,17 @@ export function snapshotOf(g: Engine): BoardSnapshot {
         bornAt: r1(e.bornAt),
         dots: e.dots.map((d) => ({ until: r1(d.until), dps: d.dps })),
         marks: e.marks.map((m) => ({ until: r1(m.until), dps: m.dps })),
+        vulnUntil: e.vulnUntil === undefined ? undefined : r1(e.vulnUntil),
       })),
     puddles: g.puddles.map((p) => ({ ...p, p: r1(p.p), until: r1(p.until) })),
+    traps: g.traps.map((t) => ({
+      ...t,
+      x: r1(t.x),
+      y: r1(t.y),
+      born: r1(t.born),
+      arm: r1(t.arm),
+      boomAt: r1(t.boomAt),
+    })),
     // облака газа: позиция, возраст и радиус (остальное сторона напарника не использует)
     clouds: g.clouds.map((c) => ({
       ...c,
@@ -119,5 +129,6 @@ export function applySnapshot(g: Engine, s: BoardSnapshot): void {
   g.projs = (s.projs ?? []).map((p) => ({ ...p, trail: p.trail ?? [] }));
   g.needles = s.needles ?? [];
   g.clouds = s.clouds ?? [];
+  g.traps = s.traps ?? [];
   g.parts = [];
 }

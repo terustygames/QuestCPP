@@ -6,7 +6,9 @@
 //   входящие сообщения применяются к моим врагам и наградам (me.applyHit, me.creditShared);
 // - волна стартует, когда готовы оба игрока (вышедший не мешает: его не ждём);
 // - жизни общие: утечки уходят дельтой транзакцией, локальный движок берёт общее значение;
-// - выход из матча: флаг rooms/{code}/left/{uid}, поле напарника помечается серым.
+// - выход из матча: флаг rooms/{code}/left/{uid}, поле напарника помечается серым;
+// - ускорение: скорость меняется, только когда оба игрока голосуют за одно и то же
+//   (rooms/{code}/speed/{uid}); согласованное значение — rooms/{code}/speed/value.
 import type { Engine } from '../game/engine';
 import { applySnapshot, decodeSnapshot, encodeSnapshot, snapshotOf } from '../game/boardSnapshot';
 import {
@@ -15,8 +17,10 @@ import {
   leaveRoom,
   publishBoard,
   sendInbox,
+  setAgreedSpeed,
   setLeft,
   setReady,
+  setSpeedVote,
   watchInbox,
   watchInfo,
   watchValue,
@@ -28,6 +32,8 @@ const PUBLISH_MS = 250;
 export interface CoopHooks {
   onRemoteLeft?: (left: boolean) => void;
   onRemoteLogin?: (login: string) => void;
+  // согласованная скорость и мой текущий голос (null — голоса нет)
+  onSpeed?: (agreed: 1 | 2, mine: 1 | 2 | null) => void;
 }
 
 export class CoopSession {
@@ -44,6 +50,9 @@ export class CoopSession {
   private sentLeak = 0;
   private publishedReady = -1;
   private stopped = false;
+  private speedVotes: Record<string, unknown> = {};
+  private agreedSpeed: 1 | 2 = 1;
+  private myVote: 1 | 2 | null = null;
 
   constructor(
     private readonly code: string,
@@ -70,8 +79,34 @@ export class CoopSession {
         this.syncForeign();
       }),
       watchInbox(this.code, this.uid, (msg) => this.onInbox(msg)),
+      watchValue(this.code, 'speed', (v) => {
+        this.speedVotes = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+        this.resolveSpeed();
+      }),
     );
     this.timer = setInterval(() => this.tick(), PUBLISH_MS);
+  }
+
+  // Мой голос за скорость: 1 или 2. Скорость поменяется, когда проголосует и напарник.
+  vote(speed: 1 | 2): void {
+    if (this.stopped) return;
+    this.myVote = speed;
+    setSpeedVote(this.code, this.uid, speed).catch(() => {});
+    this.resolveSpeed();
+  }
+
+  // Заявки обоих совпали и отличаются от согласованной — записываем её.
+  // Записать может любой из двоих: одинаковое значение не портит друг друга.
+  private resolveSpeed(): void {
+    if (this.stopped) return;
+    const v = this.speedVotes.value;
+    const agreed: 1 | 2 = v === 2 ? 2 : 1;
+    if (agreed !== this.agreedSpeed) this.agreedSpeed = agreed;
+    this.hooks.onSpeed?.(this.agreedSpeed, this.myVote);
+    const theirs = this.remoteUid ? this.speedVotes[this.remoteUid] : undefined;
+    if (this.myVote !== null && theirs === this.myVote && this.myVote !== agreed) {
+      setAgreedSpeed(this.code, this.myVote).catch(() => {});
+    }
   }
 
   private remoteLeft(): boolean {
@@ -80,7 +115,7 @@ export class CoopSession {
 
   // Враги напарника со снимка — в мой движок (мои снаряды бьют и их). Вышедший не воюет.
   private syncForeign(): void {
-    this.me.setForeign(this.remoteLeft() ? [] : this.remote.enemies);
+    this.me.setForeign(this.remoteLeft() ? [] : this.remote.enemies, this.remote.now);
   }
 
   // Входящие: попадания по моим врагам и награды за убийства напарника
