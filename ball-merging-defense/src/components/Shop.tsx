@@ -1,17 +1,20 @@
-// Магазин: ежедневный сундук (монеты, очки и шарики), запасы на старт забега.
-// Шарики в магазине не продаются: они выпадают только из сундуков.
+// Магазин: ежедневный сундук (монеты и ОП шарику), покупка ОП за монеты для открытых
+// шариков и запасы на старт забега. Шарики в магазине не продаются: открываются только сундуками.
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Check, Coins, Gift, Sparkles } from 'lucide-react';
-import { TYPE_INFO, type OrbType } from '../game/config';
+import { ALL_TYPES, TYPE_INFO, type OrbType } from '../game/config';
 import { sfx } from '../game/audio';
 import {
   META_CFG,
   buyBoost,
+  buyPoints,
   chestReady,
   lockedBallsLeft,
   openChest,
+  ownsBall,
   type BoostKind,
+  type ChestRoll,
   type MetaState,
 } from '../game/meta';
 import { orbSpriteUrl } from './GameStage';
@@ -26,7 +29,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-type ChestResult = { coins: number; points: number; ball: OrbType | null };
+// Результат сундука для показа: бросок и открыл ли он шарик
+type ChestResult = { roll: ChestRoll; opened: boolean };
 
 export function Shop({
   meta,
@@ -43,11 +47,13 @@ export function Shop({
   const [lastChest, setLastChest] = useState<ChestResult | null>(null);
   const canChest = chestReady(meta, today);
   const left = lockedBallsLeft(meta);
+  const { chest, points: pointsCfg } = META_CFG;
+  const owned = ALL_TYPES.filter((t) => ownsBall(meta, t));
 
   const doChest = () => {
     const r = openChest(meta, today);
     onUpdate(() => r.meta);
-    setLastChest({ coins: r.coins, points: r.points, ball: r.ball });
+    setLastChest({ roll: r.roll, opened: r.opened });
     sfx.clear();
   };
 
@@ -57,6 +63,14 @@ export function Shop({
     onUpdate(() => r.meta);
     sfx.buy();
     showToast(`Куплено: ${META_CFG.boosts[k].title.toLowerCase()}`);
+  };
+
+  const doBuyPoints = (t: OrbType) => {
+    const r = buyPoints(meta, t);
+    if (r.error) return showToast(r.error);
+    onUpdate(() => r.meta);
+    sfx.buy();
+    showToast(`+${pointsCfg.pack} ОП «${TYPE_INFO[t].name}»`);
   };
 
   return (
@@ -73,8 +87,8 @@ export function Shop({
               <div className="min-w-0 flex-1">
                 <div className="text-[15px] font-extrabold text-slate-100">Сундук дня</div>
                 <div className="text-[12px] leading-snug text-slate-400">
-                  Монеты {META_CFG.chest.coinsMin}–{META_CFG.chest.coinsMax}, {META_CFG.chest.pointsMin}–
-                  {META_CFG.chest.pointsMax} очка прокачки и шарик, которого ещё нет в коллекции. Раз в сутки.
+                  Монеты {chest.coinsMin}–{chest.coinsMax} и {chest.pointsMin}–{chest.pointsMax} ОП одному шарику.
+                  Если шарика ещё нет, его ОП открывают. Раз в сутки.
                 </div>
                 <div className="mt-1 text-[12px] font-bold text-amber-200/80">
                   {left > 0 ? `Шариков ещё не открыто: ${left}` : 'Все шарики открыты'}
@@ -95,29 +109,53 @@ export function Shop({
                 Сегодня уже открыт. Следующий сундук — завтра
               </div>
             )}
-            {lastChest && (
-              <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2">
-                <div className="flex items-center justify-center gap-4 text-[15px] font-extrabold tabular-nums">
-                  <span className="flex items-center gap-1.5 text-amber-200">
-                    <Coins size={16} className="text-amber-300" />+{lastChest.coins}
-                  </span>
-                  <span className="flex items-center gap-1.5 text-fuchsia-200">
-                    <Sparkles size={16} className="text-fuchsia-300" />+{lastChest.points}
-                  </span>
-                </div>
-                {lastChest.ball ? (
-                  <div className="mt-2 flex items-center justify-center gap-2 text-[13px] font-bold text-emerald-300">
-                    <img src={orbSpriteUrl(lastChest.ball)} alt="" draggable={false} className="h-8 w-8" />
-                    Новый шарик: {TYPE_INFO[lastChest.ball].name}
-                  </div>
-                ) : (
-                  <div className="mt-2 text-center text-[12px] text-slate-400">
-                    Все шарики уже открыты: вместо шарика — монеты
-                  </div>
-                )}
-              </div>
-            )}
+            {lastChest && <ChestReport result={lastChest} />}
           </div>
+          <p className="mt-2 px-1 text-[11px] leading-snug text-slate-500">
+            Сундук после каждого забега — такой же, плюс редкий легендарный (1 из {Math.round(1 / chest.legendaryChance)}):
+            {` ${chest.legendaryPointsMin}–${chest.legendaryPointsMax} ОП`} одному шарику.
+          </p>
+        </Section>
+
+        <Section title="Очки прокачки">
+          {owned.length === 0 ? (
+            <p className="px-1 text-[12px] text-slate-500">Пока нет открытых шариков.</p>
+          ) : (
+            <div className="space-y-2">
+              {owned.map((t) => {
+                const cost = pointsCfg.price * pointsCfg.pack;
+                const can = meta.coins >= cost;
+                return (
+                  <div
+                    key={t}
+                    className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-2.5"
+                  >
+                    <img src={orbSpriteUrl(t)} alt="" draggable={false} className="h-9 w-9 shrink-0 select-none" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[14px] font-bold text-slate-100">{TYPE_INFO[t].name}</div>
+                      <div className="flex items-center gap-1 text-[12px] font-bold tabular-nums text-fuchsia-200">
+                        <Sparkles size={12} className="text-fuchsia-300" />ОП {meta.pts[t]}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => doBuyPoints(t)}
+                      className={`flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[12px] font-extrabold transition active:scale-95 ${
+                        can
+                          ? 'border-amber-400/50 bg-amber-500/15 text-amber-200'
+                          : 'border-white/10 bg-white/[0.04] text-slate-500'
+                      }`}
+                    >
+                      +{pointsCfg.pack} ОП · <Coins size={13} />
+                      {cost}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p className="mt-2 px-1 text-[11px] leading-snug text-slate-500">
+            ОП покупаются только для открытых шариков и тратятся только на их дерево. Цена — {pointsCfg.price} монет за ОП.
+          </p>
         </Section>
 
         <Section title="Запасы на забег">
@@ -160,5 +198,35 @@ export function Shop({
       </div>
       <Toast msg={toast} />
     </Screen>
+  );
+}
+
+// Итог открытия сундука: монеты, ОП шарику, открыт ли шарик, дубликат
+function ChestReport({ result }: { result: ChestResult }) {
+  const { roll, opened } = result;
+  return (
+    <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2">
+      <div className="flex items-center justify-center gap-4 text-[15px] font-extrabold tabular-nums">
+        <span className="flex items-center gap-1.5 text-amber-200">
+          <Coins size={16} className="text-amber-300" />+{roll.coins}
+        </span>
+        <span className="flex items-center gap-1.5 text-fuchsia-200">
+          <Sparkles size={16} className="text-fuchsia-300" />+{roll.points} ОП
+        </span>
+      </div>
+      <div className="mt-2 flex items-center justify-center gap-2 text-[13px] font-bold text-emerald-300">
+        <img src={orbSpriteUrl(roll.ball)} alt="" draggable={false} className="h-8 w-8" />
+        {TYPE_INFO[roll.ball].name}
+        {opened ? ' — шарик открыт!' : ''}
+      </div>
+      {roll.legendary && (
+        <div className="mt-1 text-center text-[12px] font-bold text-amber-300">Легендарный сундук!</div>
+      )}
+      {roll.dupCoins > 0 && (
+        <div className="mt-1 text-center text-[12px] text-slate-400">
+          Легендарный дубликат: +{roll.dupCoins} монет в общий баланс
+        </div>
+      )}
+    </div>
   );
 }

@@ -1,10 +1,10 @@
 // Общие кирпичики экранов меню: верхняя панель, валюта, долгое нажатие.
 import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ArrowLeft, Coins, Sparkles } from 'lucide-react';
+import { ArrowLeft, Coins } from 'lucide-react';
 import type { MetaState } from '../game/meta';
 
-// Чип с числом (монеты, очки прокачки)
+// Чип с числом (общая валюта — монеты)
 function CurrencyChip({ icon, value, title }: { icon: ReactNode; value: number; title: string }) {
   return (
     <div
@@ -23,12 +23,7 @@ export function CurrencyChips({ meta }: { meta: MetaState }) {
       <CurrencyChip
         icon={<Coins size={15} className="shrink-0 text-amber-300" />}
         value={meta.coins}
-        title="Монеты: копятся за пройденные волны, тратятся в магазине и на узлы деревьев"
-      />
-      <CurrencyChip
-        icon={<Sparkles size={15} className="shrink-0 text-fuchsia-300" />}
-        value={meta.points}
-        title="Очки прокачки: 1 за пройденную волну, нужны для узлов деревьев"
+        title="Монеты (общие): копятся за пройденные волны и сундуки, тратятся в магазине, на ОП и узлы деревьев"
       />
     </div>
   );

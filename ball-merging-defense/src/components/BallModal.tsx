@@ -8,6 +8,7 @@ import { TYPE_INFO, typeStatRows, type OrbType } from '../game/config';
 import { sfx } from '../game/audio';
 import {
   modsFor,
+  nodePointsCost,
   nodeStatus,
   type NodeStatus,
   ownsBall,
@@ -21,20 +22,22 @@ import { NODE_BY_ID, TREE_BY_TYPE, describeMods, rootId, type SkillNode } from '
 import { orbSpriteUrl } from './GameStage';
 import { Toast, useToast } from './common';
 
-// Схема дерева в координатах окна (px). Сетка 7 колонок по 42 px, корень — колонка 3.
-const CANVAS_W = 336;
+// Схема дерева в координатах окна (px). Сетка 4 колонки по 90 px (подписи 84 px не перекрываются).
+// Корень — между колонками 1 и 2 (колонка 1.5), см. skills.ts TREE_SLOTS.
+const CANVAS_W = 360;
 const CANVAS_H = 420;
 const VIEW_H = 250;
 const NODE = 56;
-const colX = (c: number) => 42 + c * 42;
+const colX = (c: number) => 45 + c * 90;
 const ROW_Y = [44, 144, 244, 344];
 const MIN_OFFSET = Math.min(0, VIEW_H - CANVAS_H);
 const ROMAN = ['I', 'II', 'III'];
+const tierLabel = (tier: number) => (tier === 0 ? 'Авто-линия' : ROMAN[tier - 1]);
 
 const clampOffset = (v: number) => Math.max(MIN_OFFSET, Math.min(0, v));
 
 function nodePos(id: string, type: OrbType) {
-  if (id === rootId(type)) return { x: colX(3), y: ROW_Y[0] };
+  if (id === rootId(type)) return { x: colX(1.5), y: ROW_Y[0] };
   const n = NODE_BY_ID[id];
   return { x: colX(n.col), y: ROW_Y[n.row] };
 }
@@ -80,7 +83,7 @@ export function BallModal({
             <div className="text-[12px] text-slate-400">
               {owned
                 ? `Открыт. Дерево навыков: ${prog.open} из ${prog.total}`
-                : 'Не открыт: выпадает из ежедневного сундука'}
+                : 'Не открыт: выпадает из сундуков (ежедневного и после забега)'}
             </div>
           </div>
           <button
@@ -130,7 +133,8 @@ export function BallModal({
                   <p className="text-[13px] text-slate-500">Пока ничего не открыто. Откройте узлы на вкладке «Дерево».</p>
                 )}
                 <p className="mt-2 text-[12px] leading-snug text-slate-500">
-                  Бонусы действуют, пока шарик стоит в колоде. Открываются за очки прокачки и монеты.
+                  Бонусы действуют, пока шарик стоит в колоде. Узлы открываются за очки прокачки этого шарика (ОП) и монеты.
+                  Каждый следующий узел дерева дороже на 1 ОП.
                 </p>
               </Block>
 
@@ -240,11 +244,12 @@ function SkillTree({
     onUpdate(() => r.meta);
     setConfirmReset(false);
     setSel(rootId(type));
-    onToast(`Дерево сброшено: очки +${r.refundPoints}, монеты +${r.refundCoins}`);
+    onToast(`Дерево сброшено: ОП «${info.name}» +${r.refundPoints}, монеты +${r.refundCoins}`);
   };
 
   const node: SkillNode | null = sel === rootId(type) ? null : NODE_BY_ID[sel] ?? null;
   const prog = treeProgress(meta, type);
+  const nextCost = nodePointsCost(meta, type);
 
   return (
     <div className="space-y-3">
@@ -342,7 +347,7 @@ function SkillTree({
         </span>
         <span className="flex items-center gap-2 tabular-nums">
           <Sparkles size={13} className="text-fuchsia-300" />
-          {meta.points}
+          ОП {meta.pts[type]} · след. {nextCost}
           <Coins size={13} className="text-amber-300" />
           {meta.coins}
         </span>
@@ -354,7 +359,7 @@ function SkillTree({
             onClick={doReset}
             className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-rose-400/50 bg-rose-500/15 px-3 text-[13px] font-bold text-rose-200 transition active:scale-[0.98]"
           >
-            Точно сбросить: очки вернутся полностью, монеты — наполовину
+            Точно сбросить: все ОП шарика вернутся, монеты — наполовину
           </button>
         ) : (
           <button
@@ -429,14 +434,15 @@ function NodeCard({ node, meta, onUnlock }: { node: SkillNode; meta: MetaState; 
   const st = nodeStatus(meta, node);
   const why = unlockBlocker(meta, node);
   const effects = describeMods(node.effect).join(' · ');
-  const notEnoughPts = meta.points < node.points;
+  const cost = nodePointsCost(meta, node.type);
+  const notEnoughPts = meta.pts[node.type] < cost;
   const notEnoughCoins = meta.coins < node.coins;
   return (
     <div className="space-y-2">
       <div className="flex items-baseline justify-between gap-2">
         <div className="text-[15px] font-extrabold text-slate-100">{node.name}</div>
         <div className="shrink-0 text-[11px] text-slate-500">
-          {node.exclusive.length > 0 ? 'Выбор пути' : 'Продолжение'} · {ROMAN[node.tier - 1]}
+          {node.exclusive.length > 0 ? 'Выбор пути' : 'Продолжение'} · {tierLabel(node.tier)}
         </div>
       </div>
       <p className="text-[13px] leading-snug text-slate-300">{node.desc}</p>
@@ -444,7 +450,7 @@ function NodeCard({ node, meta, onUnlock }: { node: SkillNode; meta: MetaState; 
       <div className="flex items-center gap-3 text-[13px] font-bold tabular-nums">
         <span className={`flex items-center gap-1 ${notEnoughPts && st !== 'open' ? 'text-rose-300' : 'text-fuchsia-200'}`}>
           <Sparkles size={14} />
-          {node.points} очк.
+          {cost} ОП
         </span>
         <span className={`flex items-center gap-1 ${notEnoughCoins && st !== 'open' ? 'text-rose-300' : 'text-amber-200'}`}>
           <Coins size={14} />

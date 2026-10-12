@@ -12,14 +12,20 @@ import { CONFIG, type BossId, type OrbType } from './game/config';
 import { initAudio, setMuted } from './game/audio';
 import { describeMods } from './game/skills';
 import {
-  applyRun,
   chestReady,
-  loadMeta,
+  clearLocalMeta,
+  defaultMeta,
+  rollChest,
   saveMeta,
+  settleRun,
   startRun as prepareRun,
   todayKey,
   type MetaState,
+  type RunSettlement,
 } from './game/meta';
+import { loginOf, onPlayerChanged, signOutPlayer } from './firebase';
+import { createCloudProfile, flushCloudSave, loadCloudMeta, scheduleCloudSave } from './services/playProfile';
+import { LoginScreen } from './components/LoginScreen';
 import { GameStage } from './components/GameStage';
 import { Header, Controls, DeckBar, DeckInfoPopup } from './components/Hud';
 import { HelpOverlay, GameOverOverlay } from './components/Overlays';
@@ -84,7 +90,14 @@ export default function App() {
   const g = engRef.current;
 
   const [screen, setScreen] = useState<Screen>('menu');
-  const [meta, setMeta] = useState<MetaState>(() => loadMeta());
+  // Мета загружается из облака после входа (см. эффект ниже), до этого — пустая заготовка
+  const [meta, setMeta] = useState<MetaState>(() => defaultMeta());
+  const [account, setAccount] = useState<{ status: 'checking' | 'out' | 'in'; login: string }>({
+    status: 'checking',
+    login: '',
+  });
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const cloudLoaded = useRef(false);
   const updateMeta = useCallback((fn: (m: MetaState) => MetaState) => {
     setMeta((prev) => {
       const next = fn(prev);
@@ -92,6 +105,64 @@ export default function App() {
       return next;
     });
   }, []);
+
+  // Вход и выход игрока. При входе облачная мета заменяет локальную; у нового аккаунта её ещё нет.
+  useEffect(
+    () =>
+      onPlayerChanged(async (user) => {
+        if (!user) {
+          cloudLoaded.current = false;
+          setMeta(defaultMeta());
+          setAccount({ status: 'out', login: '' });
+          return;
+        }
+        const login = loginOf(user);
+        setAccount({ status: 'checking', login });
+        try {
+          let cloud = await loadCloudMeta();
+          if (!cloud) {
+            cloud = defaultMeta();
+            await createCloudProfile(cloud, login);
+          }
+          cloudLoaded.current = true;
+          setMeta(cloud);
+          setAuthNotice(null);
+          setAccount({ status: 'in', login });
+        } catch {
+          setAuthNotice('Не удалось загрузить сохранение. Проверьте интернет и войдите снова.');
+          await signOutPlayer().catch(() => undefined);
+        }
+      }),
+    []
+  );
+
+  // Автосохранение: локальная копия сразу, облако — с небольшой задержкой.
+  useEffect(() => {
+    if (account.status !== 'in' || !cloudLoaded.current) return;
+    saveMeta(meta);
+    scheduleCloudSave(meta, account.login);
+  }, [meta, account]);
+
+  // Сохранить облако, когда вкладку сворачивают или закрывают
+  useEffect(() => {
+    const flush = () => void flushCloudSave();
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onHide);
+    };
+  }, []);
+
+  const logout = async () => {
+    await flushCloudSave();
+    clearLocalMeta();
+    setScreen('menu');
+    await signOutPlayer().catch(() => undefined);
+  };
 
   const [, setFrame] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -104,6 +175,8 @@ export default function App() {
   const [deckInfo, setDeckInfo] = useState<OrbType | null>(null);
   // забег, за который уже начислена награда (защита от двойного начисления)
   const rewardedFor = useRef<Engine | null>(null);
+  // итог последнего забега (для оверлея конца забега)
+  const [settlement, setSettlement] = useState<RunSettlement | null>(null);
 
   // HUD: лёгкая перерисовка 10 раз/сек (числа, статусы)
   useEffect(() => {
@@ -143,18 +216,21 @@ export default function App() {
 
   // Конец забега (поражение или сдача): начислить монеты и очки прокачки
   // за пройденные волны. Один раз на забег.
+  // Сундук после забега бросается один раз, здесь же (settleRun — чистая функция).
   useEffect(() => {
     if (g.status !== 'gameover' || rewardedFor.current === g) return;
     rewardedFor.current = g;
-    const wave = g.wave;
-    updateMeta((m) => applyRun(m, wave));
-  }, [g, g.status, updateMeta]);
+    const res = settleRun(meta, g.wave, rollChest());
+    setSettlement(res.reward);
+    updateMeta(() => res.meta);
+  }, [g, g.status, meta, updateMeta]);
 
   // Старт забега: колода и дерево навыков из меню, запасы (бусты) — расходуются
   const startNewRun = () => {
     initAudio();
     const prepared = prepareRun(meta);
     updateMeta(() => prepared.meta);
+    setSettlement(null);
     const game = newEngine();
     engRef.current = game;
     game.startGame(prepared.run);
@@ -176,6 +252,16 @@ export default function App() {
   const playing = g.status === 'prep' || g.status === 'wave';
   const today = todayKey();
 
+  // Без входа в аккаунт игра не открывается
+  if (account.status === 'checking') {
+    return (
+      <div className="flex h-dvh w-full items-center justify-center bg-[#0b0e18] text-[14px] text-slate-400">
+        Загрузка сохранения…
+      </div>
+    );
+  }
+  if (account.status === 'out') return <LoginScreen notice={authNotice} />;
+
   window.__orbital = {
     get g() {
       return engRef.current!;
@@ -191,6 +277,8 @@ export default function App() {
           onPlay={startNewRun}
           onShop={() => setScreen('shop')}
           onInventory={() => setScreen('inventory')}
+          login={account.login}
+          onLogout={logout}
         />
       )}
 
@@ -312,16 +400,16 @@ export default function App() {
               type={deckInfo}
               lvl={g.typeLevels[deckInfo]}
               mods={describeMods(g.mods[deckInfo])}
-              note={
-                deckInfo === 'mark'
-                  ? `Опыт: ${Math.floor(g.markXp)} из ${g.markXpNeed()} — до уровня ${g.typeLevels.mark + 1}`
-                  : undefined
-              }
               onClose={() => setDeckInfo(null)}
             />
           )}
           {g.status === 'gameover' && (
-            <GameOverOverlay g={g} onRestart={startNewRun} onMenu={() => setScreen('menu')} />
+            <GameOverOverlay
+                g={g}
+                settlement={settlement}
+                onRestart={startNewRun}
+                onMenu={() => setScreen('menu')}
+              />
           )}
         </>
       )}

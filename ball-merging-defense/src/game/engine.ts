@@ -77,7 +77,7 @@ export interface EnemyState {
   slowFactor: number;
   stunUntil: number; // время, до которого враг заморожен (паралич)
   dots: { until: number; dps: number }[]; // яды
-  marks: { until: number; dps: number }[]; // метки шарика «Метка» (урон во времени, даёт опыт)
+  marks: { until: number; dps: number }[]; // метки шарика «Метка» (урон во времени, высасывают эссенцию)
   reward: number;
   leakDmg: number;
   boss: boolean;
@@ -210,9 +210,8 @@ export class Engine {
   // --- колода типов шариков: шесть шариков, собранных в инвентаре ---
   deck: OrbType[] = [...CLASSIC_TYPES];
   lastVampAt = -10; // дроссель эссенции от вампира
-  // опыт шарика «Метка» в текущем забеге: урон меток переходит сюда,
-  // при достижении порога уровень типа «Метка» растёт
-  markXp = 0;
+  // метка высасывает эссенцию из врагов: дробная часть копится до целого
+  markDrainAcc = 0;
 
   // --- статистика и UI-эффекты ---
   kills = 0;
@@ -359,7 +358,7 @@ export class Engine {
     this.lives = CONFIG.lives + cfg.livesBonus;
     this.endReason = 'loss';
     for (const k of Object.keys(this.typeLevels) as OrbType[]) this.typeLevels[k] = 1;
-    this.markXp = 0;
+    this.markDrainAcc = 0;
     this.refillField();
     this.setBanner('Поле готово. Волна через 9 секунд');
   }
@@ -392,19 +391,14 @@ export class Engine {
     return alive[Math.floor(Math.random() * alive.length)];
   }
 
-  // Опыт шарика «Метка»: порог растёт с уровнем типа
-  markXpNeed(): number {
-    return CONFIG.markXpStep * this.typeLevels.mark;
-  }
-
-  // Урон меток переходит в опыт: один порог — +1 уровень типа «Метка»
-  gainMarkXp(dmg: number) {
-    this.markXp += dmg * (1 + this.m('mark', 'xp'));
-    while (this.markXp >= this.markXpNeed()) {
-      this.markXp -= this.markXpNeed();
-      this.typeLevels.mark += 1;
-      this.setBanner(`Метка выросла: уровень ${this.typeLevels.mark}`, 2);
-      sfx.upgrade();
+  // Метка высасывает эссенцию из врага: урон метки × CONFIG.markDrain (+ дерево «drain»).
+  // Опыта у метки нет: её уровень растёт только улучшениями, как у других типов.
+  drainFromMark(dmg: number) {
+    this.markDrainAcc += dmg * CONFIG.markDrain * (1 + this.m('mark', 'drain'));
+    const whole = Math.floor(this.markDrainAcc);
+    if (whole > 0) {
+      this.essence += whole;
+      this.markDrainAcc -= whole;
     }
   }
   // Перезарядка шарика после выстрела (с учётом дерева)
@@ -1119,12 +1113,12 @@ export class Engine {
     const leakedNow: EnemyState[] = [];
     for (const e of this.enemies) {
       if (e.marks.length) {
-        // метки жгут врага; истёкшие снимаются до тика, живые каждый тик дают урон → опыт
+        // метки жгут врага; истёкшие снимаются до тика, живые каждый тик высасывают эссенцию
         e.marks = e.marks.filter((mk) => mk.until > this.now);
         for (const mk of e.marks) {
           const d = mk.dps * dt;
           e.hp -= d;
-          this.gainMarkXp(d);
+          this.drainFromMark(d);
         }
       }
       if (e.dots.length) {

@@ -20,7 +20,8 @@ import {
   Home,
 } from 'lucide-react';
 import type { Engine } from '../game/engine';
-import { runReward } from '../game/meta';
+import { TYPE_INFO } from '../game/config';
+import type { RunSettlement } from '../game/meta';
 
 // Правила для справки в игре (кнопка «?»). Заставка с описаниями убрана:
 // вход в игру — главное меню.
@@ -35,7 +36,7 @@ const RULES = [
     icon: <Backpack size={18} />,
     color: 'text-sky-300',
     title: 'Колода',
-    text: 'Перед забегом собери колоду из шести шариков в инвентаре. Поле заполняется только шариками колоды. Для каждого шарика есть дерево навыков: узлы открываются за очки прокачки и монеты и действуют в каждом забеге.',
+    text: 'Перед забегом собери колоду из шести шариков в инвентаре. Поле заполняется только шариками колоды. Для каждого шарика есть дерево навыков: его узлы открываются за очки прокачки (ОП) именно этого шарика и монеты, и действуют в каждом забеге.',
   },
   {
     icon: <MousePointerClick size={18} />,
@@ -59,7 +60,7 @@ const RULES = [
     icon: <Flame size={18} />,
     color: 'text-orange-400',
     title: 'Типы шариков',
-    text: 'Огонь: три единицы урона цели и одна соседним врагам. Лёд: одна единица урона и замедление цели. Молния: две единицы урона и разряд по ближайшим врагам. Яд: одна единица урона плюс урон во времени. Шипастый: не стреляет, лопается при соединении (с любым шариком) и запускает цепную реакцию; его иглы разрушают шарики и ранят врагов. Усилитель — светлый шарик со звуковой волной: даёт четырём соседним шарикам усиление, и их залпы становятся больше. Сверхновая, Паралич, Пробой, Вампир и Шквал открываются в магазине за монеты.',
+    text: 'Огонь: три единицы урона цели и одна соседним врагам. Лёд: одна единица урона и замедление цели. Молния: две единицы урона и разряд по ближайшим врагам. Яд: одна единица урона плюс урон во времени. Шипастый: не стреляет, лопается при соединении (с любым шариком) и запускает цепную реакцию; его иглы разрушают шарики и ранят врагов. Усилитель — светлый шарик со звуковой волной: даёт четырём соседним шарикам усиление, и их залпы становятся больше. Метка ставит метки на врагов и высасывает из них эссенцию. Сверхновая, Паралич, Пробой, Вампир и Шквал открываются сундуками.',
   },
   {
     icon: <Asterisk size={18} />,
@@ -83,7 +84,7 @@ const RULES = [
     icon: <Coins size={18} />,
     color: 'text-amber-300',
     title: 'Награды',
-    text: 'За каждую пройденную волну ты получаешь очки прокачки и монеты. Монеты тратятся в магазине (шарики, запасы, ежедневный сундук), очки и монеты вместе открывают узлы деревьев навыков.',
+    text: 'За каждую пройденную волну ты получаешь монеты, а очки прокачки (ОП) делятся поровну между шариками колоды. После каждого забега открывается сундук. Монеты общие: их тратят в магазине на запасы, ОП и ежедневный сундук. ОП шарика и монеты открывают узлы его дерева.',
   },
 ];
 
@@ -149,14 +150,15 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
 // Итоги забега: статистика и награды за пройденные волны
 export function GameOverOverlay({
   g,
+  settlement,
   onRestart,
   onMenu,
 }: {
   g: Engine;
+  settlement: RunSettlement | null;
   onRestart: () => void;
   onMenu: () => void;
 }) {
-  const reward = runReward(g.wave);
   const surrender = g.endReason === 'surrender';
   const stats = [
     { icon: <Flag size={16} className="text-amber-300" />, label: 'Дошёл до волны', value: g.wave },
@@ -195,18 +197,38 @@ export function GameOverOverlay({
       </div>
       <div className="mx-auto mt-3 max-w-xs rounded-2xl border border-amber-400/25 bg-amber-500/[0.06] p-3">
         <div className="text-center text-[11px] font-bold uppercase tracking-wider text-amber-200/80">
-          Награда: пройдено волн {reward.passed}
+          Награда: пройдено волн {settlement?.passed ?? 0}
         </div>
         <div className="mt-2 flex items-center justify-around gap-2">
           <div className="flex items-center gap-1.5 text-[15px] font-extrabold tabular-nums text-amber-200">
             <Coins size={16} className="text-amber-300" />
-            +{reward.coins}
+            +{settlement?.coins ?? 0}
           </div>
           <div className="flex items-center gap-1.5 text-[15px] font-extrabold tabular-nums text-fuchsia-200">
             <Sparkles size={16} className="text-fuchsia-300" />
-            +{reward.points}
+            +{settlement?.points ?? 0} ОП
           </div>
         </div>
+        {settlement && settlement.points > 0 && (
+          <div className="mt-2 text-center text-[11px] leading-snug text-slate-400">
+            ОП поровну по колоде: {Object.entries(settlement.perBall)
+              .filter(([, v]) => (v ?? 0) > 0)
+              .map(([t, v]) => `${TYPE_INFO[t as keyof typeof TYPE_INFO].name} +${v}`)
+              .join(', ')}
+          </div>
+        )}
+        {settlement && (
+          <div className="mt-2 border-t border-white/[0.08] pt-2 text-center text-[12px] text-slate-300">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-fuchsia-200/70">
+              Сундук после забега{settlement.chest.legendary ? ' · легендарный' : ''}
+            </div>
+            <div className="mt-1 font-semibold tabular-nums">
+              +{settlement.chest.coins} монет · +{settlement.chest.points} ОП «{TYPE_INFO[settlement.chest.ball].name}»
+              {settlement.chestOpened ? ' · шарик открыт!' : ''}
+              {settlement.chest.dupCoins > 0 ? ` · дубликат: +${settlement.chest.dupCoins} монет` : ''}
+            </div>
+          </div>
+        )}
       </div>
       <div className="mt-5 flex flex-col items-stretch gap-2 sm:flex-row sm:justify-center">
         <button

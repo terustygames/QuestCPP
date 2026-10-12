@@ -205,7 +205,7 @@ export function DeckInfoPopup({
   type: OrbType;
   lvl: number;
   mods: string[];
-  note?: string; // доп. строка (например, опыт шарика «Метка»)
+  note?: string; // доп. строка под описанием (необязательно)
   onClose: () => void;
 }) {
   const info = TYPE_INFO[type];

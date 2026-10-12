@@ -96,12 +96,12 @@ function BallTile({
           <span className="flex items-center gap-1 text-slate-500">
             <Lock size={10} />
             <Gift size={10} />
-            из сундука
+            из сундуков
           </span>
         )}
       </div>
       <div className="mt-0.5 text-[10px] tabular-nums text-slate-500">
-        дерево {prog.open}/{prog.total}
+        {owned ? `ОП ${meta.pts[t]} · дерево ${prog.open}/${prog.total}` : `дерево ${prog.open}/${prog.total}`}
       </div>
     </button>
   );
@@ -121,7 +121,7 @@ export function Inventory({
 
   const tap = (t: OrbType) => {
     if (!ownsBall(meta, t)) {
-      return showToast(`${TYPE_INFO[t].name} выпадает из ежедневного сундука`);
+      return showToast(`${TYPE_INFO[t].name} выпадает из сундуков: ежедневного и после забега`);
     }
     const r = toggleDeck(meta, t);
     if (r.error) return showToast(r.error);
@@ -154,7 +154,8 @@ export function Inventory({
           </div>
           <p className="mt-2 text-[12px] leading-snug text-slate-500">
             В забеге поле заполняется только шариками колоды. Тап по шарику ниже — в колоду или из неё. Зажми шарик —
-            описание и дерево навыков.
+            описание и дерево навыков. Очки прокачки (ОП) есть у каждого шарика отдельно: за пройденные волны они делятся
+            поровну между шариками колоды.
           </p>
           {!full && (
             <p className="mt-1 text-[12px] font-semibold text-amber-300/90">

@@ -2,7 +2,7 @@
 // одинаковых кнопок-плиток (тёмный скруглённый квадрат с иконкой и подписью,
 // как «Магазин»). Центр экрана свободен.
 import type { CSSProperties, ReactNode } from 'react';
-import { Backpack, Gift, Sparkles, Store, Swords } from 'lucide-react';
+import { Backpack, Gift, LogOut, Sparkles, Store, Swords } from 'lucide-react';
 import { META_CFG, deckReady, type MetaState } from '../game/meta';
 import { CurrencyChips } from './common';
 
@@ -73,12 +73,16 @@ export function MainMenu({
   onPlay,
   onShop,
   onInventory,
+  login,
+  onLogout,
 }: {
   meta: MetaState;
   chestReady: boolean;
   onPlay: () => void;
   onShop: () => void;
   onInventory: () => void;
+  login: string;
+  onLogout: () => void;
 }) {
   const ready = deckReady(meta);
   return (
@@ -114,7 +118,18 @@ export function MainMenu({
             <div className="text-[12px] font-bold text-white">волна {meta.bestWave}</div>
           </div>
         </div>
-        <CurrencyChips meta={meta} />
+        <div className="flex items-center gap-1.5">
+          <CurrencyChips meta={meta} />
+          <button
+            onClick={onLogout}
+            title={login ? `Аккаунт: ${login}. Выйти` : 'Выйти'}
+            aria-label="Выйти из аккаунта"
+            className="flex h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.05] px-2 text-[12px] font-bold text-slate-300 transition active:scale-95"
+          >
+            <LogOut size={14} />
+            <span className="max-w-[72px] truncate">{login}</span>
+          </button>
+        </div>
       </header>
 
       {/* центр свободен */}

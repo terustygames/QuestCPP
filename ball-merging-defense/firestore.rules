@@ -1,0 +1,15 @@
+rules_version = '2';
+
+// Облачное сохранение ОРБИТАЛЬ: игрок читает и пишет только свой документ players/{uid}.
+// Документ создаёт и обновляет сам игрок после входа по логину и паролю.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /players/{uid} {
+      allow read, create, update: if request.auth != null && request.auth.uid == uid;
+      allow delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
