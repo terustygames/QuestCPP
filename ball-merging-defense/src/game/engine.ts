@@ -99,6 +99,8 @@ export interface EnemyState {
   foreign?: boolean; // враг напарника (копия, см. Engine.setForeign)
   vulnUntil?: number; // резонанс: до какого времени враг помечен
   vulnMul?: number; // резонанс: множитель урона по помеченному врагу (×)
+  burnUntil?: number; // бенгальский: до какого времени враг горит (поджог)
+  burnDps?: number; // бенгальский: урон поджога в секунду
 }
 
 // Мина и бомба: лежат на трассе, срабатывают сами. Рисуются у обоих игроков.
@@ -142,6 +144,19 @@ export interface ProjState {
   hitIds?: number[]; // враги, уже поражённые этим снарядом
   bonus?: number; // бонус комбо: каждый шарик в цепи добавляет урон
   dmgMul?: number; // накопление: множитель урона всех попаданий снаряда
+  emitAcc?: number; // бенгальский: время, накопленное до следующего залпа искр
+}
+
+// Искра бенгальского шарика: летит быстро, жжёт врага при касании и гаснет
+export interface BengalSpark {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  age: number;
+  life: number;
+  dmg: number; // базовый урон искры (до дерева)
+  dmgMul: number; // накопление: множитель урона
 }
 
 // Облако газа: не снаряд, а область у цели. Разрастается, держится и жжёт врагов внутри.
@@ -254,6 +269,9 @@ export class Engine {
   nextArrowEmit = 0;
   arrowPhase = 0;
 
+  // --- бенгальский: искры летящих снарядов (только у своего поля) ---
+  bengalSparks: BengalSpark[] = [];
+
   // --- улучшения по типам ---
   // Делается долгим нажатием на шарик на поле: шарик расходится (исчезает),
   // а уровень его ТИПА в колоде растёт. Улучшенный уровень действует на все
@@ -276,6 +294,7 @@ export class Engine {
     mine: 1,
     bomb: 1,
     resonance: 1,
+    bengal: 1,
   };
 
   // --- автоматическое заполнение пустых клеток ---
@@ -438,6 +457,7 @@ export class Engine {
     this.markDrainAcc = 0;
     this.clouds = [];
     this.traps = [];
+    this.bengalSparks = [];
     this.refillField();
     this.setBanner('Поле готово. Волна через 9 секунд');
   }
@@ -583,6 +603,7 @@ export class Engine {
         stunUntil: e.stunUntil + shift,
         bornAt: e.bornAt + shift,
         vulnUntil: e.vulnUntil === undefined ? undefined : e.vulnUntil + shift,
+        burnUntil: e.burnUntil === undefined ? undefined : e.burnUntil + shift,
       }));
   }
 
@@ -1074,8 +1095,13 @@ export class Engine {
       }
       return;
     }
-    if (type === 'mine' || type === 'bomb') {
-      // мина и бомба не летят: ставятся на трассе у самого продвинутого врага
+    if (type === 'bomb') {
+      // бомба не летит: разбрасывает бомбы в случайные точки всей трассы
+      for (let k = 0; k < count; k++) this.placeBombRandom(bonus, dmgMul, g);
+      return;
+    }
+    if (type === 'mine') {
+      // мина не летит: ставится на трассе у самого продвинутого врага
       for (let k = 0; k < count; k++) {
         const target = this.pickTarget();
         if (!target) break;
@@ -1142,8 +1168,8 @@ export class Engine {
     return e.foreign ? { x: q.x, y: -q.y } : { x: q.x, y: q.y };
   }
 
-  // Мина ставится впереди цели на трассе; бомба — туда, где цель будет через fuse секунд.
-  private placeTrap(kind: 'mine' | 'bomb', target: EnemyState, k: number, bonus: number, dmgMul: number, g: number) {
+  // Мина ставится впереди цели на трассе.
+  private placeTrap(kind: 'mine', target: EnemyState, k: number, bonus: number, dmgMul: number, g: number) {
     const jit = k * 26;
     const base = {
       id: this.nextId++,
@@ -1165,22 +1191,29 @@ export class Engine {
         radius: CONFIG.mine.radius + this.m('mine', 'radius'),
         dmg: CONFIG.mine.dmg + g + bonus,
       });
-    } else {
-      const fuse = Math.max(0.6, CONFIG.bomb.fuse + this.m('bomb', 'dur'));
-      const speed = target.speed * (this.now < target.slowUntil ? target.slowFactor : 1);
-      const p = this.pointAhead(target, speed * fuse + jit);
-      this.traps.push({
-        ...base,
-        x: p.x,
-        y: p.y,
-        boomAt: this.now + fuse,
-        fuse,
-        life: fuse + 0.5,
-        radius: CONFIG.bomb.radius + this.m('bomb', 'radius'),
-        dmg: CONFIG.bomb.dmg + g + bonus,
-      });
     }
     this.spark(this.traps[this.traps.length - 1].x, this.traps[this.traps.length - 1].y, TYPE_INFO[kind].color, 5, 60);
+  }
+
+  // Бомба: случайная точка всей трассы (от спавна до выхода). Срабатывает по таймеру.
+  private placeBombRandom(bonus: number, dmgMul: number, g: number) {
+    const q = pathPoint(Math.random() * LEAK_AT);
+    const fuse = Math.max(0.6, CONFIG.bomb.fuse + this.m('bomb', 'dur'));
+    this.traps.push({
+      id: this.nextId++,
+      kind: 'bomb',
+      born: this.now,
+      arm: 0,
+      boomAt: this.now + fuse,
+      fuse,
+      life: fuse + 0.5,
+      dmgMul,
+      x: q.x,
+      y: q.y,
+      radius: CONFIG.bomb.radius + this.m('bomb', 'radius'),
+      dmg: CONFIG.bomb.dmg + g + bonus,
+    });
+    this.spark(q.x, q.y, TYPE_INFO.bomb.color, 5, 60);
   }
 
   // Мины и бомбы: мина взрывается, когда враг подходит близко (после взвода),
@@ -1225,6 +1258,79 @@ export class Engine {
     this.ring(t.x, t.y, color, t.radius * 2);
     this.spark(t.x, t.y, color, 12, 170);
     sfx.boom(t.kind);
+  }
+
+  // ============ БЕНГАЛЬСКИЙ: искры ============
+  // Летящий снаряд каждые 1/emitRate с выпускает три искры, лучи вращаются
+  // (как у бенгальской свечи). Дальность искры = sparkSpeed × sparkLife + мод дерева.
+  private sparkRange(): number {
+    return CONFIG.bengal.sparkSpeed * CONFIG.bengal.sparkLife + this.m('bengal', 'radius');
+  }
+
+  private pushBengalSpark(x: number, y: number, a: number, speed: number, dmg: number, dmgMul: number) {
+    if (this.bengalSparks.length >= CONFIG.bengal.cap) this.bengalSparks.shift();
+    this.bengalSparks.push({
+      x,
+      y,
+      vx: Math.cos(a) * speed,
+      vy: Math.sin(a) * speed,
+      age: 0,
+      life: this.sparkRange() / speed,
+      dmg,
+      dmgMul,
+    });
+  }
+
+  private emitBengal(p: ProjState, dt: number) {
+    const interval = 1 / CONFIG.bengal.emitRate;
+    const g = this.typeLevels.bengal - 1;
+    p.emitAcc = (p.emitAcc ?? 0) + dt;
+    while (p.emitAcc >= interval) {
+      p.emitAcc -= interval;
+      const turn = p.age * CONFIG.bengal.spin + p.seed;
+      for (let k = 0; k < 3; k++) {
+        const speed = CONFIG.bengal.sparkSpeed * (0.85 + Math.random() * 0.3);
+        this.pushBengalSpark(p.x, p.y, turn + (k * Math.PI * 2) / 3, speed, CONFIG.bengal.spark + g, p.dmgMul ?? 1);
+      }
+    }
+  }
+
+  // Искры при попадании: разлетаются по кругу
+  private burstSparks(x: number, y: number, n: number, g: number) {
+    for (let i = 0; i < n; i++) {
+      const a = (i * Math.PI * 2) / n + Math.random() * 0.4;
+      const speed = CONFIG.bengal.sparkSpeed * (0.7 + Math.random() * 0.3);
+      this.pushBengalSpark(x, y, a, speed, CONFIG.bengal.spark + g, this.hitMul);
+    }
+  }
+
+  // Движение искр и урон: искра жжёт первого врага, которого коснулась, и гаснет.
+  private updateBengal(dt: number) {
+    if (!this.bengalSparks.length) return;
+    const enemies = this.allEnemies().filter((e) => !e.dead);
+    const pos = enemies.map((e) => this.at(e));
+    const alive: BengalSpark[] = [];
+    for (const s of this.bengalSparks) {
+      s.age += dt;
+      if (s.age >= s.life) continue;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      let hit = false;
+      for (let i = 0; i < enemies.length; i++) {
+        const dx = pos[i].x - s.x;
+        const dy = pos[i].y - s.y;
+        const rr = enemies[i].radius + 3;
+        if (dx * dx + dy * dy < rr * rr) {
+          this.hitMul = s.dmgMul;
+          this.damage(enemies[i], this.hitDmg(s.dmg, 'bengal'), TYPE_INFO.bengal.color, false);
+          this.hitMul = 1;
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) alive.push(s);
+    }
+    this.bengalSparks = alive;
   }
 
   // Облака: разрастаются, замедляют врагов внутри, раз в тик жгут их.
@@ -1472,11 +1578,23 @@ export class Engine {
         this.ring(pos.x, pos.y, '#d7dee8', 40);
         break;
       }
+      case 'bengal': {
+        // снаряд поджигает врага и рассыпает искры; сами искры жгут отдельно
+        this.damage(e, this.hitDmg(CONFIG.bengal.hit + g + b, K), '#ffd166');
+        // поджог: у копии врага напарника не ставим (его поле считает у себя)
+        if (!e.foreign) {
+          e.burnUntil = this.now + CONFIG.bengal.burnDur + 0.3 * g + this.m(K, 'dur');
+          e.burnDps = Math.max(e.burnDps ?? 0, CONFIG.bengal.burnDps + 0.5 * g + this.m(K, 'dps'));
+        }
+        this.ring(pos.x, pos.y, '#ffb347', 46);
+        this.burstSparks(pos.x, pos.y, CONFIG.bengal.burst, g);
+        break;
+      }
       case 'resonance': {
         // резонанс: слабый удар и метка — помеченный враг получает больше урона от всех шариков
         this.damage(e, this.hitDmg(CONFIG.resonance.dmg + g + b, K), '#67e8f9');
         const dur = CONFIG.resonance.dur + this.m(K, 'dur');
-        const mul = CONFIG.resonance.mul + 0.05 * g + this.m(K, 'vuln');
+        const mul = CONFIG.resonance.mul + 0.004 * g + this.m(K, 'vuln');
         // метка уже стоит — берём большее значение, а не складываем
         const active = this.now < (e.vulnUntil ?? 0);
         e.vulnMul = active ? Math.max(e.vulnMul ?? 1, mul) : mul;
@@ -1537,6 +1655,13 @@ export class Engine {
           const d = mk.dps * dt;
           e.hp -= d;
           this.drainFromMark(d);
+        }
+      }
+      if (e.burnUntil !== undefined && this.now < e.burnUntil) {
+        e.hp -= (e.burnDps ?? 0) * dt;
+        if (Math.random() < dt * 8) {
+          const pos = this.at(e);
+          this.spark(pos.x, pos.y, '#ffb347', 1, 40);
         }
       }
       if (e.dots.length) {
@@ -1618,6 +1743,7 @@ export class Engine {
     for (const p of this.projs) {
       p.age += dt;
       p.life -= dt;
+      if (p.kind === 'bengal') this.emitBengal(p, dt);
       // пробой: летит прямо и поражает врагов на линии (до pierceLeft целей)
       if (p.straight) {
         p.x += p.vx * dt;
@@ -1670,6 +1796,7 @@ export class Engine {
       if (p.trail.length > 5) p.trail.pop();
     }
     this.projs = this.projs.filter((p) => p.life > 0);
+    this.updateBengal(dt);
 
     // --- иглы: летят прямо, лопают первый шарик на пути,
     //     а попутно наносят урон первому врагу, которого задевают ---

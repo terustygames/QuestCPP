@@ -195,6 +195,19 @@ function drawOrbMark(x: CanvasRenderingContext2D, type: OrbType, cx: number, cy:
       x.arc(15, -13, 2.6, 0, Math.PI * 2);
       x.fill();
       break;
+    case 'bengal': // бенгальский: палочка и три луча искр наверху
+      x.beginPath();
+      x.moveTo(-9, 12);
+      x.lineTo(5, -6);
+      x.stroke();
+      for (let k = 0; k < 3; k++) {
+        const a = -Math.PI / 2 + (k * Math.PI * 2) / 3;
+        x.beginPath();
+        x.moveTo(5, -6);
+        x.lineTo(5 + Math.cos(a) * 9, -6 + Math.sin(a) * 9);
+        x.stroke();
+      }
+      break;
     case 'resonance': // резонанс: камертон — две ножки и дуги волны
       x.beginPath();
       x.moveTo(-6, -13);
@@ -557,9 +570,66 @@ function drawTrap(x: CanvasRenderingContext2D, t: TrapState, now: number, vnow: 
 }
 
 // Облака, мины, бомбы, иглы и снаряды одного поля. Рисуются в текущей системе координат (setView).
+// Свечение бенгальского: белое раскалённое ядро, жёлтый и оранжевый ореол. Рисуется один раз.
+let glowSprite: HTMLCanvasElement | null = null;
+function getGlowSprite(): HTMLCanvasElement {
+  if (glowSprite) return glowSprite;
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 64;
+  const gx = c.getContext('2d')!;
+  const grd = gx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grd.addColorStop(0, 'rgba(255,252,236,1)');
+  grd.addColorStop(0.18, 'rgba(255,236,170,0.95)');
+  grd.addColorStop(0.45, 'rgba(255,170,60,0.45)');
+  grd.addColorStop(1, 'rgba(255,120,20,0)');
+  gx.fillStyle = grd;
+  gx.fillRect(0, 0, 64, 64);
+  glowSprite = c;
+  return c;
+}
+
+// Искры бенгальского: светятся (сложение цветов), с короткой светящейся чертой по ходу
+function drawBengalSparks(x: CanvasRenderingContext2D, g: Engine) {
+  if (!g.bengalSparks.length) return;
+  const sprite = getGlowSprite();
+  x.save();
+  x.globalCompositeOperation = 'lighter';
+  // черты одним путём: быстрые искры видны как вспышки
+  x.strokeStyle = 'rgba(255,200,90,0.55)';
+  x.lineWidth = 1.6;
+  x.lineCap = 'round';
+  x.beginPath();
+  for (const s of g.bengalSparks) {
+    x.moveTo(s.x - s.vx * 0.045, s.y - s.vy * 0.045);
+    x.lineTo(s.x, s.y);
+  }
+  x.stroke();
+  for (const s of g.bengalSparks) {
+    const k = 1 - s.age / s.life; // 1 — только родилась, 0 — гаснет
+    const size = 9 + 12 * k;
+    x.globalAlpha = Math.min(1, 0.3 + k);
+    x.drawImage(sprite, s.x - size / 2, s.y - size / 2, size, size);
+  }
+  x.restore();
+}
+
+function drawBengalHead(x: CanvasRenderingContext2D, hx: number, hy: number) {
+  const sprite = getGlowSprite();
+  x.save();
+  x.globalCompositeOperation = 'lighter';
+  x.drawImage(sprite, hx - 17, hy - 17, 34, 34);
+  x.restore();
+  x.fillStyle = '#fffbea';
+  x.beginPath();
+  x.arc(hx, hy, 3.2, 0, Math.PI * 2);
+  x.fill();
+}
+
 function drawShots(x: CanvasRenderingContext2D, g: Engine, vnow: number) {
   for (const c of g.clouds) drawGas(x, c, vnow);
   for (const t of g.traps) drawTrap(x, t, g.now, vnow);
+  drawBengalSparks(x, g);
   // --- иглы ---
   for (const n of g.needles) {
     const dx = Math.cos(n.ang) * 14;
@@ -599,6 +669,10 @@ function drawShots(x: CanvasRenderingContext2D, g: Engine, vnow: number) {
     const off = Math.sin(p.age * 9 + p.seed) * 4;
     const hx = p.x + nx * off;
     const hy = p.y + ny * off;
+    if (p.kind === 'bengal') {
+      drawBengalHead(x, hx, hy);
+      continue;
+    }
     x.fillStyle = info.dark;
     x.beginPath();
     x.arc(hx, hy, 6, 0, Math.PI * 2);
@@ -709,6 +783,15 @@ function drawEnemies(x: CanvasRenderingContext2D, g: Engine, vnow: number) {
       x.beginPath();
       x.arc(ex, ey, r, 0, Math.PI * 2);
       x.fill();
+    }
+
+    // поджог: оранжевое мерцающее кольцо
+    if (g.now < (e.burnUntil ?? 0)) {
+      x.strokeStyle = `rgba(255,150,60,${(0.55 + 0.3 * Math.sin(vnow * 18 + e.id)).toFixed(3)})`;
+      x.lineWidth = 2;
+      x.beginPath();
+      x.arc(ex, ey, r + 4, 0, Math.PI * 2);
+      x.stroke();
     }
 
     // глаза (смотрят по ходу движения)

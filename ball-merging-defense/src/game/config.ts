@@ -21,7 +21,8 @@ export type OrbType =
   | 'gas'
   | 'mine'
   | 'bomb'
-  | 'resonance';
+  | 'resonance'
+  | 'bengal';
 
 // ---------- Размеры игрового поля (логические пиксели) ----------
 // Портретная ориентация: поле рассчитано под вертикальный экран телефона.
@@ -211,7 +212,7 @@ export const TYPE_INFO: Record<
     color: '#f97316',
     dark: '#7c2d12',
     glow: 'rgba(249,115,22,',
-    desc: 'сбрасывает бомбу туда, где враг окажется через 1,5 с',
+    desc: 'разбрасывает бомбы в случайные точки всей трассы',
   },
   resonance: {
     name: 'Резонанс',
@@ -220,11 +221,18 @@ export const TYPE_INFO: Record<
     glow: 'rgba(103,232,249,',
     desc: 'метит врага: помеченный враг получает больше урона от всех шариков',
   },
+  bengal: {
+    name: 'Бенгальский',
+    color: '#ffd166',
+    dark: '#6b4a00',
+    glow: 'rgba(255,209,102,',
+    desc: 'снаряд поджигает врага; из снаряда летят искры в три стороны и жгут врагов',
+  },
 };
 
 export const ALL_TYPES: OrbType[] = [
   'fire', 'ice', 'bolt', 'poison', 'spiky', 'amp', 'nova', 'stun', 'pierce', 'vampire', 'barrage', 'mark', 'gas',
-  'mine', 'bomb', 'resonance',
+  'mine', 'bomb', 'resonance', 'bengal',
 ];
 // Базовая колода обычного режима
 export const CLASSIC_TYPES: OrbType[] = ['fire', 'ice', 'bolt', 'poison', 'spiky', 'amp'];
@@ -383,8 +391,23 @@ export const CONFIG = {
   // Резонанс: снаряд метит врага. Помеченный враг получает больше урона от всех источников.
   resonance: {
     dmg: 1, // урон снаряда
-    mul: 1.25, // урон по помеченному врагу (×; 1.25 = +25%)
+    mul: 1.02, // урон по помеченному врагу (×; 1.02 = +2%)
     dur: 3, // с: сколько держится метка
+  },
+
+  // Бенгальский: снаряд летит к врагу, поджигает его и по пути выпускает искры
+  // в три стороны (тремя лучами, вращаясь). Искры жгут врагов на своём пути.
+  bengal: {
+    hit: 2, // урон попадания снаряда (до уровней и дерева)
+    burnDps: 1, // поджог: урон во времени в секунду
+    burnDur: 2.5, // поджог: сколько секунд держится
+    spark: 1, // урон одной искры при касании
+    sparkSpeed: 340, // скорость искр, px/с (быстрые)
+    sparkLife: 0.5, // сколько искра живёт (дальность = скорость × жизнь)
+    emitRate: 16, // залпов искр в секунду у летящего снаряда (каждый залп — три искры)
+    spin: 11, // скорость вращения «лучей» искр, рад/с
+    burst: 6, // искр при попадании (разлетаются по кругу)
+    cap: 240, // максимум искр на поле (защита от лагов)
   },
 };
 
@@ -452,8 +475,17 @@ export function typeStatValue(t: OrbType, stat: string, lvl: number): number {
     case 'resonance':
       // dmg — урон снаряда; mul — урон по помеченному врагу (×); dur — длительность метки
       if (stat === 'dmg') return CONFIG.resonance.dmg + g;
-      if (stat === 'mul') return CONFIG.resonance.mul + 0.05 * g;
+      if (stat === 'mul') return CONFIG.resonance.mul + 0.004 * g;
       if (stat === 'dur') return CONFIG.resonance.dur;
+      return 1;
+    case 'bengal':
+      // dmg — урон попадания; dps — поджог в секунду; dur — длительность поджога;
+      // sdmg — урон искры; rng — дальность искр, px
+      if (stat === 'dmg') return CONFIG.bengal.hit + g;
+      if (stat === 'dps') return CONFIG.bengal.burnDps + 0.5 * g;
+      if (stat === 'dur') return CONFIG.bengal.burnDur + 0.3 * g;
+      if (stat === 'sdmg') return CONFIG.bengal.spark + g;
+      if (stat === 'rng') return CONFIG.bengal.sparkSpeed * CONFIG.bengal.sparkLife;
       return 1;
     case 'mark':
       // dmg — урон попадания; dps — урон метки в секунду; dur — длительность метки;
@@ -548,6 +580,14 @@ export function typeStatRows(t: OrbType, lvl: number): StatRow[] {
         R('Урон', v('dmg'), n('dmg')),
         R('Урон по помеченному врагу', (v('mul') - 1) * 100, (n('mul') - 1) * 100, '%'),
         R('Длительность метки', v('dur'), n('dur'), ' с'),
+      ];
+    case 'bengal':
+      return [
+        R('Урон попадания', v('dmg'), n('dmg')),
+        R('Поджог, урон в секунду', v('dps'), n('dps')),
+        R('Длительность поджога', v('dur'), n('dur'), ' с'),
+        R('Урон искры', v('sdmg'), n('sdmg')),
+        R('Дальность искр', v('rng'), v('rng'), ' px'),
       ];
     case 'mark':
       return [

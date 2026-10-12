@@ -108,6 +108,11 @@ export const sfx = {
     else if (kind === 'mine') tone(180, 360, 0.06, 'square', 0.05); // щелчок установки
     else if (kind === 'bomb') tone(600, 260, 0.14, 'triangle', 0.06); // свист сброса
     else if (kind === 'resonance') tone(1320, 1760, 0.16, 'sine', 0.07); // камертон
+    else if (kind === 'bengal') {
+      // бенгальский: короткий треск искр
+      tone(2600, 1400, 0.06, 'square', 0.025);
+      noiseBurst(0.08, 0.04);
+    }
     else if (kind === 'gas') {
       tone(260, 90, 0.2, 'sawtooth', 0.035);
       noiseBurst(0.18, 0.05);

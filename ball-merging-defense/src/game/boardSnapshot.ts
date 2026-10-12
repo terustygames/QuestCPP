@@ -55,6 +55,7 @@ export function snapshotOf(g: Engine): BoardSnapshot {
         dots: e.dots.map((d) => ({ until: r1(d.until), dps: d.dps })),
         marks: e.marks.map((m) => ({ until: r1(m.until), dps: m.dps })),
         vulnUntil: e.vulnUntil === undefined ? undefined : r1(e.vulnUntil),
+        burnUntil: e.burnUntil === undefined ? undefined : r1(e.burnUntil),
       })),
     puddles: g.puddles.map((p) => ({ ...p, p: r1(p.p), until: r1(p.until) })),
     traps: g.traps.map((t) => ({
