@@ -22,7 +22,10 @@ export type OrbType =
   | 'mine'
   | 'bomb'
   | 'resonance'
-  | 'bengal';
+  | 'bengal'
+  | 'swap'
+  | 'copy'
+  | 'trigger';
 
 // ---------- Размеры игрового поля (логические пиксели) ----------
 // Портретная ориентация: поле рассчитано под вертикальный экран телефона.
@@ -228,11 +231,32 @@ export const TYPE_INFO: Record<
     glow: 'rgba(255,209,102,',
     desc: 'снаряд поджигает врага; из снаряда летят искры в три стороны и жгут врагов',
   },
+  swap: {
+    name: 'Обменщик',
+    color: '#6ee7b7',
+    dark: '#064e3b',
+    glow: 'rgba(110,231,183,',
+    desc: 'меняется местами с соседним шариком (нажми его, затем соседа); сам не стреляет',
+  },
+  copy: {
+    name: 'Копия',
+    color: '#c4b5fd',
+    dark: '#3b2a6b',
+    glow: 'rgba(196,181,253,',
+    desc: 'в паре стреляет как самый сильный сосед (не копия и не шипастый)',
+  },
+  trigger: {
+    name: 'Активатор',
+    color: '#fdba74',
+    dark: '#7c2d12',
+    glow: 'rgba(253,186,116,',
+    desc: 'раз в 6 с сам запускает атаку всех соседних шариков; сам не стреляет',
+  },
 };
 
 export const ALL_TYPES: OrbType[] = [
   'fire', 'ice', 'bolt', 'poison', 'spiky', 'amp', 'nova', 'stun', 'pierce', 'vampire', 'barrage', 'mark', 'gas',
-  'mine', 'bomb', 'resonance', 'bengal',
+  'mine', 'bomb', 'resonance', 'bengal', 'swap', 'copy', 'trigger',
 ];
 // Базовая колода обычного режима
 export const CLASSIC_TYPES: OrbType[] = ['fire', 'ice', 'bolt', 'poison', 'spiky', 'amp'];
@@ -412,6 +436,17 @@ export const CONFIG = {
     burst: 6, // искр при попадании (разлетаются по кругу)
     cap: 240, // максимум искр на поле (защита от лагов)
   },
+
+  // Обменщик: меняется местами с соседним шариком. Сам не стреляет.
+  swap: {
+    cd: 4, // с: перезарядка обмена
+  },
+
+  // Активатор: раз в cd сам запускает атаку всех соседних шариков (их перезарядка не нужна).
+  trigger: {
+    cd: 6, // с: перезарядка активатора
+    shots: 2, // снарядов у каждого соседа за срабатывание (до уровня и дерева)
+  },
 };
 
 // Радиус облака газа в момент c.age: быстро разрастается и останавливается
@@ -481,6 +516,13 @@ export function typeStatValue(t: OrbType, stat: string, lvl: number): number {
       if (stat === 'mul') return CONFIG.resonance.mul + 0.004 * g;
       if (stat === 'dur') return CONFIG.resonance.dur;
       return 1;
+    case 'swap':
+      return stat === 'cd' ? Math.max(1.5, CONFIG.swap.cd - 0.5 * g) : 1;
+    case 'copy':
+      // combo — бонус комбо к снарядам копии (от уровня)
+      return stat === 'combo' ? g : stat === 'cd' ? CONFIG.cooldown : 1;
+    case 'trigger':
+      return stat === 'cd' ? CONFIG.trigger.cd : stat === 'shots' ? CONFIG.trigger.shots + g : 1;
     case 'bengal':
       // dmg — урон попадания; dps — поджог в секунду; dur — длительность поджога;
       // sdmg — урон искры; rng — дальность искр, px
@@ -583,6 +625,18 @@ export function typeStatRows(t: OrbType, lvl: number): StatRow[] {
         R('Урон', v('dmg'), n('dmg')),
         R('Урон по помеченному врагу', (v('mul') - 1) * 100, (n('mul') - 1) * 100, '%'),
         R('Длительность метки', v('dur'), n('dur'), ' с'),
+      ];
+    case 'swap':
+      return [R('Перезарядка обмена', v('cd'), n('cd'), ' с')];
+    case 'copy':
+      return [
+        { label: 'Копирует', cur: 'самого сильного соседа', next: '' },
+        R('Бонус комбо', v('combo'), n('combo')),
+      ];
+    case 'trigger':
+      return [
+        R('Перезарядка', v('cd'), v('cd'), ' с'),
+        R('Снарядов у каждого соседа', v('shots'), n('shots')),
       ];
     case 'bengal':
       return [

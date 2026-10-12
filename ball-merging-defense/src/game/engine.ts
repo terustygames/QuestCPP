@@ -33,6 +33,11 @@ import { chargeProgress } from './charger';
 import { sfx } from './audio';
 
 // Четыре соседние клетки (вверх/вниз/влево/вправо)
+// Обменщик и активатор сами не стреляют (активатор срабатывает по таймеру, см. runTriggers)
+const NO_SHOT: OrbType[] = ['swap', 'trigger'];
+// Копия не копирует: копию, обменщика, активатора и шипастого
+const COPY_SKIP: OrbType[] = ['copy', 'swap', 'trigger', 'spiky'];
+
 export function neighbors4(i: number): number[] {
   const r = Math.floor(i / COLS);
   const c = i % COLS;
@@ -295,6 +300,9 @@ export class Engine {
     bomb: 1,
     resonance: 1,
     bengal: 1,
+    swap: 1,
+    copy: 1,
+    trigger: 1,
   };
 
   // --- автоматическое заполнение пустых клеток ---
@@ -531,6 +539,103 @@ export class Engine {
     o.cdLen = len;
     o.cdUntil = this.now + len;
   }
+  // Какой тип стреляет из клетки. У копии — тип соседа: сначала from (шарик из пары),
+  // иначе самый сильный сосед по заряду. Нет подходящего соседа — null.
+  firingType(cell: number, from = -1): OrbType | null {
+    const o = this.grid[cell];
+    if (!o) return null;
+    if (o.type !== 'copy') return o.type;
+    if (from >= 0 && isAdj(cell, from)) {
+      const f = this.grid[from];
+      if (f && !COPY_SKIP.includes(f.type)) return f.type;
+    }
+    let best: OrbState | null = null;
+    for (const n of neighbors4(cell)) {
+      const x = this.grid[n];
+      if (!x || COPY_SKIP.includes(x.type)) continue;
+      if (!best || x.level > best.level) best = x;
+    }
+    return best ? best.type : null;
+  }
+
+  // Готов ли шарик сработать в цепи или авто-линии (обменщик и активатор — нет; копия — только с соседом)
+  readyToAct(i: number): boolean {
+    const o = this.grid[i];
+    if (!o || NO_SHOT.includes(o.type) || this.now < o.cdUntil) return false;
+    return o.type !== 'copy' || this.firingType(i) !== null;
+  }
+
+  // Обменщик: меняется местами с соседним шариком. Сам не стреляет; у обменщика своя перезарядка.
+  swapOrbs(a: number, b: number) {
+    const A = this.grid[a];
+    const B = this.grid[b];
+    if (!A || !B) return;
+    const s = A.type === 'swap' ? a : b;
+    const S = this.grid[s];
+    if (!S) return;
+    this.sel = null;
+    if (this.now < S.cdUntil) {
+      this.err('Обменщик ещё перезаряжается');
+      this.shake(s);
+      return;
+    }
+    // шарик, который сейчас стреляет в очереди, не трогаем
+    if (this.popQueued.has(a) || this.popQueued.has(b)) {
+      this.err('Этот шарик сейчас стреляет');
+      this.shake(a);
+      this.shake(b);
+      return;
+    }
+    this.grid[a] = B;
+    this.grid[b] = A;
+    S.cdLen = Math.max(0.5, CONFIG.swap.cd + this.m('swap', 'cd'));
+    S.cdUntil = this.now + S.cdLen;
+    const ca = cellC(a);
+    const cb = cellC(b);
+    this.linkLine(ca.x, ca.y, cb.x, cb.y, TYPE_INFO.swap.color);
+    this.ring(ca.x, ca.y, TYPE_INFO.swap.color, 40);
+    this.ring(cb.x, cb.y, TYPE_INFO.swap.color, 40);
+    A.pulse = this.now;
+    B.pulse = this.now;
+    sfx.swap();
+  }
+
+  // Активатор: раз в перезарядку сам запускает атаку всех соседних шариков.
+  // Соседи стреляют сразу (даже если их перезарядка не прошла) и перезаряжаются заново.
+  // Без соседей, которые могут стрелять, активатор ждёт и перезарядку не тратит.
+  runTriggers() {
+    if (this.status === 'gameover') return;
+    const g = this.typeLevels.trigger - 1;
+    const count = CONFIG.trigger.shots + g + this.m('trigger', 'shots');
+    for (let i = 0; i < this.grid.length; i++) {
+      const t = this.grid[i];
+      if (!t || t.type !== 'trigger' || this.now < t.cdUntil) continue;
+      const targets = neighbors4(i).filter((n) => {
+        const x = this.grid[n];
+        return !!x && !NO_SHOT.includes(x.type) && (x.type !== 'copy' || this.firingType(n) !== null);
+      });
+      if (!targets.length) continue;
+      const c = cellC(i);
+      this.ring(c.x, c.y, TYPE_INFO.trigger.color, 54);
+      sfx.trigger();
+      for (const n of targets) {
+        const x = this.grid[n];
+        if (!x) continue;
+        const nc = cellC(n);
+        this.linkLine(c.x, c.y, nc.x, nc.y, TYPE_INFO.trigger.color);
+        if (x.type === 'spiky') {
+          this.detonateSpiky(n, 0);
+          continue;
+        }
+        this.fireOrb(n, count);
+        this.arm(x);
+      }
+      t.cdLen = Math.max(0.5, CONFIG.trigger.cd + this.m('trigger', 'cd'));
+      t.cdUntil = this.now + t.cdLen;
+      t.pulse = this.now;
+    }
+  }
+
   // Число снарядов залпа: базовое + дерево (шквал — от уровня типа)
   shotCount(t: OrbType, count: number): number {
     const g = this.typeLevels[t] - 1;
@@ -829,6 +934,17 @@ export class Engine {
     const A = this.grid[a];
     const B = this.grid[b];
     if (!A || !B) return;
+    if (A.type === 'swap' || B.type === 'swap') {
+      this.swapOrbs(a, b);
+      return;
+    }
+    if (A.type === 'trigger' || B.type === 'trigger') {
+      this.err('Активатор не копит заряд: он срабатывает сам');
+      this.shake(a);
+      this.shake(b);
+      this.sel = null;
+      return;
+    }
     if (A.type !== B.type && A.type !== 'spiky' && B.type !== 'spiky') {
       this.err('Накопление: одинаковые шарики, шипастый — с любым');
       this.shake(a);
@@ -862,8 +978,19 @@ export class Engine {
     const A = this.grid[a];
     const B = this.grid[b];
     if (!A || !B) return;
-    if (A.type !== B.type && A.type !== 'spiky' && B.type !== 'spiky') {
-      this.err('Цепь: только одинаковые шарики (шипастый — с любым)');
+    if (A.type === 'swap' || B.type === 'swap') {
+      this.swapOrbs(a, b);
+      return;
+    }
+    if (A.type === 'trigger' || B.type === 'trigger') {
+      this.err('Активатор срабатывает сам: поставь его рядом с шариками');
+      this.shake(a);
+      this.shake(b);
+      this.sel = null;
+      return;
+    }
+    if (A.type !== B.type && A.type !== 'spiky' && B.type !== 'spiky' && A.type !== 'copy' && B.type !== 'copy') {
+      this.err('Цепь: только одинаковые шарики (шипастый — с любым, копия — с любым)');
       this.shake(a);
       this.shake(b);
       this.sel = null;
@@ -875,18 +1002,26 @@ export class Engine {
       this.shake(this.now < A.cdUntil ? a : b);
       return;
     }
+    if ((A.type === 'copy' && this.firingType(a, b) === null) || (B.type === 'copy' && this.firingType(b, a) === null)) {
+      this.err('Копия: рядом нет шарика, который можно скопировать');
+      this.shake(a);
+      this.shake(b);
+      this.sel = null;
+      return;
+    }
     const ca = cellC(a);
     const cb = cellC(b);
     this.linkLine(ca.x, ca.y, cb.x, cb.y, '#22d3ee');
 
     // Пара — это цепь из двух шариков: комбо-бонус +2 к каждому снаряду.
     // Шипастый не стреляет — лопает и выпускает иглы.
+    // Копия стреляет как шарик из пары (если он подходит), иначе как самый сильный сосед.
     if (A.type !== 'spiky') {
-      this.fireOrb(a, 2, 2);
+      this.fireOrb(a, 2, 2, 1, b);
       this.arm(A);
     }
     if (B.type !== 'spiky') {
-      this.fireOrb(b, 2, 2);
+      this.fireOrb(b, 2, 2, 1, a);
       this.arm(B);
     }
     if (A.type === 'spiky') this.detonateSpiky(a, 0);
@@ -902,8 +1037,7 @@ export class Engine {
     this.setAutoLine(cells);
     const ready: number[] = [];
     for (const i of cells) {
-      const o = this.grid[i];
-      if (o && this.now >= o.cdUntil) ready.push(i);
+      if (this.readyToAct(i)) ready.push(i);
     }
     if (!ready.length) {
       this.err('Шарики в цепи ещё перезаряжаются');
@@ -950,13 +1084,13 @@ export class Engine {
     const ids: number[] = [];
     for (const i of cells) {
       const o = this.grid[i];
-      if (o && o.type !== 'spiky') ids.push(o.id);
+      if (o && o.type !== 'spiky' && !NO_SHOT.includes(o.type)) ids.push(o.id);
     }
     if (ids.length < 2) return;
     // авто-линия только из шариков с купленной «Автоатакой»
     const lacks = cells.some((i) => {
       const o = this.grid[i];
-      return o && o.type !== 'spiky' && !this.autoTypes.includes(o.type);
+      return o && o.type !== 'spiky' && !NO_SHOT.includes(o.type) && !this.autoTypes.includes(o.type);
     });
     if (lacks) {
       this.setBanner('Авто-атака этого шарика не куплена: откройте 10 узлов дерева и купите её', 2.2);
@@ -996,7 +1130,7 @@ export class Engine {
     }
     const ready = cells.filter((i) => {
       const o = this.grid[i];
-      return o && o.type !== 'spiky' && this.now >= o.cdUntil;
+      return o && o.type !== 'spiky' && this.readyToAct(i);
     });
     if (!ready.length) return;
     const bonus = ready.length;
@@ -1049,11 +1183,14 @@ export class Engine {
   }
 
   // ============ СТРЕЛЬБА ============
-  fireOrb(cell: number, count: number, bonus = 0, dmgMul = 1) {
+  fireOrb(cell: number, count: number, bonus = 0, dmgMul = 1, from = -1) {
     const o = this.grid[cell];
     if (!o) return;
+    // копия стреляет типом соседа; если подходящего соседа нет — не стреляет
+    const kind = this.firingType(cell, from);
+    if (!kind) return;
     const c = cellC(cell);
-    let finalCount = this.shotCount(o.type, count);
+    let finalCount = this.shotCount(kind, count);
     // Усилитель рядом: соседние шарики выпускают больше снарядов (×2 и дерево)
     if (this.isAmplified(cell)) {
       finalCount = Math.round(finalCount * this.ampFactor());
@@ -1067,8 +1204,10 @@ export class Engine {
       }
       this.arrowSpark(c.x, c.y);
     }
-    this.fireOrbAt(c.x, c.y, o.type, finalCount, bonus + this.m(o.type, 'combo'), dmgMul, this.isAmplified(cell));
-    sfx.shoot(o.type);
+    // у копии бонус комбо от её уровня (плюс дерево копии)
+    const lvlBonus = o.type === 'copy' ? this.typeLevels.copy - 1 : 0;
+    this.fireOrbAt(c.x, c.y, kind, finalCount, bonus + lvlBonus + this.m(o.type, 'combo'), dmgMul, this.isAmplified(cell));
+    sfx.shoot(kind);
     o.pulse = this.now;
   }
 
@@ -1910,6 +2049,7 @@ export class Engine {
 
     // --- авто-линия: стреляет сама, когда шарики перезарядились ---
     this.runAutoLine();
+    this.runTriggers();
 
     // --- награда за цепную реакцию ---
     if (this.chainCount > 0 && !this.needles.length && !this.popQueue.length) {

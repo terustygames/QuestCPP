@@ -208,6 +208,40 @@ function drawOrbMark(x: CanvasRenderingContext2D, type: OrbType, cx: number, cy:
         x.stroke();
       }
       break;
+    case 'swap': // обменщик: две стрелки навстречу друг другу
+      x.beginPath();
+      x.moveTo(-10, -4);
+      x.lineTo(10, -4);
+      x.lineTo(6, -8);
+      x.moveTo(10, -4);
+      x.stroke();
+      x.beginPath();
+      x.moveTo(10, 4);
+      x.lineTo(-10, 4);
+      x.lineTo(-6, 8);
+      x.moveTo(-10, 4);
+      x.stroke();
+      break;
+    case 'copy': // копия: два перекрывающихся кружка
+      x.beginPath();
+      x.arc(-4, -3, 7, 0, Math.PI * 2);
+      x.stroke();
+      x.beginPath();
+      x.arc(4, 4, 7, 0, Math.PI * 2);
+      x.stroke();
+      break;
+    case 'trigger': // активатор: точка и четыре луча — импульс
+      x.beginPath();
+      x.arc(0, 0, 3.2, 0, Math.PI * 2);
+      x.fill();
+      for (let k = 0; k < 4; k++) {
+        const a = (k * Math.PI) / 2 + Math.PI / 4;
+        x.beginPath();
+        x.moveTo(Math.cos(a) * 6.5, Math.sin(a) * 6.5);
+        x.lineTo(Math.cos(a) * 12, Math.sin(a) * 12);
+        x.stroke();
+      }
+      break;
     case 'resonance': // резонанс: камертон — две ножки и дуги волны
       x.beginPath();
       x.moveTo(-6, -13);

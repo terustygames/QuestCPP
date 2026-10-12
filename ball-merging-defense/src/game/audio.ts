@@ -93,6 +93,12 @@ export const sfx = {
   err() {
     tone(220, 170, 0.09, 'square', 0.09);
   },
+  swap() {
+    tone(420, 980, 0.12, 'triangle', 0.06); // обмен: короткий свист
+  },
+  trigger() {
+    tone(170, 70, 0.22, 'sine', 0.12); // активатор: глухой удар
+  },
   shoot(kind: string) {
     if (kind === 'fire') tone(320, 110, 0.14, 'sawtooth', 0.09);
     else if (kind === 'ice') tone(880, 1500, 0.09, 'sine', 0.07);
