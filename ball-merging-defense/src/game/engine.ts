@@ -9,6 +9,7 @@ import {
   MINI_DEF,
   MINI_KIND,
   BOSS_IDS,
+  bossForWave,
   CLASSIC_TYPES,
   CONFIG,
   COLS,
@@ -50,6 +51,7 @@ export interface RunConfig {
   essenceBonus: number;
   livesBonus: number;
   autoTypes: OrbType[]; // шарики с купленной «Автоатакой»
+  coop?: boolean; // кооператив: волны стартует синхронизация, без таймера
 }
 // Короткие события для UI (виброотклик на телефоне)
 export type EngineEvent =
@@ -197,6 +199,8 @@ export class Engine {
   // когда её шарики перезарядились; новая линия заменяет старую.
   autoLine: number[] | null = null;
   autoTypes: OrbType[] = []; // шарики, для которых куплена авто-атака
+  coop = false; // кооператив: старт волны внешний (см. services/coopSession.ts)
+  leakDamage = 0; // всего урона от утечек (для общих жизней в кооперативе)
   maxChain = 0;
 
   // --- визуальное излучение стрелочек от усиленных соседей ---
@@ -373,6 +377,8 @@ export class Engine {
     this.autoLine = null;
     this.deck = [...cfg.deck];
     this.autoTypes = [...cfg.autoTypes];
+    this.coop = !!cfg.coop;
+    this.leakDamage = 0;
     this.mods = cfg.mods;
     this.essence = CONFIG.essenceStart + cfg.essenceBonus;
     this.lives = CONFIG.lives + cfg.livesBonus;
@@ -490,7 +496,26 @@ export class Engine {
     sfx.waveStart();
   }
 
+  // Кооператив: принудительный конец забега (общие жизни закончились)
+  forceGameOver() {
+    if (this.status === 'gameover') return;
+    this.lives = 0;
+    this.status = 'gameover';
+    sfx.gameover();
+    this.emit('gameover');
+  }
+
+  // Кооператив, поле напарника: время и движение врагов между снимками
+  extrapolate(dt: number) {
+    this.now += dt;
+    for (const e of this.enemies) {
+      const slowF = this.now < e.slowUntil ? e.slowFactor : 1;
+      e.p += e.speed * slowF * dt;
+    }
+  }
+
   callWaveNow() {
+    if (this.coop) return; // в кооперативе волну запускают оба игрока сами (готовность)
     if (this.status !== 'prep') return;
     this.essence += CONFIG.callBonus;
     this.textP(STAGE_W / 2, 120, `${CONFIG.callBonus} эссенции`, '#7dd3fc');
@@ -1139,7 +1164,7 @@ export class Engine {
     this.now += dt;
 
     // подготовка -> старт волны по таймеру
-    if (this.status === 'prep' && this.now >= this.prepUntil) this.startWave();
+    if (!this.coop && this.status === 'prep' && this.now >= this.prepUntil) this.startWave();
 
     // автоматическое заполнение: раз в 2 секунды все пустые клетки
     // заполняются новыми случайными шариками (поле всегда на месте)
@@ -1194,6 +1219,7 @@ export class Engine {
     for (const e of leakedNow) {
       e.dead = true;
       this.lives -= e.leakDmg;
+      this.leakDamage += e.leakDmg;
       this.leaked++;
       const pos = pathPoint(LEAK_AT);
       this.spark(pos.x, pos.y, '#ef4444', 12, 150);
@@ -1239,7 +1265,7 @@ export class Engine {
       if (bossWave) {
         // рулетка: выбираем босса следующей волны ещё в подготовке,
         // чтобы у игрока было время на подготовку
-        this.pendingBossId = BOSS_IDS[Math.floor(Math.random() * BOSS_IDS.length)];
+        this.pendingBossId = this.coop ? bossForWave(this.wave) : BOSS_IDS[Math.floor(Math.random() * BOSS_IDS.length)];
         this.prepUntil = this.now + CONFIG.bossPrepTime;
         this.setBanner(`Скоро босс: ${BOSS_DEFS[this.pendingBossId as BossId].name}`, 3);
       } else {

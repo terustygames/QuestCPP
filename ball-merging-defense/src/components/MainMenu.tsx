@@ -3,7 +3,7 @@
 // как «Магазин»). Центр экрана свободен.
 import { useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { Backpack, Menu, Sparkles, Store, Swords } from 'lucide-react';
+import { Backpack, Menu, Sparkles, Store, Swords, Users } from 'lucide-react';
 import { AccountDrawer, type AccountView } from './AccountDrawer';
 import { META_CFG, deckReady, type MetaState } from '../game/meta';
 import { CurrencyChips } from './common';
@@ -74,6 +74,7 @@ export function MainMenu({
   onPlay,
   onShop,
   onInventory,
+  onCoop,
   account,
   authNotice,
   onCreateAccount,
@@ -84,6 +85,7 @@ export function MainMenu({
   onPlay: () => void;
   onShop: () => void;
   onInventory: () => void;
+  onCoop: () => void;
   account: AccountView;
   authNotice: string | null;
   onCreateAccount: (login: string, password: string) => Promise<void>;
@@ -174,6 +176,15 @@ export function MainMenu({
           </TileButton>
           <TileButton label="Играть" disabled={!ready} onClick={onPlay}>
             <Swords size={34} className="text-amber-300" />
+          </TileButton>
+          <TileButton
+            label="Вдвоём"
+            sub={account.status === 'in' ? undefined : 'нужен вход'}
+            subTone="white"
+            disabled={!ready || account.status !== 'in'}
+            onClick={onCoop}
+          >
+            <Users size={32} className="text-emerald-300" />
           </TileButton>
         </div>
       </div>

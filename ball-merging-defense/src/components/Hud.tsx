@@ -283,10 +283,12 @@ export function Controls({
   g,
   onToggleMode,
   onCallWave,
+  coop = false,
 }: {
   g: Engine;
   onToggleMode: () => void;
   onCallWave: () => void;
+  coop?: boolean; // в кооперативе волну запускает готовность обоих, кнопки нет
 }) {
   const accum = g.mode === 'accumulate';
   return (
@@ -322,7 +324,7 @@ export function Controls({
         </button>
       )}
 
-      {g.status === 'prep' && (
+      {g.status === 'prep' && !coop && (
         <button
           onClick={onCallWave}
           className="flex min-h-[54px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-2xl border border-amber-400/50 bg-amber-500/15 px-1.5 text-[13px] font-bold text-amber-300 transition-all active:scale-[0.96] sm:text-[15px]"

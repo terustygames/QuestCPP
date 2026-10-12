@@ -241,6 +241,11 @@ export const BOSS_DEFS: Record<BossId, BossDef> = {
   },
 };
 export const BOSS_IDS: BossId[] = [1, 2];
+// Босс волны в кооперативе: одинаковый у обоих игроков (без рулетки и случайности)
+export function bossForWave(wave: number): BossId {
+  const k = Math.max(0, Math.floor(wave / 5) - 1); // 5 — CONFIG.bossEvery
+  return BOSS_IDS[k % BOSS_IDS.length];
+}
 // Код в плане спавна для заряжающегося моба (0 — обычный, 1/2 — боссы)
 export const CHARGER_KIND = 3;
 

@@ -39,8 +39,11 @@ import { BossRoulette } from './components/BossRoulette';
 import { MainMenu } from './components/MainMenu';
 import { Shop } from './components/Shop';
 import { Inventory } from './components/Inventory';
+import { CoopLobby } from './components/CoopLobby';
+import { CoopSession } from './services/coopSession';
+import { deckReady } from './game/meta';
 
-type Screen = 'menu' | 'shop' | 'inventory' | 'game';
+type Screen = 'menu' | 'shop' | 'inventory' | 'coop' | 'game';
 
 // Состояние аккаунта: гость (по умолчанию), проверка облака, вошедший игрок
 type Account = { status: 'guest' | 'checking' | 'in'; login: string; uid: string };
@@ -97,6 +100,12 @@ export default function App() {
   const engRef = useRef<Engine | null>(null);
   if (!engRef.current) engRef.current = newEngine();
   const g = engRef.current;
+  // кооператив: поле напарника (только просмотр) и сессия связи с комнатой
+  const remoteRef = useRef<Engine | null>(null);
+  if (!remoteRef.current) remoteRef.current = new Engine();
+  const remote = remoteRef.current;
+  const coopRef = useRef<CoopSession | null>(null);
+  const [coopOn, setCoopOn] = useState(false);
 
   const [screen, setScreen] = useState<Screen>('menu');
   // Гость играет сразу, без входа: мета хранится на устройстве (orbital.meta.v1).
@@ -194,6 +203,8 @@ export default function App() {
 
   const logout = async () => {
     await flushCloudSave();
+    if (coopRef.current) coopRef.current.stop(true);
+    coopRef.current = null;
     setScreen('menu');
     await signOutPlayer().catch(() => undefined);
   };
@@ -262,6 +273,7 @@ export default function App() {
   // Старт забега: колода и дерево навыков из меню, запасы (бусты) — расходуются
   const startNewRun = () => {
     initAudio();
+    if (coopRef.current) stopCoop(true);
     const prepared = prepareRun(meta);
     updateMeta(() => prepared.meta);
     setSettlement(null);
@@ -274,6 +286,38 @@ export default function App() {
     setDeckInfo(null);
     setScreen('game');
     setFrame((f) => f + 1);
+  };
+
+  // Кооператив: старт забега вдвоём (по коду комнаты, когда хост начал игру)
+  const startCoopRun = (code: string) => {
+    initAudio();
+    coopRef.current?.stop(false);
+    const uid = account.uid;
+    const prepared = prepareRun(meta);
+    updateMeta(() => prepared.meta);
+    setSettlement(null);
+    const game = newEngine();
+    engRef.current = game;
+    game.startGame({ ...prepared.run, coop: true, livesBonus: 0 });
+    const other = new Engine();
+    remoteRef.current = other;
+    const session = new CoopSession(code, uid, game, other);
+    coopRef.current = session;
+    session.start();
+    setCoopOn(true);
+    setPaused(false);
+    setHelpOpen(false);
+    setRouletteWave(0);
+    setDeckInfo(null);
+    setScreen('game');
+    setFrame((f) => f + 1);
+  };
+
+  // Остановить кооперативную сессию (выйти из комнаты или оставить игру)
+  const stopCoop = (leave: boolean) => {
+    coopRef.current?.stop(leave);
+    coopRef.current = null;
+    setCoopOn(false);
   };
 
   const toggleMute = () => {
@@ -306,6 +350,7 @@ export default function App() {
           onPlay={startNewRun}
           onShop={() => setScreen('shop')}
           onInventory={() => setScreen('inventory')}
+          onCoop={() => setScreen('coop')}
           account={account}
           authNotice={authNotice}
           onCreateAccount={createAccount}
@@ -322,6 +367,15 @@ export default function App() {
         <Inventory meta={meta} onUpdate={updateMeta} onBack={() => setScreen('menu')} />
       )}
 
+      {screen === 'coop' && (
+        <CoopLobby
+          account={account}
+          deckReady={deckReady(meta)}
+          onBack={() => setScreen('menu')}
+          onStart={startCoopRun}
+        />
+      )}
+
       {screen === 'game' && (
         <>
           <Header
@@ -335,7 +389,26 @@ export default function App() {
             onHelp={() => setHelpOpen(true)}
           />
 
-          <div className="relative min-h-0 flex-1 px-2 pt-2 sm:px-4">
+          <div className="relative flex min-h-0 flex-1 flex-col gap-1 px-2 pt-2 sm:px-4">
+            {coopOn && (
+              // поле напарника сверху, повёрнуто на 180°, только просмотр
+              <div className="relative min-h-0 flex-1">
+                <div className="absolute inset-0" style={{ transform: 'rotate(180deg)' }}>
+                  <GameStage
+                    g={remote}
+                    readOnly
+                    paused={false}
+                    speed={1}
+                    helpOpen={false}
+                    onCellTap={() => undefined}
+                    onEmptyTap={() => undefined}
+                    onDragPair={() => undefined}
+                    onChainFire={() => undefined}
+                  />
+                </div>
+              </div>
+            )}
+            <div className="relative min-h-0 flex-1">
             <GameStage
               g={g}
               paused={paused}
@@ -372,7 +445,9 @@ export default function App() {
                     </button>
                     <button
                       onClick={() => {
-                        g.surrender();
+                        // в кооперативе сдаются оба: общие жизни в ноль
+                        if (coopRef.current) coopRef.current.endForBoth();
+                        else g.surrender();
                         setPaused(false);
                       }}
                       className="min-h-[48px] rounded-xl border border-white/15 bg-white/[0.05] px-4 text-[14px] font-bold text-slate-200 transition active:scale-[0.98]"
@@ -386,12 +461,14 @@ export default function App() {
                 </div>
               </div>
             )}
+            </div>
           </div>
 
           {playing && (
             <>
               <Controls
                 g={g}
+                coop={coopOn}
                 onToggleMode={() => {
                   initAudio();
                   g.toggleMode();
@@ -412,6 +489,7 @@ export default function App() {
 
           {/* рулетка: перед каждой босс-волной (каждая пятая) в подготовке */}
           {g.status === 'prep' &&
+            !coopOn &&
             g.wave % CONFIG.bossEvery === 0 &&
             g.pendingBossId > 0 &&
             rouletteWave !== g.wave && (
@@ -438,8 +516,16 @@ export default function App() {
             <GameOverOverlay
                 g={g}
                 settlement={settlement}
-                onRestart={startNewRun}
-                onMenu={() => setScreen('menu')}
+                onRestart={() => {
+                  if (coopOn) {
+                    stopCoop(true);
+                    setScreen('coop');
+                  } else startNewRun();
+                }}
+                onMenu={() => {
+                  stopCoop(true);
+                  setScreen('menu');
+                }}
               />
           )}
         </>

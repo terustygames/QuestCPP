@@ -238,6 +238,8 @@ function roundedRect(x: CanvasRenderingContext2D, px: number, py: number, w: num
 }
 
 function buildStaticLayer(w: number, h: number) {
+  // одинаковый размер — слой уже готов (два поля кооператива делят его)
+  if (staticLayer && staticW === w && staticH === h) return;
   staticLayer = document.createElement('canvas');
   staticLayer.width = w;
   staticLayer.height = h;
@@ -866,7 +868,13 @@ function drawScene(
   // --- компактный статус (без лишних надписей) ---
   if (g.status === 'prep') {
     const secs = Math.max(0, Math.ceil(g.prepUntil - g.now));
-    drawChip(x, STAGE_W / 2, 44, `До волны ${g.wave}: ${secs} с`, '#fcd34d');
+    drawChip(
+      x,
+      STAGE_W / 2,
+      44,
+      g.coop ? `Подготовка к волне ${g.wave}` : `До волны ${g.wave}: ${secs} с`,
+      '#fcd34d',
+    );
     const bossName = g.nextWaveBoss && g.pendingBossId ? BOSS_DEFS[g.pendingBossId as BossId].name : '';
     drawChip(
       x,
@@ -916,6 +924,7 @@ export function GameStage({
   onEmptyTap,
   onDragPair,
   onChainFire,
+  readOnly = false,
 }: {
   g: Engine;
   paused: boolean;
@@ -925,6 +934,8 @@ export function GameStage({
   onEmptyTap: (i: number) => void;
   onDragPair: (a: number, b: number) => void;
   onChainFire: (cells: number[]) => void;
+  // только просмотр (поле напарника в кооперативе): без ввода, время идёт по снимкам
+  readOnly?: boolean;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -972,7 +983,11 @@ export function GameStage({
       const dt = Math.min(0.05, (t - last) / 1000);
       last = t;
       const active = g.status === 'prep' || g.status === 'wave';
-      if (active && !pausedRef.current && !helpRef.current) g.step(dt * speedRef.current);
+      if (readOnly) {
+        if (active) g.extrapolate(dt);
+      } else if (active && !pausedRef.current && !helpRef.current) {
+        g.step(dt * speedRef.current);
+      }
 
       // эффекты ввода (подсветки под пальцем)
       const gs = gesture.current;
@@ -1145,11 +1160,11 @@ export function GameStage({
       <canvas
         ref={canvas}
         className="block select-none rounded-3xl border border-white/10"
-        style={{ touchAction: 'none', cursor: 'pointer' }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={(e) => finish(e, true)}
-        onPointerCancel={(e) => finish(e, false)}
+        style={{ touchAction: 'none', cursor: readOnly ? 'default' : 'pointer' }}
+        onPointerDown={readOnly ? undefined : onPointerDown}
+        onPointerMove={readOnly ? undefined : onPointerMove}
+        onPointerUp={readOnly ? undefined : (e) => finish(e, true)}
+        onPointerCancel={readOnly ? undefined : (e) => finish(e, false)}
         // ПКМ на поле ничего не делает (продажи и удаления шариков нет)
         onContextMenu={(e) => e.preventDefault()}
       />
