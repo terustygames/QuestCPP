@@ -33,7 +33,7 @@ import {
 } from './firebase';
 import { createCloudProfile, flushCloudSave, loadCloudMeta, scheduleCloudSave } from './services/playProfile';
 import { GameStage } from './components/GameStage';
-import { Header, Controls, DeckBar, DeckInfoPopup } from './components/Hud';
+import { Header, Controls, DeckBar, DeckInfoPopup, RemoteDeck } from './components/Hud';
 import { HelpOverlay, GameOverOverlay } from './components/Overlays';
 import { BossRoulette } from './components/BossRoulette';
 import { MainMenu } from './components/MainMenu';
@@ -507,13 +507,10 @@ export default function App() {
           />
 
           <div className="relative flex min-h-0 flex-1 flex-col gap-1 px-2 pt-2 sm:px-4">
+            {/* кооператив: над полем напарника — его ник и колода с уровнями (только просмотр) */}
+            {coopOn && <RemoteDeck g={remote} login={remoteLogin} />}
             <div className="relative min-h-0 flex-1">
             {/* кооператив: сверху поле напарника (только просмотр), снизу моё; линии сходятся */}
-            {coopOn && (
-              <div className="pointer-events-none absolute left-2 top-1 z-10 rounded-lg bg-black/50 px-2 py-0.5 text-[12px] font-bold text-slate-100">
-                Напарник: {remoteLogin || '…'}
-              </div>
-            )}
             {coopOn && remoteLeft && (
               <div className="pointer-events-none absolute left-1/2 top-[25%] z-10 -translate-x-1/2 -translate-y-1/2">
                 <div className="whitespace-nowrap rounded-xl border border-white/15 bg-slate-950/85 px-4 py-2 text-[14px] font-bold text-slate-200">

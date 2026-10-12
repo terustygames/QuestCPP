@@ -75,8 +75,8 @@ export type ModKey =
 
 export type TypeMods = Partial<Record<ModKey, number>>;
 
-// Тиры: ряд 1 — 40 монет, ряд 2 — 80, ряд 3 — 150; авто-узел — 60.
-export const TIER_COINS: Record<1 | 2 | 3 | 0, number> = { 0: 60, 1: 40, 2: 80, 3: 150 };
+// Цена узла в монетах (общая): не меньше 1000. Ряд 1 и авто-узел — 1000, ряд 2 — 2000, ряд 3 — 3000.
+export const TIER_COINS: Record<1 | 2 | 3 | 0, number> = { 0: 1000, 1: 1000, 2: 2000, 3: 3000 };
 
 export type NodeKey = 'auto' | 'a' | 'b' | 'a1' | 'a2' | 'b1' | 'b2' | 'a1x' | 'a2x' | 'b1x' | 'b2x';
 

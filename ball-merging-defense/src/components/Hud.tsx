@@ -201,6 +201,46 @@ export function DeckBar({
   );
 }
 
+// Колода напарника в кооперативе: те же шесть шариков и уровни, что у меня внизу,
+// но только для просмотра. Стоит над его полем, рядом с ником.
+export function RemoteDeck({ g, login }: { g: Engine; login: string }) {
+  const deck: OrbType[] = g.deck.length ? g.deck : [];
+  return (
+    <div className="flex items-center gap-1.5 px-1" data-remote-deck>
+      <span className="mr-0.5 max-w-[40%] truncate text-[12px] font-bold text-slate-100" title={login}>
+        {login || 'Напарник'}
+      </span>
+      <div className="flex items-center gap-1">
+        {deck.map((t) => {
+          const lvl = g.typeLevels[t];
+          return (
+            <div
+              key={t}
+              data-remote-slot
+              data-type={t}
+              title={`${TYPE_INFO[t].name}: уровень ${lvl}`}
+              className={`relative flex h-8 w-8 items-center justify-center rounded-lg border ${
+                lvl > 1 ? 'border-amber-400/40 bg-white/[0.06]' : 'border-white/10 bg-white/[0.04]'
+              }`}
+            >
+              <img src={orbSpriteUrl(t)} alt={TYPE_INFO[t].name} draggable={false} className="h-6 w-6 select-none" />
+              <span
+                className={`absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded px-0.5 text-[10px] font-extrabold tabular-nums ${
+                  lvl > 1
+                    ? 'border border-amber-400/50 bg-amber-500/20 text-amber-200'
+                    : 'border border-white/15 bg-slate-950 text-slate-400'
+                }`}
+              >
+                {lvl}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // Панель характеристик типа (показывается по зажиму шарика в колоде):
 // текущие значения и что вырастет при следующем улучшении.
 export function DeckInfoPopup({

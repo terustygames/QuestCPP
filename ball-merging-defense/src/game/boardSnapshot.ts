@@ -17,6 +17,7 @@ export interface BoardSnapshot {
   essence: number;
   pendingBossId: number;
   typeLevels: Record<string, number>;
+  deck?: OrbType[]; // колода игрока: шесть типов шариков (показывается напарнику)
   grid: (OrbState | 0)[];
   enemies: EnemyState[];
   puddles: Puddle[];
@@ -37,6 +38,7 @@ export function snapshotOf(g: Engine): BoardSnapshot {
     essence: r1(g.essence),
     pendingBossId: g.pendingBossId,
     typeLevels: { ...g.typeLevels },
+    deck: [...g.deck],
     grid: g.grid.map((o) => (o ? { ...o, cdUntil: r1(o.cdUntil), cdLen: r1(o.cdLen), bornAt: r1(o.bornAt), pulse: r1(o.pulse) } : 0)),
     enemies: g.enemies
       .filter((e) => !e.dead)
@@ -100,6 +102,7 @@ export function applySnapshot(g: Engine, s: BoardSnapshot): void {
   g.essence = s.essence;
   g.pendingBossId = s.pendingBossId ?? 0;
   g.typeLevels = { ...g.typeLevels, ...(s.typeLevels ?? {}) } as Record<OrbType, number>;
+  if (Array.isArray(s.deck)) g.deck = s.deck.slice(0, 6);
 
   const cells = Array.from({ length: COLS * ROWS }, (_, i) => {
     const o = s.grid?.[i];
