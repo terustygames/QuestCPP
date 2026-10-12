@@ -177,12 +177,12 @@ export function MainMenu({
           <TileButton label="Играть" disabled={!ready} onClick={onPlay}>
             <Swords size={34} className="text-amber-300" />
           </TileButton>
+          {/* гость: нажатие сразу открывает вход в аккаунт (без входа вдвоём не играют) */}
           <TileButton
             label="Вдвоём"
-            sub={account.status === 'in' ? undefined : 'нужен вход'}
-            subTone="white"
-            disabled={!ready || account.status !== 'in'}
-            onClick={onCoop}
+            sub={account.status === 'in' ? 'по сети' : 'войти'}
+            subTone={account.status === 'in' ? 'white' : 'amber'}
+            onClick={account.status === 'in' ? onCoop : () => setAccountOpen(true)}
           >
             <Users size={32} className="text-emerald-300" />
           </TileButton>
