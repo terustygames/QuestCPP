@@ -4,9 +4,21 @@
 //   rooms/{code}/lives          — общие жизни (число)
 //   rooms/{code}/ready/{uid}    — номер волны, к которой игрок готов
 //   rooms/{code}/boards/{uid}   — снимок поля (JSON-строка, см. game/boardSnapshot.ts)
+//   rooms/{code}/inbox/{uid}    — очередь сообщений игроку (попадания по его врагам, награды); читает и удаляет сам игрок
 // Отдельные узлы нужны, чтобы доски не приходили вместе с лобби и не тянули лишний трафик.
 // Правила доступа — в консоли Firebase (раздел про Realtime Database в CONTEXT.md).
-import { get, onValue, ref, remove, runTransaction, set, update, type DatabaseReference } from 'firebase/database';
+import {
+  get,
+  onChildAdded,
+  onValue,
+  push,
+  ref,
+  remove,
+  runTransaction,
+  set,
+  update,
+  type DatabaseReference,
+} from 'firebase/database';
 import { auth, rtdb } from '../firebase';
 import { CONFIG } from '../game/config';
 
@@ -122,6 +134,21 @@ export function setReady(code: string, uid: string, wave: number): Promise<void>
 
 export function publishBoard(code: string, uid: string, json: string): Promise<void> {
   return set(roomRef(code, `boards/${uid}`), json);
+}
+
+// Очередь сообщений напарнику: попадания по его врагам и награды за убийства
+export async function sendInbox(code: string, toUid: string, payload: string): Promise<void> {
+  await push(roomRef(code, `inbox/${toUid}`), payload);
+}
+
+// Чтение своей очереди: каждое сообщение отдаётся один раз и сразу удаляется
+export function watchInbox(code: string, uid: string, cb: (payload: string) => void): () => void {
+  const r = roomRef(code, `inbox/${uid}`);
+  return onChildAdded(r, (snap) => {
+    const v = snap.val();
+    remove(snap.ref).catch(() => undefined);
+    if (typeof v === 'string') cb(v);
+  });
 }
 
 // Отметка «вышел из матча» (напарник увидит серое поле)

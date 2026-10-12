@@ -16,8 +16,7 @@ import {
   CELL,
   COLS,
   ROWS,
-  TRACK_VARIANTS,
-  type TrackSide,
+  TRACK_PTS,
   PERIMETER,
   LEAK_AT,
   BOSS_DEFS,
@@ -225,16 +224,46 @@ export function orbSpriteUrl(type: OrbType): string {
   return u;
 }
 
-// Фон (фон + сетка + трасса) рисуется в отдельный слой один раз,
-// на каждый кадр его просто копируем.
-// Кэш слоёв по варианту трассы и размеру холста (поле игрока и поле напарника могут различаться)
+// ---------- Виды (как поле ложится на холст) ----------
+// Холст в кооперативе: 640 × 1240. Сверху — поле напарника (зеркально по вертикали),
+// снизу — моё поле. Линии трассы обоих полей сходятся на общей линии посередине.
+interface View {
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  e: number;
+  f: number;
+}
+// одиночная игра: поле на весь холст
+const VIEW_SOLO: View = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+// кооператив: своё поле внизу (без поворота)
+const VIEW_OWN: View = { a: 1, b: 0, c: 0, d: 1, e: 0, f: STAGE_H };
+// кооператив: поле напарника вверху, зеркально по вертикали (его спавн слева вверху)
+const VIEW_REMOTE: View = { a: 1, b: 0, c: 0, d: -1, e: 0, f: STAGE_H };
+
+// Текущий вид и масштаб: подписи (uText) рисуются прямо, независимо от зеркала
+let CUR_VIEW: View = VIEW_SOLO;
+let CUR_K = 1;
+
+function setView(x: CanvasRenderingContext2D, v: View) {
+  const k = x.canvas.width / STAGE_W;
+  CUR_VIEW = v;
+  CUR_K = k;
+  x.setTransform(k * v.a, k * v.b, k * v.c, k * v.d, k * v.e, k * v.f);
+}
+
+// ---------- Статический слой: фон полей и трасса (рисуется один раз на размер) ----------
+// Поля стыкуются без рамок и зазоров, поэтому общая линия видна целиком.
+// Сначала все фоны, потом внешняя кромка всех трасс, потом светлые линии трасс:
+// так кромка одного поля не перекрывает линию другого.
 const staticLayers = new Map<string, HTMLCanvasElement>();
-function getStaticLayer(w: number, h: number, side: TrackSide): HTMLCanvasElement {
-  const key = `${side}:${w}x${h}`;
+function getStaticLayer(w: number, h: number, mode: 'solo' | 'coop'): HTMLCanvasElement {
+  const key = `${mode}:${w}x${h}`;
   let layer = staticLayers.get(key);
   if (!layer) {
-    if (staticLayers.size > 8) staticLayers.clear();
-    layer = buildStaticLayer(w, h, side);
+    if (staticLayers.size > 6) staticLayers.clear();
+    layer = buildStaticLayer(w, h, mode);
     staticLayers.set(key, layer);
   }
   return layer;
@@ -245,57 +274,63 @@ function roundedRect(x: CanvasRenderingContext2D, px: number, py: number, w: num
   x.roundRect(px, py, w, h, r);
 }
 
-function buildStaticLayer(w: number, h: number, side: TrackSide): HTMLCanvasElement {
+function buildStaticLayer(w: number, h: number, mode: 'solo' | 'coop'): HTMLCanvasElement {
   const layerCanvas = document.createElement('canvas');
   layerCanvas.width = w;
   layerCanvas.height = h;
   const x = layerCanvas.getContext('2d')!;
-  const s = w / STAGE_W;
-  x.setTransform(s, 0, 0, s, 0, 0);
+  const k = w / STAGE_W;
+  const views = mode === 'coop' ? [VIEW_OWN, VIEW_REMOTE] : [VIEW_SOLO];
+  const apply = (v: View) => x.setTransform(k * v.a, k * v.b, k * v.c, k * v.d, k * v.e, k * v.f);
 
-  // плоский фон (без градиентов, сетки и виньетки)
+  // плоский фон каждого поля
   x.fillStyle = '#161b2c';
-  x.fillRect(0, 0, STAGE_W, STAGE_H);
+  for (const v of views) {
+    apply(v);
+    x.fillRect(0, 0, STAGE_W, STAGE_H);
+  }
 
-  // ТРАССА — плоская дорожка: два цвета, без свечения
-  const trackPath = () => {
-    x.beginPath();
-    TRACK_VARIANTS[side].forEach((pt, i) => (i === 0 ? x.moveTo(pt.x, pt.y) : x.lineTo(pt.x, pt.y)));
+  // трасса: сначала внешняя тёмная кромка у всех полей, потом светлая линия
+  const track = (lineWidth: number, color: string) => {
+    for (const v of views) {
+      apply(v);
+      x.beginPath();
+      TRACK_PTS.forEach((pt, i) => (i === 0 ? x.moveTo(pt.x, pt.y) : x.lineTo(pt.x, pt.y)));
+      x.strokeStyle = color;
+      x.lineWidth = lineWidth;
+      x.lineJoin = 'round';
+      x.stroke();
+    }
   };
-  trackPath();
-  x.strokeStyle = '#10141f';
-  x.lineWidth = 32;
-  x.lineJoin = 'round';
-  x.stroke();
-  trackPath();
-  x.strokeStyle = '#232a40';
-  x.lineWidth = 26;
-  x.stroke();
+  track(32, '#10141f');
+  track(26, '#232a40');
+  x.setTransform(1, 0, 0, 1, 0, 0);
   return layerCanvas;
 }
 
 // ---------- Вспомогательные функции рисования ----------
 
-// Поле напарника рисуется перевёрнутым на 180°. Подписи внутри поля рисуются
-// с обратным поворотом, чтобы текст читался прямо. FLIP выставляет drawScene.
-let FLIP = false;
+// Подпись: рисуется в экранных координатах, поэтому не зеркалится вместе с полем напарника.
 function uText(x: CanvasRenderingContext2D, mode: 'fill' | 'stroke', text: string, px: number, py: number) {
+  const v = CUR_VIEW;
+  const wx = v.a * px + v.c * py + v.e;
+  const wy = v.b * px + v.d * py + v.f;
   x.save();
-  x.translate(px, py);
-  if (FLIP) x.rotate(Math.PI);
+  x.setTransform(CUR_K, 0, 0, CUR_K, 0, 0);
+  x.translate(wx, wy);
   if (mode === 'fill') x.fillText(text, 0, 0);
   else x.strokeText(text, 0, 0);
   x.restore();
 }
 
-function drawChevrons(x: CanvasRenderingContext2D, vnow: number, side: TrackSide) {
+function drawChevrons(x: CanvasRenderingContext2D, vnow: number) {
   // Бегущие стрелки направления — единственная анимация трассы
   const n = 8;
   const step = PERIMETER / n;
   const off = (vnow * 26) % step;
   x.fillStyle = 'rgba(148,180,255,0.30)';
   for (let i = 0; i < n; i++) {
-    const p = pathPoint((i * step + off) % PERIMETER, side);
+    const p = pathPoint((i * step + off) % PERIMETER);
     const a = Math.atan2(p.ty, p.tx);
     x.save();
     x.translate(p.x, p.y);
@@ -371,36 +406,27 @@ export interface StageFx {
 }
 
 // ---------- Главный рендер кадра ----------
+// Рисует одно поле. view — как поле ложится на холст.
+// opts.interactive — подсветки под пальцем и выбор (только у моего поля);
+// opts.chrome — подписи статуса и баннер (только у моего поля).
 function drawScene(
   x: CanvasRenderingContext2D,
   g: Engine,
   vnow: number,
-  fx: StageFx | null,
-  flip = false,
+  fx0: StageFx | null,
+  view: View,
+  opts: { interactive: boolean; chrome: boolean },
 ) {
-  FLIP = flip;
-  const W = x.canvas.width;
-  const H = x.canvas.height;
-  const side = g.trackSide;
-  const sx = W / STAGE_W;
-  const sy = H / STAGE_H;
-  // поле: обычное или перевёрнутое на 180° (поле напарника)
-  const board = () => (flip ? x.setTransform(-sx, 0, 0, -sy, W, H) : x.setTransform(sx, 0, 0, sy, 0, 0));
-  board();
-
-  // фон + сетка + трасса (слой кэшируется; у поля напарника он переворачивается)
-  x.setTransform(flip ? -1 : 1, 0, 0, flip ? -1 : 1, flip ? W : 0, flip ? H : 0);
-  x.drawImage(getStaticLayer(W, H, side), 0, 0);
-  board();
-
-  const spawnP = pathPoint(0, side);
-  const exitP = pathPoint(LEAK_AT, side);
-  drawChevrons(x, vnow, side);
+  setView(x, view);
+  const fx = opts.interactive ? fx0 : null;
+  const spawnP = pathPoint(0);
+  const exitP = pathPoint(LEAK_AT);
+  drawChevrons(x, vnow);
   drawBeacon(x, spawnP.x, spawnP.y, '#22c55e', vnow, 0);
   drawBeacon(x, exitP.x, exitP.y, '#ef4444', vnow, 1.7);
 
   const active = g.status === 'prep' || g.status === 'wave';
-  const sel = g.sel;
+  const sel = opts.interactive ? g.sel : null;
 
   // --- клетки ---
   for (let i = 0; i < g.grid.length; i++) {
@@ -623,7 +649,7 @@ function drawScene(
       // полоса не уходит в начало трассы: pathPoint по кольцу иначе нарисует её с другой стороны
       const from = Math.max(-pd.radius, -pd.p);
       for (let s = from; s <= pd.radius; s += 4) {
-        const q = pathPoint(pd.p + s, g.trackSide);
+        const q = pathPoint(pd.p + s);
         if (s === from) x.moveTo(q.x, q.y);
         else x.lineTo(q.x, q.y);
       }
@@ -633,7 +659,7 @@ function drawScene(
 
   // --- враги ---
   for (const e of g.enemies) {
-    const pos = pathPoint(e.p, g.trackSide);
+    const pos = g.at(e);
     const wob = Math.sin(e.id * 1.7 + e.p * 0.02) * 5;
     const ex = pos.x - pos.ty * wob;
     const ey = pos.y + pos.tx * wob;
@@ -887,9 +913,8 @@ function drawScene(
     x.fillRect(0, 0, STAGE_W, STAGE_H);
   }
 
-  // --- статус и баннер: всегда прямо, поверх поля (без переворота) ---
-  FLIP = false;
-  x.setTransform(sx, 0, 0, sy, 0, 0);
+  // --- статус и баннер: только у моего поля ---
+  if (!opts.chrome) return;
   // --- компактный статус (без лишних надписей) ---
   if (g.status === 'prep') {
     const secs = Math.max(0, Math.ceil(g.prepUntil - g.now));
@@ -949,7 +974,7 @@ export function GameStage({
   onEmptyTap,
   onDragPair,
   onChainFire,
-  readOnly = false,
+  remote = null,
   frozen = false,
 }: {
   g: Engine;
@@ -960,9 +985,9 @@ export function GameStage({
   onEmptyTap: (i: number) => void;
   onDragPair: (a: number, b: number) => void;
   onChainFire: (cells: number[]) => void;
-  // только просмотр (поле напарника в кооперативе): без ввода, время идёт по снимкам
-  readOnly?: boolean;
-  // поле замерло (игрок вышел из матча): без движения врагов
+  // кооператив: поле напарника (вверху, только просмотр)
+  remote?: Engine | null;
+  // поле напарника замерло (игрок вышел из матча)
   frozen?: boolean;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
@@ -980,6 +1005,10 @@ export function GameStage({
   speedRef.current = speed;
   helpRef.current = helpOpen;
 
+  // поле напарника: ссылка для цикла (актуальна в каждом кадре)
+  const remoteRef = useRef<Engine | null>(remote);
+  remoteRef.current = remote;
+
   // Игровой цикл + отрисовка (вне React)
   useEffect(() => {
     const el = wrap.current;
@@ -987,44 +1016,63 @@ export function GameStage({
     if (!el || !cv) return;
     const ctx = cv.getContext('2d');
     if (!ctx) return;
+    // поле напарника рисуется в свой холст 640×620 (dpr 1), обновляется 30 раз в секунду
+    const remoteCanvas = document.createElement('canvas');
+    remoteCanvas.width = STAGE_W;
+    remoteCanvas.height = STAGE_H;
+    const rctx = remoteCanvas.getContext('2d');
 
     const dpr = () => Math.min(2, window.devicePixelRatio || 1);
+    let mode: 'solo' | 'coop' = 'solo';
     const fit = () => {
       const cw = el.clientWidth;
       const ch = el.clientHeight;
       if (cw < 10 || ch < 10) return;
-      const s = Math.min(cw / STAGE_W, ch / STAGE_H);
+      const worldH = mode === 'coop' ? 2 * STAGE_H : STAGE_H;
+      const s = Math.min(cw / STAGE_W, ch / worldH);
       const w = Math.max(1, Math.floor(STAGE_W * s));
-      const h = Math.max(1, Math.floor(STAGE_H * s));
-      const d = readOnly ? 1 : dpr();
+      const h = Math.max(1, Math.floor(worldH * s));
+      const d = dpr();
       cv.style.width = `${w}px`;
       cv.style.height = `${h}px`;
       cv.width = Math.round(w * d);
       cv.height = Math.round(h * d);
     };
     fit();
-    const ro = new ResizeObserver(fit);
+    const ro = new ResizeObserver(() => fit());
     ro.observe(el);
 
     let raf = 0;
     let last = performance.now();
-    let lastDraw = 0;
+    let lastRemote = -1000;
     const loop = (t: number) => {
       const dt = Math.min(0.05, (t - last) / 1000);
       last = t;
-      // поле напарника: рисуем не чаще 30 кадров/с (экономия батареи и отклика)
-      if (readOnly && t - lastDraw < 33) {
-        const live = g.status === 'prep' || g.status === 'wave';
-        if (live && !frozenRef.current) g.extrapolate(dt);
-        raf = requestAnimationFrame(loop);
-        return;
+      const rem = remoteRef.current;
+      const want: 'solo' | 'coop' = rem ? 'coop' : 'solo';
+      if (want !== mode) {
+        mode = want;
+        fit(); // поле напарника появилось или ушло
       }
-      lastDraw = t;
+      // своё поле: шаг игры
       const active = g.status === 'prep' || g.status === 'wave';
-      if (readOnly) {
-        if (active && !frozenRef.current) g.extrapolate(dt);
-      } else if (active && !pausedRef.current && !helpRef.current) {
-        g.step(dt * speedRef.current);
+      if (active && !pausedRef.current && !helpRef.current) g.step(dt * speedRef.current);
+
+      // поле напарника: время идёт по снимкам; перерисовка не чаще 30 раз в секунду
+      if (rem) {
+        const remLive = rem.status === 'prep' || rem.status === 'wave';
+        if (remLive && !frozenRef.current) rem.extrapolate(dt);
+        if (rctx && t - lastRemote >= 33) {
+          lastRemote = t;
+          rctx.setTransform(1, 0, 0, 1, 0, 0);
+          rctx.clearRect(0, 0, STAGE_W, STAGE_H);
+          drawScene(rctx, rem, t / 1000, null, VIEW_REMOTE, { interactive: false, chrome: false });
+          if (frozenRef.current) {
+            rctx.setTransform(1, 0, 0, 1, 0, 0);
+            rctx.fillStyle = 'rgba(71,85,105,0.55)';
+            rctx.fillRect(0, 0, STAGE_W, STAGE_H);
+          }
+        }
       }
 
       // эффекты ввода (подсветки под пальцем)
@@ -1059,8 +1107,15 @@ export function GameStage({
         fxRef.current = null;
       }
 
+      // кадр: статический слой, поле напарника (сверху), моё поле (снизу)
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, cv.width, cv.height);
-      drawScene(ctx, g, t / 1000, fxRef.current, readOnly);
+      ctx.drawImage(getStaticLayer(cv.width, cv.height, mode), 0, 0);
+      if (rem) ctx.drawImage(remoteCanvas, 0, 0, cv.width, cv.height / 2);
+      drawScene(ctx, g, t / 1000, fxRef.current, mode === 'coop' ? VIEW_OWN : VIEW_SOLO, {
+        interactive: true,
+        chrome: true,
+      });
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -1071,12 +1126,17 @@ export function GameStage({
   }, [g]);
 
   // --- преобразование координат (pointer и mouse события) ---
+  // В кооперативе холст 640×1240: сверху поле напарника, снизу моё. Касания — только по моему
+  // полю: координаты переводятся в систему моего поля (его верхний край = 0).
   const toStage = (e: { clientX: number; clientY: number }) => {
     const cv = canvas.current!;
     const r = cv.getBoundingClientRect();
+    const rem = remoteRef.current;
+    const worldH = rem ? 2 * STAGE_H : STAGE_H;
+    const wy = ((e.clientY - r.top) / r.height) * worldH;
     return {
       x: ((e.clientX - r.left) / r.width) * STAGE_W,
-      y: ((e.clientY - r.top) / r.height) * STAGE_H,
+      y: wy - (rem ? STAGE_H : 0),
     };
   };
 
@@ -1198,11 +1258,11 @@ export function GameStage({
       <canvas
         ref={canvas}
         className="block select-none rounded-3xl border border-white/10"
-        style={{ touchAction: 'none', cursor: readOnly ? 'default' : 'pointer' }}
-        onPointerDown={readOnly ? undefined : onPointerDown}
-        onPointerMove={readOnly ? undefined : onPointerMove}
-        onPointerUp={readOnly ? undefined : (e) => finish(e, true)}
-        onPointerCancel={readOnly ? undefined : (e) => finish(e, false)}
+        style={{ touchAction: 'none', cursor: 'pointer' }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={(e) => finish(e, true)}
+        onPointerCancel={(e) => finish(e, false)}
         // ПКМ на поле ничего не делает (продажи и удаления шариков нет)
         onContextMenu={(e) => e.preventDefault()}
       />

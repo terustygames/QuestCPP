@@ -391,7 +391,7 @@ export default function App() {
   };
 
   // Кооператив: старт забега вдвоём (по коду комнаты, когда хост начал игру)
-  const startCoopRun = (code: string, isHost: boolean) => {
+  const startCoopRun = (code: string) => {
     initAudio();
     clearRun();
     const prepared = prepareRun(meta);
@@ -399,8 +399,7 @@ export default function App() {
     setSettlement(null);
     const game = newEngine();
     engRef.current = game;
-    // вариант трассы: хост — слева снизу (A), гость — зеркало (B)
-    game.startGame({ ...prepared.run, coop: true, livesBonus: 0, trackSide: isHost ? 'A' : 'B' });
+    game.startGame({ ...prepared.run, coop: true, livesBonus: 0 });
     attachCoop(code, account.uid, game);
     setPaused(false);
     setHelpOpen(false);
@@ -508,38 +507,24 @@ export default function App() {
           />
 
           <div className="relative flex min-h-0 flex-1 flex-col gap-1 px-2 pt-2 sm:px-4">
+            <div className="relative min-h-0 flex-1">
+            {/* кооператив: сверху поле напарника (только просмотр), снизу моё; линии сходятся */}
             {coopOn && (
-              // поле напарника сверху: повёрнуто на 180° (внутри поля), только просмотр
-              <div className="relative min-h-0 flex-1">
-                <div className={`absolute inset-0 ${remoteLeft ? 'grayscale opacity-60' : ''}`}>
-                  <GameStage
-                    g={remote}
-                    readOnly
-                    frozen={remoteLeft}
-                    paused={false}
-                    speed={1}
-                    helpOpen={false}
-                    onCellTap={() => undefined}
-                    onEmptyTap={() => undefined}
-                    onDragPair={() => undefined}
-                    onChainFire={() => undefined}
-                  />
-                </div>
-                <div className="pointer-events-none absolute left-2 top-1 z-10 rounded-lg bg-black/50 px-2 py-0.5 text-[12px] font-bold text-slate-100">
-                  Напарник: {remoteLogin || '…'}
-                </div>
-                {remoteLeft && (
-                  <div className="absolute inset-0 z-20 flex items-center justify-center">
-                    <div className="rounded-xl border border-white/15 bg-slate-950/85 px-4 py-2 text-[14px] font-bold text-slate-200">
-                      {remoteLogin || 'Напарник'} вышел из матча
-                    </div>
-                  </div>
-                )}
+              <div className="pointer-events-none absolute left-2 top-1 z-10 rounded-lg bg-black/50 px-2 py-0.5 text-[12px] font-bold text-slate-100">
+                Напарник: {remoteLogin || '…'}
               </div>
             )}
-            <div className="relative min-h-0 flex-1">
+            {coopOn && remoteLeft && (
+              <div className="pointer-events-none absolute left-1/2 top-[25%] z-10 -translate-x-1/2 -translate-y-1/2">
+                <div className="whitespace-nowrap rounded-xl border border-white/15 bg-slate-950/85 px-4 py-2 text-[14px] font-bold text-slate-200">
+                  {remoteLogin || 'Напарник'} вышел из матча
+                </div>
+              </div>
+            )}
             <GameStage
               g={g}
+              remote={coopOn ? remote : null}
+              frozen={remoteLeft}
               paused={paused}
               speed={speed}
               helpOpen={helpOpen}

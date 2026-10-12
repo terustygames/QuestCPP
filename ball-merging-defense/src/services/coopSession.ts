@@ -1,6 +1,9 @@
 // Сессия кооперативной игры: связывает движок игрока с комнатой в Realtime Database.
 // - своё поле публикуется в rooms/{code}/boards/{uid} примерно 4 раза в секунду;
 // - поле напарника подтягивается из rooms/{code}/boards/{other} в движок remote (только просмотр);
+//   его враги попадают в мой движок как «чужие» (me.setForeign): мои снаряды и иглы бьют и их;
+// - мои попадания по врагам напарника и награды за убийства уходят ему через rooms/{code}/inbox/{other};
+//   входящие сообщения применяются к моим врагам и наградам (me.applyHit, me.creditShared);
 // - волна стартует, когда готовы оба игрока (вышедший не мешает: его не ждём);
 // - жизни общие: утечки уходят дельтой транзакцией, локальный движок берёт общее значение;
 // - выход из матча: флаг rooms/{code}/left/{uid}, поле напарника помечается серым.
@@ -11,8 +14,10 @@ import {
   leakLives,
   leaveRoom,
   publishBoard,
+  sendInbox,
   setLeft,
   setReady,
+  watchInbox,
   watchInfo,
   watchValue,
   type RoomInfo,
@@ -62,13 +67,43 @@ export class CoopSession {
       watchValue(this.code, 'left', (v) => {
         this.left = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
         this.hooks.onRemoteLeft?.(this.remoteLeft());
+        this.syncForeign();
       }),
+      watchInbox(this.code, this.uid, (msg) => this.onInbox(msg)),
     );
     this.timer = setInterval(() => this.tick(), PUBLISH_MS);
   }
 
   private remoteLeft(): boolean {
     return !!this.remoteUid && !!this.left[this.remoteUid];
+  }
+
+  // Враги напарника со снимка — в мой движок (мои снаряды бьют и их). Вышедший не воюет.
+  private syncForeign(): void {
+    this.me.setForeign(this.remoteLeft() ? [] : this.remote.enemies);
+  }
+
+  // Входящие: попадания по моим врагам и награды за убийства напарника
+  private onInbox(msg: string): void {
+    if (this.stopped) return;
+    let data: { h?: [number, number][]; k?: number } | null = null;
+    try {
+      data = JSON.parse(msg);
+    } catch {
+      return;
+    }
+    if (!data) return;
+    for (const [id, d] of data.h ?? []) this.me.applyHit(id, d);
+    if (data.k && data.k > 0) this.me.creditShared(data.k);
+  }
+
+  // Исходящие: мои попадания по врагам напарника и награды за мои убийства
+  private flushOutbox(): void {
+    const me = this.me;
+    const hits = me.takeHits();
+    const kills = me.takeKills();
+    if (!this.remoteUid || this.remoteLeft() || (!hits.length && !kills)) return;
+    sendInbox(this.code, this.remoteUid, JSON.stringify({ h: hits, k: kills })).catch(() => {});
   }
 
   private onInfo(info: RoomInfo | null): void {
@@ -93,7 +128,9 @@ export class CoopSession {
           return;
         }
         const snap = decodeSnapshot(parsed);
-        if (snap) applySnapshot(this.remote, snap);
+        if (!snap) return;
+        applySnapshot(this.remote, snap);
+        this.syncForeign();
       });
       const login = info.players[this.remoteUid]?.login;
       if (login) this.hooks.onRemoteLogin?.(login);
@@ -112,6 +149,9 @@ export class CoopSession {
     if (me.status !== 'title') {
       publishBoard(this.code, this.uid, encodeSnapshot(snapshotOf(me))).catch(() => {});
     }
+
+    // 1б. попадания по врагам напарника и награды — ему в очередь
+    this.flushOutbox();
 
     // 2. готовность к волне
     if (me.status === 'prep' && this.publishedReady !== me.wave) {

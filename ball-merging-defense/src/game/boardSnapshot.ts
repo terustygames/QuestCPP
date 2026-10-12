@@ -6,7 +6,7 @@
 
 import type { Engine, EnemyState, NeedleState, OrbState, ProjState, Puddle, Status, Mode } from './engine';
 import { COLS, ROWS } from './config';
-import type { OrbType, TrackSide } from './config';
+import type { OrbType } from './config';
 
 export interface BoardSnapshot {
   now: number;
@@ -16,7 +16,6 @@ export interface BoardSnapshot {
   lives: number;
   essence: number;
   pendingBossId: number;
-  trackSide: TrackSide;
   typeLevels: Record<string, number>;
   grid: (OrbState | 0)[];
   enemies: EnemyState[];
@@ -36,7 +35,6 @@ export function snapshotOf(g: Engine): BoardSnapshot {
     lives: g.lives,
     essence: r1(g.essence),
     pendingBossId: g.pendingBossId,
-    trackSide: g.trackSide,
     typeLevels: { ...g.typeLevels },
     grid: g.grid.map((o) => (o ? { ...o, cdUntil: r1(o.cdUntil), cdLen: r1(o.cdLen), bornAt: r1(o.bornAt), pulse: r1(o.pulse) } : 0)),
     enemies: g.enemies
@@ -91,7 +89,6 @@ export function applySnapshot(g: Engine, s: BoardSnapshot): void {
   g.lives = s.lives;
   g.essence = s.essence;
   g.pendingBossId = s.pendingBossId ?? 0;
-  g.trackSide = s.trackSide === 'B' ? 'B' : 'A';
   g.typeLevels = { ...g.typeLevels, ...(s.typeLevels ?? {}) } as Record<OrbType, number>;
 
   const cells = Array.from({ length: COLS * ROWS }, (_, i) => {

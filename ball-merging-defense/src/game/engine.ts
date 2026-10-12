@@ -23,7 +23,6 @@ import {
   isAdj,
   cellC,
   pathPoint,
-  type TrackSide,
   TYPE_INFO,
   type BossId,
   type OrbType,
@@ -54,7 +53,6 @@ export interface RunConfig {
   livesBonus: number;
   autoTypes: OrbType[]; // шарики с купленной «Автоатакой»
   coop?: boolean; // кооператив: волны стартует синхронизация, без таймера
-  trackSide?: TrackSide; // вариант трассы (кооператив: хост A, гость B)
 }
 // Короткие события для UI (виброотклик на телефоне)
 export type EngineEvent =
@@ -97,6 +95,7 @@ export interface EnemyState {
   dead: boolean;
   chargeT: number; // заряжающийся моб: секунд до полной зарядки (выбрано при создании); 0 — обычный
   bornAt: number; // время появления (для заряда)
+  foreign?: boolean; // враг напарника (копия, см. Engine.setForeign)
 }
 
 // Лужа эликсира: остаётся на трассе после смерти полностью заряженного моба
@@ -154,6 +153,9 @@ export interface Particle {
   y2: number;
 }
 
+// Сдвиг id врагов напарника, чтобы не совпадать с моими id
+export const FOREIGN_BASE = 1_000_000_000;
+
 export class Engine {
   // --- состояние игры ---
   status: Status = 'title';
@@ -203,7 +205,12 @@ export class Engine {
   autoLine: number[] | null = null;
   autoTypes: OrbType[] = []; // шарики, для которых куплена авто-атака
   coop = false; // кооператив: старт волны внешний (см. services/coopSession.ts)
-  trackSide: TrackSide = 'A'; // вариант трассы: A — хост, B — гость (зеркало)
+  // кооператив: враги напарника (копии для прицеливания; координаты переводятся в at())
+  foreign: EnemyState[] = [];
+  // урон по врагам напарника, который надо ему отправить: id врага → сумма урона
+  outHits: Record<string, number> = {};
+  // награды за убийства, которые получит напарник (каждый убитый даёт обоим)
+  outKills = 0;
   leakDamage = 0; // всего урона от утечек (для общих жизней в кооперативе)
   maxChain = 0;
 
@@ -382,7 +389,6 @@ export class Engine {
     this.deck = [...cfg.deck];
     this.autoTypes = [...cfg.autoTypes];
     this.coop = !!cfg.coop;
-    this.trackSide = cfg.trackSide ?? 'A';
     this.leakDamage = 0;
     this.mods = cfg.mods;
     this.essence = CONFIG.essenceStart + cfg.essenceBonus;
@@ -442,7 +448,7 @@ export class Engine {
 
   // Случайная цель среди всех живых врагов (для шарика «Метка»)
   randomTarget(): EnemyState | null {
-    const alive = this.enemies.filter((e) => !e.dead);
+    const alive = this.allEnemies().filter((e) => !e.dead);
     if (!alive.length) return null;
     return alive[Math.floor(Math.random() * alive.length)];
   }
@@ -501,9 +507,54 @@ export class Engine {
     sfx.waveStart();
   }
 
-  // Точка трассы для этого поля (вариант A или B)
+  // Точка трассы по пройденной дистанции (одна трасса для обоих полей)
   pt(p: number) {
-    return pathPoint(p, this.trackSide);
+    return pathPoint(p);
+  }
+
+  // Точка врага в координатах моего поля. Враг напарника: его поле повёрнуто
+  // по вертикали (сверху), поэтому y переворачивается.
+  at(e: EnemyState) {
+    const q = pathPoint(e.p);
+    return e.foreign ? { x: q.x, y: -q.y, tx: q.tx, ty: -q.ty } : q;
+  }
+
+  // Все враги, по которым могут попасть мои снаряды (свои и напарника)
+  allEnemies(): EnemyState[] {
+    return this.foreign.length ? [...this.enemies, ...this.foreign] : this.enemies;
+  }
+
+  // Кооператив: список врагов напарника со снимка (копии, см. at())
+  setForeign(list: EnemyState[]) {
+    this.foreign = list
+      .filter((e) => !e.dead)
+      .map((e) => ({ ...e, id: e.id + FOREIGN_BASE, foreign: true, dots: [], marks: [] }));
+  }
+
+  // Кооператив: удар по моему врагу от напарника (его снаряд или игла)
+  applyHit(id: number, d: number) {
+    const e = this.enemies.find((x) => x.id === id && !x.dead);
+    if (!e) return;
+    this.hitMul = 1;
+    this.damage(e, d, '#7dd3fc');
+  }
+
+  // Кооператив: награда за убийство, которую получил напарник
+  creditShared(n: number) {
+    this.essence += n;
+  }
+
+  // Забрать накопленный урон по врагам напарника (для отправки)
+  takeHits(): [number, number][] {
+    const out = Object.entries(this.outHits).map(([k, v]) => [Number(k), Math.round(v * 10) / 10] as [number, number]);
+    this.outHits = {};
+    return out;
+  }
+
+  takeKills(): number {
+    const k = Math.round(this.outKills);
+    this.outKills = 0;
+    return k;
   }
 
   // Кооператив: принудительный конец забега (общие жизни закончились)
@@ -947,7 +998,7 @@ export class Engine {
         let dx = Math.random() - 0.5;
         let dy = -1;
         if (target) {
-          const tp = this.pt(target.p);
+          const tp = this.at(target);
           dx = tp.x - x;
           dy = tp.y - y;
         }
@@ -976,8 +1027,9 @@ export class Engine {
 
   // Цель: один из самых продвинутых к выходу врагов
   pickTarget(): EnemyState | null {
-    if (!this.enemies.length) return null;
-    const sorted = [...this.enemies].sort((a, b) => b.p - a.p);
+    const all = this.allEnemies();
+    if (!all.length) return null;
+    const sorted = [...all].sort((a, b) => b.p - a.p);
     const k = Math.min(4, sorted.length);
     const idx = Math.floor(Math.pow(Math.random(), 1.6) * k);
     return sorted[idx];
@@ -1024,10 +1076,21 @@ export class Engine {
   damage(e: EnemyState, d0: number, color = '#ffffff', show = true) {
     if (e.dead) return;
     const d = d0 * this.hitMul;
+    if (e.foreign) {
+      // враг напарника: урон уходит ему и применяется у него; здесь только цифра
+      const key = String(e.id - FOREIGN_BASE);
+      this.outHits[key] = (this.outHits[key] ?? 0) + d;
+      e.flashUntil = this.now + 0.08;
+      if (show) {
+        const pos = this.at(e);
+        this.textP(pos.x, pos.y - 18, String(Math.round(d)), color);
+      }
+      return;
+    }
     e.hp -= d;
     e.flashUntil = this.now + 0.08;
     if (show) {
-      const pos = this.pt(e.p);
+      const pos = this.at(e);
       this.textP(pos.x, pos.y - 18, String(Math.round(d)), color);
     }
   }
@@ -1049,16 +1112,16 @@ export class Engine {
     const K = p.kind;
     // бонус комбо: каждый шарик в цепи добавил +1 к урону снаряда
     const b = p.bonus || 0;
-    const pos = this.pt(e.p);
+    const pos = this.at(e);
     switch (p.kind) {
       case 'fire': {
         // улучшение: основной урон растёт (3 + уровень) + бонус цепи
         this.damage(e, this.hitDmg(3 + g + b, K), '#ff9a3d');
         this.ring(pos.x, pos.y, '#ff6a3d', 70);
         // осколки по соседним врагам
-        for (const o of this.enemies) {
+        for (const o of this.allEnemies()) {
           if (o === e || o.dead) continue;
-          const q = this.pt(o.p);
+          const q = this.at(o);
           const dx = q.x - pos.x, dy = q.y - pos.y;
           const sr = 58 + this.m(K, 'radius');
           if (dx * dx + dy * dy < sr * sr) this.damage(o, 1 + this.m(K, 'splash'), '#ff6a3d', false);
@@ -1079,10 +1142,10 @@ export class Engine {
         const radius = 150 + 30 * g + this.m(K, 'radius');
         const chainDmg = this.hitDmg(2 + g + b, K);
         this.damage(e, chainDmg, '#ffe066');
-        const cands = this.enemies
+        const cands = this.allEnemies()
           .filter((o) => o !== e && !o.dead)
           .map((o) => {
-            const q = this.pt(o.p);
+            const q = this.at(o);
             const dx = q.x - pos.x, dy = q.y - pos.y;
             return { o, q, d2: dx * dx + dy * dy };
           })
@@ -1114,9 +1177,9 @@ export class Engine {
         const radius = 95 + 20 * g + this.m(K, 'radius');
         const dmg = this.hitDmg(4 + g + b, K);
         this.damage(e, dmg, '#ff8fa3');
-        for (const o of this.enemies) {
+        for (const o of this.allEnemies()) {
           if (o === e || o.dead) continue;
-          const q = this.pt(o.p);
+          const q = this.at(o);
           const dx = q.x - pos.x, dy = q.y - pos.y;
           if (dx * dx + dy * dy < radius * radius) this.damage(o, dmg, '#ff8fa3', false);
         }
@@ -1210,6 +1273,12 @@ export class Engine {
       }
     }
 
+    // --- враги напарника (копии): ведём их по последнему снимку ---
+    if (this.foreign.length) {
+      for (const f of this.foreign) f.p += f.speed * dt;
+      this.foreign = this.foreign.filter((f) => f.p < LEAK_AT + 40);
+    }
+
     // --- враги ---
     this.puddles = this.puddles.filter((pd) => pd.until > this.now);
     const leakedNow: EnemyState[] = [];
@@ -1227,7 +1296,7 @@ export class Engine {
         for (const d of e.dots) e.hp -= d.dps * dt;
         e.dots = e.dots.filter((d) => d.until > this.now);
         if (Math.random() < dt * 6) {
-          const pos = this.pt(e.p);
+          const pos = this.at(e);
           this.spark(pos.x, pos.y, '#4ade80', 1, 40);
         }
       }
@@ -1259,8 +1328,9 @@ export class Engine {
       // полностью заряженный заряжающийся моб оставляет лужу; раньше — нет
       if (e.chargeT > 0 && this.chargeLevel(e) >= 1) this.spawnPuddle(e.p);
       this.essence += e.reward;
+      if (this.coop) this.outKills += e.reward; // напарник получает ту же награду
       this.kills++;
-      const pos = this.pt(e.p);
+      const pos = this.at(e);
       this.spark(pos.x, pos.y, e.boss ? '#c084fc' : e.mini ? '#f59e0b' : '#fbbf24', e.boss ? 18 : e.mini ? 13 : 9, e.boss ? 200 : 130);
       this.textP(pos.x, pos.y - 14, `${e.reward}`, '#fcd34d');
       this.emit('kill');
@@ -1307,9 +1377,9 @@ export class Engine {
         p.y += p.vy * dt;
         p.trail.unshift({ x: p.x, y: p.y });
         if (p.trail.length > 5) p.trail.pop();
-        for (const e of this.enemies) {
+        for (const e of this.allEnemies()) {
           if (e.dead || p.hitIds!.includes(e.id)) continue;
-          const tp = this.pt(e.p);
+          const tp = this.at(e);
           const dx = tp.x - p.x, dy = tp.y - p.y;
           const rr = e.radius + 12;
           if (dx * dx + dy * dy < rr * rr) {
@@ -1322,14 +1392,17 @@ export class Engine {
             }
           }
         }
-        if (p.x < -30 || p.x > STAGE_W + 30 || p.y < -30 || p.y > STAGE_H + 30) p.life = 0;
+        // в кооперативе снаряд может уйти в поле напарника (сверху)
+        const lo = this.coop ? -STAGE_H - 30 : -30;
+        const hi = this.coop ? 2 * STAGE_H + 30 : STAGE_H + 30;
+        if (p.x < -30 || p.x > STAGE_W + 30 || p.y < lo || p.y > hi) p.life = 0;
         continue;
       }
-      let t = this.enemies.find((e) => e.id === p.targetId) ?? null;
+      let t = this.allEnemies().find((e) => e.id === p.targetId) ?? null;
       if (!t) t = p.kind === 'mark' ? this.randomTarget() : this.pickTarget();
       if (t) {
         p.targetId = t.id;
-        const tp = this.pt(t.p);
+        const tp = this.at(t);
         const dx = tp.x - p.x, dy = tp.y - p.y;
         const dist = Math.hypot(dx, dy) || 1;
         const maxSp = 520;
@@ -1360,9 +1433,9 @@ export class Engine {
 
       // Столкновение с врагом: игла бьёт первого врага на своём пути
       // (урон растёт с уровнем шипастого в колоде).
-      for (const e of this.enemies) {
+      for (const e of this.allEnemies()) {
         if (e.dead) continue;
-        const ep = this.pt(e.p);
+        const ep = this.at(e);
         const dx = ep.x - n.x;
         const dy = ep.y - n.y;
         const rr = e.radius + 9;
@@ -1405,7 +1478,12 @@ export class Engine {
       }
     }
     this.needles = this.needles.filter(
-      (n) => n.life > 0 && n.x > 20 && n.x < STAGE_W - 20 && n.y > 20 && n.y < STAGE_H - 20
+      (n) =>
+        n.life > 0 &&
+        n.x > 20 &&
+        n.x < STAGE_W - 20 &&
+        n.y > (this.coop ? -STAGE_H : 20) &&
+        n.y < (this.coop ? 2 * STAGE_H : STAGE_H) - 20
     );
 
     // --- очередь лопающихся шариков ---

@@ -18,7 +18,8 @@ export interface SavedRun {
 export function serializeEngine(e: Engine): string {
   const out: Record<string, unknown> = {};
   for (const k of Object.keys(e)) {
-    if (k === 'onEvent' || k === 'parts') continue;
+    // враги напарника и очередь попаданий — только на время сессии, не сохраняются
+    if (k === 'onEvent' || k === 'parts' || k === 'foreign') continue;
     const v = (e as unknown as Record<string, unknown>)[k];
     if (typeof v === 'function') continue;
     out[k] = v;
