@@ -23,15 +23,15 @@ export type OrbType =
 // Портретная ориентация: поле рассчитано под вертикальный экран телефона.
 // На десктопе оно просто масштабируется и центрируется.
 export const STAGE_W = 640;
-export const STAGE_H = 880;
+export const STAGE_H = 620;
 
 // ---------- Сетка шариков ----------
-export const COLS = 4;
-export const ROWS = 6;
-export const CELL = 80;
-export const GAP = 12;
+export const COLS = 7;
+export const ROWS = 5;
+export const CELL = 64;
+export const GAP = 10;
 export const GRID_X = Math.round((STAGE_W - (COLS * CELL + (COLS - 1) * GAP)) / 2);
-export const GRID_Y = 182;
+export const GRID_Y = 150;
 
 // Клетка -> строка/колонка
 export function cellRC(i: number) {
@@ -55,7 +55,7 @@ export function isAdj(a: number, b: number) {
 }
 
 // ---------- Трасса врагов: прямоугольное кольцо вокруг сетки ----------
-export const TRACK = { x0: 36, y0: 140, x1: 604, y1: 772, r: 40 };
+export const TRACK = { x0: 26, y0: 110, x1: 614, y1: 550, r: 40 };
 
 const R = TRACK.r;
 const L_TOP = TRACK.x1 - R - (TRACK.x0 + R); // длина верхней/нижней прямой
@@ -274,9 +274,9 @@ export const CONFIG = {
 
   enemyHp: 7, // здоровье обычного врага на 1-й волне
   enemyHpGrowth: 1.14, // во сколько раз растёт здоровье каждую волну (милее к концу игры)
-  enemySpeed: 62, // скорость врага (px/сек) на 1-й волне
-  enemySpeedGrowth: 1.4, // прирост скорости за волну
-  enemySpeedCap: 92, // максимум скорости
+  enemySpeed: 53, // скорость врага (px/сек) на 1-й волне (подогнано под короткую трассу: круг занимает как раньше)
+  enemySpeedGrowth: 1.2, // прирост скорости за волну
+  enemySpeedCap: 78, // максимум скорости
   enemyReward: 2, // эссенция за обычного врага
 
   waveCountBase: 5, // врагов на волне N = base + N * per
@@ -292,7 +292,7 @@ export const CONFIG = {
   bossEvery: 5, // каждая N-я волна — босс
   bossHp: 45, // здоровье босса (первая босс-волна)
   bossHpGrowth: 1.35, // рост здоровья босса
-  bossSpeed: 46,
+  bossSpeed: 39,
   bossReward: 20,
   bossLeak: 5, // сколько жизней забирает босс, если ушёл
   miniFromWave: 3, // с какой волны появляется минибосс
