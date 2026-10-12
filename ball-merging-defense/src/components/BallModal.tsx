@@ -28,17 +28,16 @@ import { Toast, useToast } from './common';
 
 // Схема дерева в координатах окна (px). Сетка 4 колонки по 90 px (подписи 84 px не перекрываются).
 // Корень — между колонками 1 и 2 (колонка 1.5), см. skills.ts TREE_SLOTS.
-const CANVAS_W = 360;
+const CANVAS_W = 320; // схема по ширине вписывается в окно (на узком экране её уменьшают)
 const CANVAS_H = 520;
 const VIEW_H = 250;
-const NODE = 56;
-const colX = (c: number) => 45 + c * 90;
+const NODE = 50;
+const LABEL_W = 76;
+const colX = (c: number) => 40 + c * 78;
 const ROW_Y = [44, 144, 244, 344, 444];
-const MIN_OFFSET = Math.min(0, VIEW_H - CANVAS_H);
 const ROMAN = ['I', 'II', 'III'];
 const tierLabel = (tier: number) => (tier === 0 ? 'Авто-линия' : ROMAN[tier - 1]);
 
-const clampOffset = (v: number) => Math.max(MIN_OFFSET, Math.min(0, v));
 
 function nodePos(id: string, type: OrbType) {
   if (id === rootId(type)) return { x: colX(1.5), y: ROW_Y[0] };
@@ -195,8 +194,27 @@ function SkillTree({
   );
   const [offset, setOffset] = useState(0);
   const [confirmReset, setConfirmReset] = useState(false);
+  // ширина окна и масштаб схемы: на узком экране схема уменьшается, чтобы влезла по ширине
+  const [fit, setFit] = useState({ w: CANVAS_W, scale: 1 });
   const viewRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startY: number; startOff: number; moved: boolean } | null>(null);
+  const scale = fit.scale;
+  // по вертикали схему можно тянуть, если она выше окна (с учётом масштаба)
+  const minOff = Math.min(0, VIEW_H - CANVAS_H * scale);
+  const clampOffset = (v: number) => Math.max(minOff, Math.min(0, v));
+
+  useEffect(() => {
+    const el = viewRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth;
+      setFit({ w, scale: Math.min(1, w / CANVAS_W) });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Колесо мыши двигает предпросмотр (страница при этом не прокручивается)
   useEffect(() => {
@@ -204,11 +222,11 @@ function SkillTree({
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      setOffset((o) => clampOffset(o - e.deltaY));
+      setOffset((o) => Math.max(minOff, Math.min(0, o - e.deltaY)));
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, []);
+  }, [minOff]);
 
   const onPointerDown = (e: ReactPointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -274,8 +292,13 @@ function SkillTree({
         style={{ height: VIEW_H, touchAction: 'none', cursor: 'grab' }}
       >
         <div
-          className="absolute left-1/2 top-0"
-          style={{ width: CANVAS_W, height: CANVAS_H, transform: `translate(-50%, ${offset}px)` }}
+          className="absolute left-0 top-0"
+          style={{
+            width: CANVAS_W,
+            height: CANVAS_H,
+            transform: `translate(${Math.max(0, (fit.w - CANVAS_W * scale) / 2)}px, ${offset}px) scale(${scale})`,
+            transformOrigin: '0 0',
+          }}
         >
           <svg width={CANVAS_W} height={CANVAS_H} className="pointer-events-none absolute left-0 top-0">
             {nodes.map((n) => {
@@ -302,7 +325,7 @@ function SkillTree({
           {/* развилка: два пути на первом ряду, открыт только один */}
           <div
             className="pointer-events-none absolute text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
-            style={{ left: colX(3) - 22, top: ROW_Y[1] - 7, width: 44 }}
+            style={{ left: colX(1.5) - 22, top: ROW_Y[1] - 7, width: 44 }}
           >
             или
           </div>
@@ -367,7 +390,8 @@ function SkillTree({
         </span>
       </div>
 
-      {/* автоатака: авто-линия этого шарика стреляет сама */}
+      {/* автоатака: показывается только когда выбран её узел (конец левой ветки) */}
+      {node?.key === 'auto' && (
       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
         <div className="text-[13px] font-bold text-slate-100">Автоатака</div>
         <div className="mt-0.5 text-[12px] leading-snug text-slate-400">
@@ -394,6 +418,7 @@ function SkillTree({
           <div className="mt-1.5 text-[11px] text-slate-500">{autoWhy}</div>
         )}
       </div>
+      )}
 
       {prog.open > 0 &&
         (confirmReset ? (
@@ -464,7 +489,7 @@ function NodeDot({
       </button>
       <div
         className="pointer-events-none absolute text-center text-[11px] font-semibold leading-tight"
-        style={{ left: x - 42, top: y + NODE / 2 + 5, width: 84, color: labelColor }}
+        style={{ left: x - LABEL_W / 2, top: y + NODE / 2 + 5, width: LABEL_W, color: labelColor }}
       >
         {label}
       </div>
