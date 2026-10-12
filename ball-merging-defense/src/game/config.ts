@@ -221,9 +221,9 @@ export const BOSS_DEFS: Record<BossId, BossDef> = {
     color: '#ff5d5d',
     dark: '#4d0d0d',
     glow: 'rgba(255,93,93,',
-    hpMult: 2.3,
+    hpMult: 3.0,
     speedMult: 0.62,
-    radius: 26,
+    radius: 32,
     reward: 25,
     desc: 'высокое здоровье, низкая скорость: готовь урон и накопление',
   },
@@ -233,9 +233,9 @@ export const BOSS_DEFS: Record<BossId, BossDef> = {
     color: '#5dd9ff',
     dark: '#0d3a55',
     glow: 'rgba(93,217,255,',
-    hpMult: 1.0,
+    hpMult: 1.4,
     speedMult: 1.75,
-    radius: 20,
+    radius: 26,
     reward: 18,
     desc: 'стандартное здоровье, высокая скорость: готовь замедление и паралич',
   },
@@ -243,6 +243,20 @@ export const BOSS_DEFS: Record<BossId, BossDef> = {
 export const BOSS_IDS: BossId[] = [1, 2];
 // Код в плане спавна для заряжающегося моба (0 — обычный, 1/2 — боссы)
 export const CHARGER_KIND = 3;
+
+// ---------- Минибосс: сильнее обычного врага, слабее большого босса; не босс для правил ----------
+export const MINI_KIND = 4; // код в плане спавна
+export const MINI_DEF = {
+  name: 'Таран',
+  color: '#f59e0b',
+  dark: '#4a2a05',
+  glow: 'rgba(245,158,11,',
+  radius: 21,
+  hpMult: 6, // здоровье относительно обычного врага этой волны
+  speedMult: 0.75, // скорость относительно обычного врага
+  reward: 8,
+  leakDmg: 2, // жизней за утечку
+};
 
 // ---------- БАЛАНС (все цифры геймдизайна тут) ----------
 export const CONFIG = {
@@ -258,8 +272,8 @@ export const CONFIG = {
 
   cooldown: 1.3, // перезарядка шарика после выстрела (сек)
 
-  enemyHp: 6, // здоровье обычного врага на 1-й волне
-  enemyHpGrowth: 1.12, // во сколько раз растёт здоровье каждую волну (милее к концу игры)
+  enemyHp: 7, // здоровье обычного врага на 1-й волне
+  enemyHpGrowth: 1.14, // во сколько раз растёт здоровье каждую волну (милее к концу игры)
   enemySpeed: 62, // скорость врага (px/сек) на 1-й волне
   enemySpeedGrowth: 1.4, // прирост скорости за волну
   enemySpeedCap: 92, // максимум скорости
@@ -281,6 +295,8 @@ export const CONFIG = {
   bossSpeed: 46,
   bossReward: 20,
   bossLeak: 5, // сколько жизней забирает босс, если ушёл
+  miniFromWave: 3, // с какой волны появляется минибосс
+  miniChance: 0.5, // шанс минибосса на обычной волне (не более одного)
 
   maxLevel: 9, // максимум накопления в одном шарике
   // накопление: каждый уровень заряда добавляет к урону залпа этот процент

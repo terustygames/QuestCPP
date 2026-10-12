@@ -27,6 +27,7 @@ import {
   pathPoint,
   TYPE_INFO,
   accumMul,
+  MINI_DEF,
   type BossId,
   type OrbType,
 } from '../game/config';
@@ -617,10 +618,12 @@ function drawScene(
 
     // плоское тело: однотонный круг с тёмной кромкой
     const def = e.boss ? BOSS_DEFS[(e.bossId || 1) as BossId] : null;
+    // минибосс — свои цвета (MINI_DEF); у обычного и заряжающегося цвета прежние
+    const look = def ?? (e.mini ? MINI_DEF : null);
     // заряжающийся моб: серый → сиреневый по мере зарядки; полностью заряжен — светится
     const charge = e.chargeT > 0 ? g.chargeLevel(e) : 0;
     const tint = e.chargeT > 0 ? chargeTint(charge) : null;
-    x.fillStyle = def ? def.dark : tint ? tint.dark : '#2b3548';
+    x.fillStyle = look ? look.dark : tint ? tint.dark : '#2b3548';
     if (charge >= 1) {
       x.save();
       x.shadowColor = 'rgba(192,132,252,0.95)';
@@ -630,7 +633,7 @@ function drawScene(
     x.arc(ex, ey, r, 0, Math.PI * 2);
     x.fill();
     if (charge >= 1) x.restore();
-    x.fillStyle = def ? def.color : tint ? tint.body : '#5c6b85';
+    x.fillStyle = look ? look.color : tint ? tint.body : '#5c6b85';
     x.beginPath();
     x.arc(ex, ey, r - 2.5, 0, Math.PI * 2);
     x.fill();
@@ -699,7 +702,7 @@ function drawScene(
     x.fill();
 
     // полоска здоровья
-    const bw = e.boss ? 46 : 28;
+    const bw = e.boss ? 46 : e.mini ? 36 : 28;
     const pct = Math.max(0, e.hp / e.maxHp);
     x.fillStyle = 'rgba(0,0,0,0.6)';
     roundedRect(x, ex - bw / 2, ey - r - 11, bw, 4, 2);
@@ -710,14 +713,14 @@ function drawScene(
       x.fill();
     }
     // имя босса над полоской здоровья
-    if (e.boss && def) {
+    if (look) {
       x.font = '800 11px Manrope, system-ui, sans-serif';
       x.textAlign = 'center';
       x.textBaseline = 'alphabetic';
       x.fillStyle = 'rgba(0,0,0,0.55)';
-      x.fillText(def.name, ex + 1, ey - r - 17);
-      x.fillStyle = def.color;
-      x.fillText(def.name, ex, ey - r - 18);
+      x.fillText(look.name, ex + 1, ey - r - 17);
+      x.fillStyle = look.color;
+      x.fillText(look.name, ex, ey - r - 18);
     }
   }
 

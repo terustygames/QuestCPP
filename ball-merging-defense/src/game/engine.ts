@@ -6,6 +6,8 @@
 
 import {
   BOSS_DEFS,
+  MINI_DEF,
+  MINI_KIND,
   BOSS_IDS,
   CLASSIC_TYPES,
   CONFIG,
@@ -84,6 +86,7 @@ export interface EnemyState {
   reward: number;
   leakDmg: number;
   boss: boolean;
+  mini: boolean; // минибосс (MINI_DEF)
   bossId: number; // 0 — не босс, иначе 1 или 2 (какой именно босс)
   flashUntil: number;
   dead: boolean;
@@ -475,6 +478,11 @@ export class Engine {
         !bossWave && this.wave >= CONFIG.charger.fromWave && Math.random() < CONFIG.charger.chance;
       this.spawnPlan.push(charger ? CHARGER_KIND : 0);
     }
+    // минибосс: не больше одного за волну, на обычной волне, начиная с miniFromWave
+    if (!bossWave && this.wave >= CONFIG.miniFromWave && Math.random() < CONFIG.miniChance) {
+      const at = Math.floor(Math.random() * this.spawnPlan.length);
+      this.spawnPlan.splice(at, 0, MINI_KIND);
+    }
     this.spawnTimer = 0.4;
     this.setBanner(
       bossWave ? `Волна ${this.wave}: босс ${BOSS_DEFS[this.pendingBossId as BossId].name}` : `Волна ${this.wave}`,
@@ -498,25 +506,32 @@ export class Engine {
   spawnEnemy(kind: number) {
     const w = this.wave;
     const charger = kind === CHARGER_KIND;
-    const boss = kind > 0 && !charger;
+    const mini = kind === MINI_KIND;
+    const boss = (kind === 1 || kind === 2) && !charger && !mini;
     // T выбирается при создании моба
     const chargeT = charger
       ? CONFIG.charger.chargeMin + Math.random() * (CONFIG.charger.chargeMax - CONFIG.charger.chargeMin)
       : 0;
     const def = boss ? BOSS_DEFS[kind as BossId] : null;
+    const baseHp = CONFIG.enemyHp * Math.pow(CONFIG.enemyHpGrowth, w - 1);
+    const baseSpeed = Math.min(CONFIG.enemySpeedCap, CONFIG.enemySpeed + (w - 1) * CONFIG.enemySpeedGrowth);
     const hp = boss
       ? Math.round(CONFIG.bossHp * def!.hpMult * Math.pow(CONFIG.bossHpGrowth, w / CONFIG.bossEvery - 1))
-      : Math.round(CONFIG.enemyHp * Math.pow(CONFIG.enemyHpGrowth, w - 1));
+      : mini
+        ? Math.round(baseHp * MINI_DEF.hpMult)
+        : Math.round(baseHp);
     this.enemies.push({
       id: this.nextId++, p: 0, hp, maxHp: hp,
       speed: boss
         ? CONFIG.bossSpeed * def!.speedMult
-        : Math.min(CONFIG.enemySpeedCap, CONFIG.enemySpeed + (w - 1) * CONFIG.enemySpeedGrowth),
-      radius: boss ? def!.radius : 14,
+        : mini
+          ? baseSpeed * MINI_DEF.speedMult
+          : baseSpeed,
+      radius: boss ? def!.radius : mini ? MINI_DEF.radius : 14,
       slowUntil: 0, slowFactor: 1, stunUntil: 0, dots: [], marks: [],
-      reward: boss ? def!.reward : CONFIG.enemyReward,
-      leakDmg: boss ? CONFIG.bossLeak : 1,
-      boss, bossId: boss ? kind : 0, flashUntil: 0, dead: false,
+      reward: boss ? def!.reward : mini ? MINI_DEF.reward : CONFIG.enemyReward,
+      leakDmg: boss ? CONFIG.bossLeak : mini ? MINI_DEF.leakDmg : 1,
+      boss, mini, bossId: boss ? kind : 0, flashUntil: 0, dead: false,
       chargeT, bornAt: this.now,
     });
     if (boss) this.emit('boss');
@@ -1197,7 +1212,7 @@ export class Engine {
       this.essence += e.reward;
       this.kills++;
       const pos = pathPoint(e.p);
-      this.spark(pos.x, pos.y, e.boss ? '#c084fc' : '#fbbf24', e.boss ? 18 : 9, e.boss ? 200 : 130);
+      this.spark(pos.x, pos.y, e.boss ? '#c084fc' : e.mini ? '#f59e0b' : '#fbbf24', e.boss ? 18 : e.mini ? 13 : 9, e.boss ? 200 : 130);
       this.textP(pos.x, pos.y - 14, `${e.reward}`, '#fcd34d');
       this.emit('kill');
     }
