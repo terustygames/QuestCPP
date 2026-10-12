@@ -327,7 +327,7 @@ function SkillTree({
 
           {/* корень: открыт всегда */}
           <NodeDot
-            x={colX(3)}
+            x={colX(1.5)}
             y={ROW_Y[0]}
             selected={sel === rootId(type)}
             onClick={() => pick(rootId(type))}
