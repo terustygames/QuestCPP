@@ -1,8 +1,10 @@
 // Главное меню. Верхняя панель с рекордом и валютой; внизу один ряд
 // одинаковых кнопок-плиток (тёмный скруглённый квадрат с иконкой и подписью,
 // как «Магазин»). Центр экрана свободен.
+import { useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { Backpack, Gift, LogOut, Sparkles, Store, Swords } from 'lucide-react';
+import { Backpack, Gift, Menu, Sparkles, Store, Swords } from 'lucide-react';
+import { AccountDrawer, type AccountView } from './AccountDrawer';
 import { META_CFG, deckReady, type MetaState } from '../game/meta';
 import { CurrencyChips } from './common';
 
@@ -73,7 +75,10 @@ export function MainMenu({
   onPlay,
   onShop,
   onInventory,
-  login,
+  account,
+  authNotice,
+  onCreateAccount,
+  onSignIn,
   onLogout,
 }: {
   meta: MetaState;
@@ -81,10 +86,14 @@ export function MainMenu({
   onPlay: () => void;
   onShop: () => void;
   onInventory: () => void;
-  login: string;
-  onLogout: () => void;
+  account: AccountView;
+  authNotice: string | null;
+  onCreateAccount: (login: string, password: string) => Promise<void>;
+  onSignIn: (login: string, password: string) => Promise<void>;
+  onLogout: () => Promise<void>;
 }) {
   const ready = deckReady(meta);
+  const [accountOpen, setAccountOpen] = useState(false);
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#0b0e18] text-white">
       {/* фон: космос с мягкой туманностью и звёздами */}
@@ -121,16 +130,26 @@ export function MainMenu({
         <div className="flex items-center gap-1.5">
           <CurrencyChips meta={meta} />
           <button
-            onClick={onLogout}
-            title={login ? `Аккаунт: ${login}. Выйти` : 'Выйти'}
-            aria-label="Выйти из аккаунта"
-            className="flex h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.05] px-2 text-[12px] font-bold text-slate-300 transition active:scale-95"
+            onClick={() => setAccountOpen(true)}
+            aria-label="Меню аккаунта"
+            title={account.status === 'in' ? `Аккаунт: ${account.login}` : 'Гость. Аккаунт'}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-950/70 text-slate-200 shadow-lg shadow-black/40 transition active:scale-95"
           >
-            <LogOut size={14} />
-            <span className="max-w-[72px] truncate">{login}</span>
+            <Menu size={18} />
           </button>
         </div>
       </header>
+
+      {accountOpen && (
+        <AccountDrawer
+          account={account}
+          notice={authNotice}
+          onClose={() => setAccountOpen(false)}
+          onCreate={onCreateAccount}
+          onSignIn={onSignIn}
+          onLogout={onLogout}
+        />
+      )}
 
       {/* центр свободен */}
       <div className="relative z-10 flex min-h-0 flex-1" />

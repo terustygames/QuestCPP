@@ -32,6 +32,7 @@ import {
   type OrbType,
 } from '../game/config';
 import type { Engine } from '../game/engine';
+import { chargeTint } from '../game/charger';
 
 const SPAWN_POS = pathPoint(0);
 const EXIT_POS = pathPoint(LEAK_AT);
@@ -583,6 +584,29 @@ function drawScene(
     x.stroke();
   }
 
+  // --- лужи эликсира: полоса вдоль трассы вокруг точки смерти, мерцает и гаснет ---
+  for (const pd of g.puddles) {
+    const fade = Math.min(1, (pd.until - g.now) / 1.5);
+    const pulse = 0.5 + 0.5 * Math.sin(vnow * 4 + pd.id);
+    for (const [w, a] of [
+      [26, 0.22], // широкая размытая кромка
+      [16, 0.35 + 0.1 * pulse], // ядро лужи, мерцает
+    ] as const) {
+      x.strokeStyle = `rgba(168,85,247,${(a * fade).toFixed(3)})`;
+      x.lineWidth = w;
+      x.lineCap = 'round';
+      x.beginPath();
+      // полоса не уходит в начало трассы: pathPoint по кольцу иначе нарисует её с другой стороны
+      const from = Math.max(-pd.radius, -pd.p);
+      for (let s = from; s <= pd.radius; s += 4) {
+        const q = pathPoint(pd.p + s);
+        if (s === from) x.moveTo(q.x, q.y);
+        else x.lineTo(q.x, q.y);
+      }
+      x.stroke();
+    }
+  }
+
   // --- враги ---
   for (const e of g.enemies) {
     const pos = pathPoint(e.p);
@@ -594,14 +618,30 @@ function drawScene(
 
     // плоское тело: однотонный круг с тёмной кромкой
     const def = e.boss ? BOSS_DEFS[(e.bossId || 1) as BossId] : null;
-    x.fillStyle = def ? def.dark : '#2b3548';
+    // заряжающийся моб: серый → сиреневый по мере зарядки; полностью заряжен — светится
+    const charge = e.chargeT > 0 ? g.chargeLevel(e) : 0;
+    const tint = e.chargeT > 0 ? chargeTint(charge) : null;
+    x.fillStyle = def ? def.dark : tint ? tint.dark : '#2b3548';
+    if (charge >= 1) {
+      x.save();
+      x.shadowColor = 'rgba(192,132,252,0.95)';
+      x.shadowBlur = 16 + 6 * Math.sin(vnow * 6);
+    }
     x.beginPath();
     x.arc(ex, ey, r, 0, Math.PI * 2);
     x.fill();
-    x.fillStyle = def ? def.color : '#5c6b85';
+    if (charge >= 1) x.restore();
+    x.fillStyle = def ? def.color : tint ? tint.body : '#5c6b85';
     x.beginPath();
     x.arc(ex, ey, r - 2.5, 0, Math.PI * 2);
     x.fill();
+    if (charge >= 1) {
+      x.strokeStyle = `rgba(216,180,254,${(0.45 + 0.25 * Math.sin(vnow * 6)).toFixed(3)})`;
+      x.lineWidth = 2;
+      x.beginPath();
+      x.arc(ex, ey, r + 3, 0, Math.PI * 2);
+      x.stroke();
+    }
 
     if (g.now < e.slowUntil) {
       x.strokeStyle = 'rgba(70,200,255,0.85)';

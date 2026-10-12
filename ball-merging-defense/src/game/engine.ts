@@ -12,6 +12,7 @@ import {
   COLS,
   ROWS,
   LEAK_AT,
+  CHARGER_KIND,
   STAGE_W,
   STAGE_H,
   accumMul,
@@ -23,6 +24,7 @@ import {
   type OrbType,
 } from './config';
 import type { TypeMods } from './skills';
+import { chargeProgress } from './charger';
 import { sfx } from './audio';
 
 // Четыре соседние клетки (вверх/вниз/влево/вправо)
@@ -84,6 +86,16 @@ export interface EnemyState {
   bossId: number; // 0 — не босс, иначе 1 или 2 (какой именно босс)
   flashUntil: number;
   dead: boolean;
+  chargeT: number; // заряжающийся моб: секунд до полной зарядки (выбрано при создании); 0 — обычный
+  bornAt: number; // время появления (для заряда)
+}
+
+// Лужа эликсира: остаётся на трассе после смерти полностью заряженного моба
+export interface Puddle {
+  id: number;
+  p: number; // точка на трассе (пройденная дистанция)
+  radius: number; // радиус вдоль трассы, px (в обе стороны)
+  until: number; // время, когда лужа исчезает
 }
 
 export interface ProjState {
@@ -165,8 +177,10 @@ export class Engine {
   }
 
   // --- волны ---
-  // план спавна: 0 = обычный враг, 1/2 = босс (какой — по BOSS_DEFS)
+  // план спавна: 0 = обычный враг, 1/2 = босс (какой — по BOSS_DEFS), CHARGER_KIND = заряжающийся
   spawnPlan: number[] = [];
+  // лужи эликсира на трассе (от мобов, убитых полностью заряженными)
+  puddles: Puddle[] = [];
   spawnTimer = 0;
   prepUntil = 0;
   pendingBossId = 0; // босс следующей босс-волны (выбирает рулетка)
@@ -384,6 +398,31 @@ export class Engine {
     return Math.random() < this.m(t, 'crit') ? v * 2 : v;
   }
 
+  // Заряд заряжающегося моба: 0 — только появился, 1 — полностью заряжен
+  chargeLevel(e: EnemyState): number {
+    return chargeProgress(this.now, e.bornAt, e.chargeT);
+  }
+
+  // Множитель скорости моба внутри лужи эликсира (не складывается между лужами)
+  puddleFactor(e: EnemyState): number {
+    if (e.boss && !CONFIG.charger.puddleBoss) return 1;
+    return this.puddles.some((pd) => Math.abs(e.p - pd.p) <= pd.radius) ? CONFIG.charger.puddleSpeed : 1;
+  }
+
+  // Лужа эликсира на трассе в точке p
+  spawnPuddle(p: number) {
+    this.puddles.push({
+      id: this.nextId++,
+      p,
+      radius: CONFIG.charger.puddleRadius,
+      until: this.now + CONFIG.charger.puddleDuration,
+    });
+    const pos = pathPoint(p);
+    this.spark(pos.x, pos.y, '#c084fc', 10, 120);
+    this.textP(pos.x, pos.y - 16, 'Лужа эликсира', '#d8b4fe');
+    sfx.pop();
+  }
+
   // Случайная цель среди всех живых врагов (для шарика «Метка»)
   randomTarget(): EnemyState | null {
     const alive = this.enemies.filter((e) => !e.dead);
@@ -428,7 +467,11 @@ export class Engine {
       if (!this.pendingBossId) this.pendingBossId = BOSS_IDS[Math.floor(Math.random() * BOSS_IDS.length)];
       this.spawnPlan.push(this.pendingBossId);
     }
-    for (let i = 0; i < normals; i++) this.spawnPlan.push(0);
+    for (let i = 0; i < normals; i++) {
+      const charger =
+        !bossWave && this.wave >= CONFIG.charger.fromWave && Math.random() < CONFIG.charger.chance;
+      this.spawnPlan.push(charger ? CHARGER_KIND : 0);
+    }
     this.spawnTimer = 0.4;
     this.setBanner(
       bossWave ? `Волна ${this.wave}: босс ${BOSS_DEFS[this.pendingBossId as BossId].name}` : `Волна ${this.wave}`,
@@ -448,10 +491,15 @@ export class Engine {
     return Math.max(CONFIG.spawnIntervalMin, base - this.wave * 0.03);
   }
 
-  // kind: 0 = обычный враг, 1 или 2 = босс (BOSS_DEFS)
+  // kind: 0 = обычный враг, 1 или 2 = босс (BOSS_DEFS), CHARGER_KIND = заряжающийся моб
   spawnEnemy(kind: number) {
     const w = this.wave;
-    const boss = kind > 0;
+    const charger = kind === CHARGER_KIND;
+    const boss = kind > 0 && !charger;
+    // T выбирается при создании моба
+    const chargeT = charger
+      ? CONFIG.charger.chargeMin + Math.random() * (CONFIG.charger.chargeMax - CONFIG.charger.chargeMin)
+      : 0;
     const def = boss ? BOSS_DEFS[kind as BossId] : null;
     const hp = boss
       ? Math.round(CONFIG.bossHp * def!.hpMult * Math.pow(CONFIG.bossHpGrowth, w / CONFIG.bossEvery - 1))
@@ -466,6 +514,7 @@ export class Engine {
       reward: boss ? def!.reward : CONFIG.enemyReward,
       leakDmg: boss ? CONFIG.bossLeak : 1,
       boss, bossId: boss ? kind : 0, flashUntil: 0, dead: false,
+      chargeT, bornAt: this.now,
     });
     if (boss) this.emit('boss');
   }
@@ -1110,6 +1159,7 @@ export class Engine {
     }
 
     // --- враги ---
+    this.puddles = this.puddles.filter((pd) => pd.until > this.now);
     const leakedNow: EnemyState[] = [];
     for (const e of this.enemies) {
       if (e.marks.length) {
@@ -1131,7 +1181,7 @@ export class Engine {
       }
       const stunned = this.now < e.stunUntil; // паралич: враг замирает
       const slowF = this.now < e.slowUntil ? e.slowFactor : 1;
-      e.p += (stunned ? 0 : e.speed) * slowF * dt;
+      e.p += (stunned ? 0 : e.speed) * slowF * this.puddleFactor(e) * dt;
       if (e.hp <= 0) e.dead = true;
       else if (e.p >= LEAK_AT) leakedNow.push(e);
     }
@@ -1153,6 +1203,8 @@ export class Engine {
     // смерти: награда
     const died = this.enemies.filter((e) => e.dead && e.hp <= 0);
     for (const e of died) {
+      // полностью заряженный заряжающийся моб оставляет лужу; раньше — нет
+      if (e.chargeT > 0 && this.chargeLevel(e) >= 1) this.spawnPuddle(e.p);
       this.essence += e.reward;
       this.kills++;
       const pos = pathPoint(e.p);

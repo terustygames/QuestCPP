@@ -6,6 +6,7 @@
 import { initializeApp } from 'firebase/app';
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   getAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -66,10 +67,19 @@ export function authErrorText(e: unknown): string {
     case 'auth/network-request-failed':
       return 'Нет связи с сервером. Проверьте интернет';
     case 'auth/operation-not-allowed':
-      return 'Вход по логину не включён в Firebase (Email/Password)';
+      return 'Вход по логину ещё не включён в Firebase: нужно включить Email/Password (Authentication → Sign-in method). Пока можно играть как гость';
     default:
       return 'Не удалось войти. Попробуйте ещё раз';
   }
+}
+
+// Любая ошибка (Auth, Firestore, сеть) — понятный текст для игрока
+export function errorMessage(e: unknown): string {
+  const code = typeof e === 'object' && e && 'code' in e ? String((e as { code: unknown }).code) : '';
+  if (code.startsWith('auth/')) return authErrorText(e);
+  if (code) return `Облачное сохранение недоступно (${code}). Играть можно как гость`;
+  if (e instanceof Error && e.message) return e.message;
+  return 'Что-то пошло не так. Попробуйте ещё раз';
 }
 
 export async function registerPlayer(login: string, password: string): Promise<User> {
@@ -84,6 +94,11 @@ export async function signInPlayer(login: string, password: string): Promise<Use
 
 export function signOutPlayer(): Promise<void> {
   return signOut(auth);
+}
+
+// Откат: удалить только что созданный аккаунт (если профиль в облаке не записался)
+export async function deleteCurrentPlayer(): Promise<void> {
+  if (auth.currentUser) await deleteUser(auth.currentUser);
 }
 
 // Логин игрока из служебного адреса (для показа в меню)

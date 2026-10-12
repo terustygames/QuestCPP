@@ -13,8 +13,8 @@ import { initAudio, setMuted } from './game/audio';
 import { describeMods } from './game/skills';
 import {
   chestReady,
-  clearLocalMeta,
   defaultMeta,
+  loadMeta,
   rollChest,
   saveMeta,
   settleRun,
@@ -23,9 +23,16 @@ import {
   type MetaState,
   type RunSettlement,
 } from './game/meta';
-import { loginOf, onPlayerChanged, signOutPlayer } from './firebase';
+import {
+  deleteCurrentPlayer,
+  errorMessage,
+  loginOf,
+  onPlayerChanged,
+  registerPlayer,
+  signInPlayer,
+  signOutPlayer,
+} from './firebase';
 import { createCloudProfile, flushCloudSave, loadCloudMeta, scheduleCloudSave } from './services/playProfile';
-import { LoginScreen } from './components/LoginScreen';
 import { GameStage } from './components/GameStage';
 import { Header, Controls, DeckBar, DeckInfoPopup } from './components/Hud';
 import { HelpOverlay, GameOverOverlay } from './components/Overlays';
@@ -35,6 +42,9 @@ import { Shop } from './components/Shop';
 import { Inventory } from './components/Inventory';
 
 type Screen = 'menu' | 'shop' | 'inventory' | 'game';
+
+// Состояние аккаунта: гость (по умолчанию), проверка облака, вошедший игрок
+type Account = { status: 'guest' | 'checking' | 'in'; login: string; uid: string };
 
 // Виброотклик (работает на Android; на iPhone браузеры не дают — просто игнорируем)
 function buzz(pattern: number | number[]) {
@@ -90,34 +100,32 @@ export default function App() {
   const g = engRef.current;
 
   const [screen, setScreen] = useState<Screen>('menu');
-  // Мета загружается из облака после входа (см. эффект ниже), до этого — пустая заготовка
-  const [meta, setMeta] = useState<MetaState>(() => defaultMeta());
-  const [account, setAccount] = useState<{ status: 'checking' | 'out' | 'in'; login: string }>({
-    status: 'checking',
-    login: '',
-  });
+  // Гость играет сразу, без входа: мета хранится на устройстве (orbital.meta.v1).
+  // Аккаунт необязательный: вход или регистрация — во вкладке «Аккаунт» меню.
+  // Аккаунт: мета только в облаке (Firestore), локальной копии нет.
+  const [meta, setMeta] = useState<MetaState>(() => loadMeta());
+  const [account, setAccount] = useState<Account>({ status: 'guest', login: '', uid: '' });
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const cloudLoaded = useRef(false);
+  // регистрация в процессе: слушатель входа не должен создавать профиль сам
+  const registering = useRef(false);
   const updateMeta = useCallback((fn: (m: MetaState) => MetaState) => {
-    setMeta((prev) => {
-      const next = fn(prev);
-      saveMeta(next);
-      return next;
-    });
+    setMeta((prev) => fn(prev));
   }, []);
 
-  // Вход и выход игрока. При входе облачная мета заменяет локальную; у нового аккаунта её ещё нет.
+  // Вход и выход игрока (в том числе восстановление сессии при запуске)
   useEffect(
     () =>
       onPlayerChanged(async (user) => {
+        if (registering.current) return; // профиль создаст createAccount
         if (!user) {
           cloudLoaded.current = false;
-          setMeta(defaultMeta());
-          setAccount({ status: 'out', login: '' });
+          setMeta(loadMeta()); // назад к гостевой мете
+          setAccount({ status: 'guest', login: '', uid: '' });
           return;
         }
         const login = loginOf(user);
-        setAccount({ status: 'checking', login });
+        setAccount({ status: 'checking', login, uid: user.uid });
         try {
           let cloud = await loadCloudMeta();
           if (!cloud) {
@@ -127,20 +135,19 @@ export default function App() {
           cloudLoaded.current = true;
           setMeta(cloud);
           setAuthNotice(null);
-          setAccount({ status: 'in', login });
-        } catch {
-          setAuthNotice('Не удалось загрузить сохранение. Проверьте интернет и войдите снова.');
+          setAccount({ status: 'in', login, uid: user.uid });
+        } catch (e) {
+          setAuthNotice(`Не удалось войти в аккаунт: ${errorMessage(e)}`);
           await signOutPlayer().catch(() => undefined);
         }
       }),
     []
   );
 
-  // Автосохранение: локальная копия сразу, облако — с небольшой задержкой.
+  // Сохранение: гость — на устройство; аккаунт — в облако с небольшой задержкой
   useEffect(() => {
-    if (account.status !== 'in' || !cloudLoaded.current) return;
-    saveMeta(meta);
-    scheduleCloudSave(meta, account.login);
+    if (account.status === 'guest') saveMeta(meta);
+    else if (account.status === 'in' && cloudLoaded.current) scheduleCloudSave(meta, account.login);
   }, [meta, account]);
 
   // Сохранить облако, когда вкладку сворачивают или закрывают
@@ -157,9 +164,37 @@ export default function App() {
     };
   }, []);
 
+  // Регистрация: прогресс гостя переносится в новый аккаунт. Гостевая мета на устройстве остаётся.
+  // Если профиль в облаке не записался, аккаунт удаляется — не остаётся пустых аккаунтов.
+  const createAccount = async (login: string, password: string) => {
+    if (account.status !== 'guest') throw new Error('Вы уже вошли в аккаунт');
+    const seed = meta;
+    registering.current = true;
+    try {
+      const user = await registerPlayer(login, password);
+      try {
+        await createCloudProfile(seed, loginOf(user));
+      } catch (e) {
+        await deleteCurrentPlayer().catch(() => undefined);
+        throw new Error(`Облачное сохранение недоступно: ${errorMessage(e)}`);
+      }
+      cloudLoaded.current = true;
+      setMeta(seed);
+      setAuthNotice(null);
+      setAccount({ status: 'in', login: loginOf(user), uid: user.uid });
+    } finally {
+      registering.current = false;
+    }
+  };
+
+  // Вход в существующий аккаунт: облачная мета заменяет гостевую на экране; гостевая сохраняется
+  const signIn = async (login: string, password: string) => {
+    if (account.status !== 'guest') throw new Error('Вы уже вошли в аккаунт');
+    await signInPlayer(login, password);
+  };
+
   const logout = async () => {
     await flushCloudSave();
-    clearLocalMeta();
     setScreen('menu');
     await signOutPlayer().catch(() => undefined);
   };
@@ -252,15 +287,6 @@ export default function App() {
   const playing = g.status === 'prep' || g.status === 'wave';
   const today = todayKey();
 
-  // Без входа в аккаунт игра не открывается
-  if (account.status === 'checking') {
-    return (
-      <div className="flex h-dvh w-full items-center justify-center bg-[#0b0e18] text-[14px] text-slate-400">
-        Загрузка сохранения…
-      </div>
-    );
-  }
-  if (account.status === 'out') return <LoginScreen notice={authNotice} />;
 
   window.__orbital = {
     get g() {
@@ -270,6 +296,11 @@ export default function App() {
 
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden bg-[#0b0e18] text-slate-100">
+      {account.status === 'checking' && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#0b0e18]/85 text-[14px] text-slate-300 backdrop-blur-sm">
+          Загрузка аккаунта…
+        </div>
+      )}
       {screen === 'menu' && (
         <MainMenu
           meta={meta}
@@ -277,7 +308,10 @@ export default function App() {
           onPlay={startNewRun}
           onShop={() => setScreen('shop')}
           onInventory={() => setScreen('inventory')}
-          login={account.login}
+          account={account}
+          authNotice={authNotice}
+          onCreateAccount={createAccount}
+          onSignIn={signIn}
           onLogout={logout}
         />
       )}

@@ -173,7 +173,7 @@ export function parseMeta(input: unknown): MetaState {
   }
 }
 
-// Локальная копия (кэш устройства). Нужна, чтобы игра работала без сети на устройстве.
+// Гостевая мета — на этом устройстве (ключ orbital.meta.v1). Гость играет без входа.
 export function loadMeta(): MetaState {
   const raw = readStorage();
   if (!raw) return defaultMeta();
@@ -181,15 +181,6 @@ export function loadMeta(): MetaState {
     return parseMeta(JSON.parse(raw));
   } catch {
     return defaultMeta();
-  }
-}
-
-// Удалить локальную копию (выход из аккаунта — чтобы следующий игрок не видел чужую мету)
-export function clearLocalMeta() {
-  try {
-    window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // хранилище недоступно — нечего удалять
   }
 }
 
