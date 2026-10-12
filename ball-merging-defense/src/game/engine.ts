@@ -15,6 +15,7 @@ import {
   COLS,
   ROWS,
   LEAK_AT,
+  PATH_SPEED_SCALE,
   CHARGER_KIND,
   STAGE_W,
   STAGE_H,
@@ -547,11 +548,11 @@ export class Engine {
         : Math.round(baseHp);
     this.enemies.push({
       id: this.nextId++, p: 0, hp, maxHp: hp,
-      speed: boss
+      speed: (boss
         ? CONFIG.bossSpeed * def!.speedMult
         : mini
           ? baseSpeed * MINI_DEF.speedMult
-          : baseSpeed,
+          : baseSpeed) * PATH_SPEED_SCALE,
       radius: boss ? def!.radius : mini ? MINI_DEF.radius : 14,
       slowUntil: 0, slowFactor: 1, stunUntil: 0, dots: [], marks: [],
       reward: boss ? def!.reward : mini ? MINI_DEF.reward : CONFIG.enemyReward,

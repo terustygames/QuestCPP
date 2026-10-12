@@ -16,6 +16,7 @@ import {
   X,
   Zap,
   Square,
+  LogOut,
 } from 'lucide-react';
 import type { Engine } from '../game/engine';
 import { CONFIG, TYPE_INFO, typeStatRows } from '../game/config';
@@ -284,11 +285,13 @@ export function Controls({
   onToggleMode,
   onCallWave,
   coop = false,
+  onLeave,
 }: {
   g: Engine;
   onToggleMode: () => void;
   onCallWave: () => void;
   coop?: boolean; // в кооперативе волну запускает готовность обоих, кнопки нет
+  onLeave?: () => void; // кооператив: выход из матча (с подтверждением)
 }) {
   const accum = g.mode === 'accumulate';
   return (
@@ -321,6 +324,17 @@ export function Controls({
         >
           <Square size={16} />
           <span className="whitespace-nowrap">Стоп линия</span>
+        </button>
+      )}
+
+      {onLeave && (
+        <button
+          onClick={onLeave}
+          aria-label="Выйти из матча"
+          className="flex min-h-[54px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-2xl border border-rose-400/50 bg-rose-500/15 px-1.5 text-[13px] font-bold text-rose-200 transition-all active:scale-[0.96] sm:text-[15px]"
+        >
+          <LogOut size={16} />
+          <span className="whitespace-nowrap">Выйти из матча</span>
         </button>
       )}
 

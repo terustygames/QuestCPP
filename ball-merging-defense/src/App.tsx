@@ -41,6 +41,8 @@ import { Shop } from './components/Shop';
 import { Inventory } from './components/Inventory';
 import { CoopLobby } from './components/CoopLobby';
 import { CoopSession } from './services/coopSession';
+import { checkRoom } from './services/rooms';
+import { clearRun, loadRun, restoreEngine, saveRun, serializeEngine, type SavedRun } from './game/runSave';
 import { deckReady } from './game/meta';
 
 type Screen = 'menu' | 'shop' | 'inventory' | 'coop' | 'game';
@@ -97,17 +99,41 @@ declare global {
 }
 
 export default function App() {
+  // Матч, сохранённый до обновления страницы (поле, волна, жизни)
+  const [boot] = useState(() => {
+    const saved = loadRun();
+    let eng: Engine | null = null;
+    if (saved) {
+      try {
+        eng = restoreEngine(saved.engine);
+        eng.onEvent = onEngineEvent;
+        if (eng.status !== 'prep' && eng.status !== 'wave') eng = null;
+      } catch {
+        eng = null;
+      }
+    }
+    return { saved: eng ? saved : null, engine: eng };
+  });
   const engRef = useRef<Engine | null>(null);
-  if (!engRef.current) engRef.current = newEngine();
+  if (!engRef.current) engRef.current = boot.engine ?? newEngine();
   const g = engRef.current;
   // кооператив: поле напарника (только просмотр) и сессия связи с комнатой
   const remoteRef = useRef<Engine | null>(null);
   if (!remoteRef.current) remoteRef.current = new Engine();
   const remote = remoteRef.current;
   const coopRef = useRef<CoopSession | null>(null);
+  const coopCodeRef = useRef<string>('');
   const [coopOn, setCoopOn] = useState(false);
+  const [remoteLeft, setRemoteLeft] = useState(false);
+  const [remoteLogin, setRemoteLogin] = useState('');
+  const [leaveAsk, setLeaveAsk] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  // сначала выясняем, вошёл ли игрок (нужно для возобновления кооперативного матча)
+  const [authReady, setAuthReady] = useState(false);
+  // сохранённый кооперативный матч ждёт входа в аккаунт
+  const pendingCoop = useRef<SavedRun | null>(boot.saved?.kind === 'coop' ? boot.saved : null);
 
-  const [screen, setScreen] = useState<Screen>('menu');
+  const [screen, setScreen] = useState<Screen>(boot.saved?.kind === 'solo' ? 'game' : 'menu');
   // Гость играет сразу, без входа: мета хранится на устройстве (orbital.meta.v1).
   // Аккаунт необязательный: вход или регистрация — во вкладке «Аккаунт» меню.
   // Аккаунт: мета только в облаке (Firestore), локальной копии нет.
@@ -125,6 +151,7 @@ export default function App() {
   useEffect(
     () =>
       onPlayerChanged(async (user) => {
+        setAuthReady(true);
         if (registering.current) return; // профиль создаст createAccount
         if (!user) {
           cloudLoaded.current = false;
@@ -210,7 +237,7 @@ export default function App() {
   };
 
   const [, setFrame] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(!!boot.saved);
   const [speed, setSpeed] = useState(1);
   const [muted, setMutedState] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -259,12 +286,69 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
+  // Сохранение матча: раз в секунду, пока идёт бой (обновление страницы ничего не сбрасывает)
+  useEffect(() => {
+    if (screen !== 'game') return;
+    const id = window.setInterval(() => {
+      const game = engRef.current!;
+      if (game.status !== 'prep' && game.status !== 'wave') return;
+      saveRun({
+        v: 1,
+        kind: coopOn ? 'coop' : 'solo',
+        code: coopOn ? coopCodeRef.current : undefined,
+        uid: coopOn ? account.uid : undefined,
+        engine: serializeEngine(game),
+        savedAt: Date.now(),
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [screen, coopOn, account.uid]);
+
+  // Возобновление кооперативного матча после обновления страницы: нужен вход и живая комната
+  useEffect(() => {
+    const pend = pendingCoop.current;
+    if (!pend || !authReady) return;
+    pendingCoop.current = null;
+    const code = pend.code;
+    if (account.status !== 'in' || account.uid !== pend.uid || !code) {
+      clearRun();
+      setNotice('Матч не восстановлен: войдите в тот же аккаунт');
+      return;
+    }
+    checkRoom(code)
+      .then((info) => {
+        const stillIn = !!info && info.status === 'playing' && !!info.players?.[account.uid];
+        if (!stillIn) {
+          clearRun();
+          setNotice('Матч уже закрыт');
+          return;
+        }
+        const game = engRef.current!;
+        attachCoop(code, account.uid, game);
+        setPaused(true); // после возвращения — пауза, чтобы игрок огляделся
+        setScreen('game');
+        setFrame((f) => f + 1);
+      })
+      .catch(() => {
+        clearRun();
+        setNotice('Не удалось восстановить матч: нет связи с сервером');
+      });
+  }, [authReady, account.status, account.uid]);
+
+  // Сообщение сверху (исчезает само)
+  useEffect(() => {
+    if (!notice) return;
+    const id = window.setTimeout(() => setNotice(null), 4000);
+    return () => window.clearTimeout(id);
+  }, [notice]);
+
   // Конец забега (поражение или сдача): начислить монеты и очки прокачки
   // за пройденные волны. Один раз на забег.
   // Сундук после забега бросается один раз, здесь же (settleRun — чистая функция).
   useEffect(() => {
     if (g.status !== 'gameover' || rewardedFor.current === g) return;
     rewardedFor.current = g;
+    clearRun(); // матч окончен: восстанавливать нечего
     const res = settleRun(meta, g.wave, rollChest());
     setSettlement(res.reward);
     updateMeta(() => res.meta);
@@ -273,6 +357,7 @@ export default function App() {
   // Старт забега: колода и дерево навыков из меню, запасы (бусты) — расходуются
   const startNewRun = () => {
     initAudio();
+    clearRun();
     if (coopRef.current) stopCoop(true);
     const prepared = prepareRun(meta);
     updateMeta(() => prepared.meta);
@@ -288,23 +373,34 @@ export default function App() {
     setFrame((f) => f + 1);
   };
 
+  // Подключить кооперативную сессию к движку игрока (старт и возобновление)
+  const attachCoop = (code: string, uid: string, game: Engine) => {
+    coopRef.current?.stop(false);
+    coopCodeRef.current = code;
+    const other = new Engine();
+    remoteRef.current = other;
+    setRemoteLeft(false);
+    setRemoteLogin('');
+    const session = new CoopSession(code, uid, game, other, {
+      onRemoteLeft: (v) => setRemoteLeft(v),
+      onRemoteLogin: (name) => setRemoteLogin(name),
+    });
+    coopRef.current = session;
+    session.start();
+    setCoopOn(true);
+  };
+
   // Кооператив: старт забега вдвоём (по коду комнаты, когда хост начал игру)
   const startCoopRun = (code: string) => {
     initAudio();
-    coopRef.current?.stop(false);
-    const uid = account.uid;
+    clearRun();
     const prepared = prepareRun(meta);
     updateMeta(() => prepared.meta);
     setSettlement(null);
     const game = newEngine();
     engRef.current = game;
     game.startGame({ ...prepared.run, coop: true, livesBonus: 0 });
-    const other = new Engine();
-    remoteRef.current = other;
-    const session = new CoopSession(code, uid, game, other);
-    coopRef.current = session;
-    session.start();
-    setCoopOn(true);
+    attachCoop(code, account.uid, game);
     setPaused(false);
     setHelpOpen(false);
     setRouletteWave(0);
@@ -318,6 +414,19 @@ export default function App() {
     coopRef.current?.stop(leave);
     coopRef.current = null;
     setCoopOn(false);
+    setLeaveAsk(false);
+    clearRun();
+  };
+
+  // Выход из матча: напарник видит серое поле, мой матч больше не восстанавливается
+  const leaveMatch = () => {
+    coopRef.current?.leaveMatch();
+    coopRef.current = null;
+    setCoopOn(false);
+    setLeaveAsk(false);
+    clearRun();
+    setScreen('menu');
+    setNotice('Вы вышли из матча');
   };
 
   const toggleMute = () => {
@@ -339,6 +448,14 @@ export default function App() {
 
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden bg-[#0b0e18] text-slate-100">
+      {notice && (
+        <button
+          onClick={() => setNotice(null)}
+          className="fixed left-1/2 top-3 z-[85] w-[min(90%,360px)] -translate-x-1/2 rounded-xl border border-white/15 bg-slate-950/95 px-4 py-2.5 text-center text-[13px] font-bold text-slate-100 shadow-lg"
+        >
+          {notice}
+        </button>
+      )}
       {account.status === 'checking' && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#0b0e18]/85 text-[14px] text-slate-300 backdrop-blur-sm">
           Загрузка аккаунта…
@@ -391,12 +508,13 @@ export default function App() {
 
           <div className="relative flex min-h-0 flex-1 flex-col gap-1 px-2 pt-2 sm:px-4">
             {coopOn && (
-              // поле напарника сверху, повёрнуто на 180°, только просмотр
+              // поле напарника сверху: повёрнуто на 180° (внутри поля), только просмотр
               <div className="relative min-h-0 flex-1">
-                <div className="absolute inset-0" style={{ transform: 'rotate(180deg)' }}>
+                <div className={`absolute inset-0 ${remoteLeft ? 'grayscale opacity-60' : ''}`}>
                   <GameStage
                     g={remote}
                     readOnly
+                    frozen={remoteLeft}
                     paused={false}
                     speed={1}
                     helpOpen={false}
@@ -406,6 +524,16 @@ export default function App() {
                     onChainFire={() => undefined}
                   />
                 </div>
+                <div className="pointer-events-none absolute left-2 top-1 z-10 rounded-lg bg-black/50 px-2 py-0.5 text-[12px] font-bold text-slate-100">
+                  Напарник: {remoteLogin || '…'}
+                </div>
+                {remoteLeft && (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center">
+                    <div className="rounded-xl border border-white/15 bg-slate-950/85 px-4 py-2 text-[14px] font-bold text-slate-200">
+                      {remoteLogin || 'Напарник'} вышел из матча
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             <div className="relative min-h-0 flex-1">
@@ -469,6 +597,7 @@ export default function App() {
               <Controls
                 g={g}
                 coop={coopOn}
+                onLeave={coopOn ? () => setLeaveAsk(true) : undefined}
                 onToggleMode={() => {
                   initAudio();
                   g.toggleMode();
@@ -504,6 +633,32 @@ export default function App() {
             )}
 
           {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
+
+          {/* подтверждение выхода из матча: по центру экрана */}
+          {leaveAsk && coopOn && (
+            <div className="fixed inset-0 z-[75] flex items-center justify-center bg-[#04060d]/70 px-4">
+              <div className="w-[min(92%,340px)] rounded-2xl border border-white/10 bg-slate-950 p-5 text-center shadow-2xl shadow-black/60">
+                <div className="font-display text-lg font-bold text-slate-100">Выйти из матча?</div>
+                <div className="mt-2 text-[13px] leading-snug text-slate-300">
+                  Ваше поле у напарника станет серым, а игра продолжится без вас. Вернуться в этот матч нельзя.
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={() => setLeaveAsk(false)}
+                    className="min-h-[46px] flex-1 rounded-xl border border-white/15 bg-white/[0.05] text-[14px] font-bold text-slate-200 active:scale-[0.98]"
+                  >
+                    Остаться
+                  </button>
+                  <button
+                    onClick={leaveMatch}
+                    className="min-h-[46px] flex-1 rounded-xl bg-gradient-to-br from-rose-400 to-rose-600 text-[14px] font-extrabold text-white active:scale-[0.98]"
+                  >
+                    Выйти
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {deckInfo && playing && (
             <DeckInfoPopup
               type={deckInfo}

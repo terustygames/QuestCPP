@@ -1,8 +1,9 @@
 // Сессия кооперативной игры: связывает движок игрока с комнатой в Realtime Database.
 // - своё поле публикуется в rooms/{code}/boards/{uid} примерно 4 раза в секунду;
 // - поле напарника подтягивается из rooms/{code}/boards/{other} в движок remote (только просмотр);
-// - волна стартует, когда оба игрока готовы к одному номеру волны (ready);
-// - жизни общие: утечки уходят дельтой транзакцией, локальный движок берёт общее значение.
+// - волна стартует, когда готовы оба игрока (вышедший не мешает: его не ждём);
+// - жизни общие: утечки уходят дельтой транзакцией, локальный движок берёт общее значение;
+// - выход из матча: флаг rooms/{code}/left/{uid}, поле напарника помечается серым.
 import type { Engine } from '../game/engine';
 import { applySnapshot, decodeSnapshot, encodeSnapshot, snapshotOf } from '../game/boardSnapshot';
 import {
@@ -10,7 +11,7 @@ import {
   leakLives,
   leaveRoom,
   publishBoard,
-  ROOM_SIZE,
+  setLeft,
   setReady,
   watchInfo,
   watchValue,
@@ -19,13 +20,20 @@ import {
 
 const PUBLISH_MS = 250;
 
+export interface CoopHooks {
+  onRemoteLeft?: (left: boolean) => void;
+  onRemoteLogin?: (login: string) => void;
+}
+
 export class CoopSession {
   private timer: ReturnType<typeof setInterval> | null = null;
   private unsubs: (() => void)[] = [];
   private unsubBoard: (() => void) | null = null;
+  // напарник запоминается, даже если он уже вышел из комнаты
   private remoteUid: string | null = null;
-  private players = 0;
+  private hasInfo = false;
   private ready: Record<string, unknown> = {};
+  private left: Record<string, unknown> = {};
   private sharedLives: number | null = null;
   private appliedLives: number | null = null;
   private sentLeak = 0;
@@ -37,9 +45,12 @@ export class CoopSession {
     private readonly uid: string,
     private readonly me: Engine,
     private readonly remote: Engine,
+    private readonly hooks: CoopHooks = {},
   ) {}
 
   start(): void {
+    // при восстановлении матча прошлые утечки уже учтены в общих жизнях
+    this.sentLeak = this.me.leakDamage;
     this.unsubs.push(
       watchInfo(this.code, (info) => this.onInfo(info)),
       watchValue(this.code, 'lives', (v) => {
@@ -48,37 +59,48 @@ export class CoopSession {
       watchValue(this.code, 'ready', (v) => {
         this.ready = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
       }),
+      watchValue(this.code, 'left', (v) => {
+        this.left = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+        this.hooks.onRemoteLeft?.(this.remoteLeft());
+      }),
     );
     this.timer = setInterval(() => this.tick(), PUBLISH_MS);
+  }
+
+  private remoteLeft(): boolean {
+    return !!this.remoteUid && !!this.left[this.remoteUid];
   }
 
   private onInfo(info: RoomInfo | null): void {
     if (this.stopped) return;
     if (!info) {
       // комната удалена: общий конец
+      this.hasInfo = false;
       this.me.forceGameOver();
       return;
     }
+    this.hasInfo = true;
     const others = Object.keys(info.players ?? {}).filter((u) => u !== this.uid);
-    this.players = Object.keys(info.players ?? {}).length;
-    const remote = others[0] ?? null;
-    if (remote !== this.remoteUid) {
+    if (others.length > 0 && others[0] !== this.remoteUid) {
       this.unsubBoard?.();
-      this.unsubBoard = null;
-      this.remoteUid = remote;
-      if (remote) {
-        this.unsubBoard = watchValue(this.code, `boards/${remote}`, (raw) => {
-          if (typeof raw !== 'string') return;
-          let parsed: unknown = null;
-          try {
-            parsed = JSON.parse(raw);
-          } catch {
-            return;
-          }
-          const snap = decodeSnapshot(parsed);
-          if (snap) applySnapshot(this.remote, snap);
-        });
-      }
+      this.remoteUid = others[0];
+      this.unsubBoard = watchValue(this.code, `boards/${this.remoteUid}`, (raw) => {
+        if (typeof raw !== 'string') return;
+        let parsed: unknown = null;
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          return;
+        }
+        const snap = decodeSnapshot(parsed);
+        if (snap) applySnapshot(this.remote, snap);
+      });
+      const login = info.players[this.remoteUid]?.login;
+      if (login) this.hooks.onRemoteLogin?.(login);
+    }
+    if (this.remoteUid) {
+      const login = info.players?.[this.remoteUid]?.login;
+      if (login) this.hooks.onRemoteLogin?.(login);
     }
   }
 
@@ -113,14 +135,21 @@ export class CoopSession {
       me.forceGameOver();
     }
 
-    // 5. старт волны: оба готовы к этому номеру волны
-    if (me.status === 'prep' && this.players >= ROOM_SIZE && this.remoteUid) {
-      const bothReady = this.ready[this.uid] === me.wave && this.ready[this.remoteUid] === me.wave;
-      if (bothReady) me.startWave();
+    // 5. старт волны: я готов и напарник готов (или уже вышел из матча)
+    if (me.status === 'prep' && this.remoteUid) {
+      const iAmReady = this.ready[this.uid] === me.wave;
+      const partnerReady = this.remoteLeft() || this.ready[this.remoteUid] === me.wave;
+      if (iAmReady && partnerReady) me.startWave();
     }
   }
 
-  // Конец забега для обоих (сдаться или выход из игры)
+  // Выход из матча: напарник увидит серое поле, мой движок останавливается.
+  leaveMatch(): void {
+    if (this.hasInfo) setLeft(this.code, this.uid).catch(() => {});
+    this.stop(true);
+  }
+
+  // Конец забега для обоих (сдаться в паузе)
   endForBoth(): void {
     endRoomGame(this.code).catch(() => {});
   }

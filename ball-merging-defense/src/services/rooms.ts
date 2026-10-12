@@ -124,6 +124,17 @@ export function publishBoard(code: string, uid: string, json: string): Promise<v
   return set(roomRef(code, `boards/${uid}`), json);
 }
 
+// Отметка «вышел из матча» (напарник увидит серое поле)
+export function setLeft(code: string, uid: string): Promise<void> {
+  return set(roomRef(code, `left/${uid}`), true);
+}
+
+// Разовая проверка комнаты (для возобновления матча после перезагрузки)
+export async function checkRoom(code: string): Promise<RoomInfo | null> {
+  const snap = await get(roomRef(code, 'info'));
+  return (snap.val() as RoomInfo | null) ?? null;
+}
+
 // Общие жизни: каждый игрок отправляет дельту своих утечек
 export function leakLives(code: string, dmg: number): Promise<unknown> {
   return runTransaction(roomRef(code, 'lives'), (cur: number | null) => {

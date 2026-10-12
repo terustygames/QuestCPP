@@ -16,7 +16,7 @@ import {
   CELL,
   COLS,
   ROWS,
-  TRACK,
+  TRACK_PTS,
   PERIMETER,
   LEAK_AT,
   BOSS_DEFS,
@@ -254,10 +254,9 @@ function buildStaticLayer(w: number, h: number) {
   x.fillRect(0, 0, STAGE_W, STAGE_H);
 
   // ТРАССА — плоская дорожка: два цвета, без свечения
-  const t = TRACK;
   const trackPath = () => {
     x.beginPath();
-    x.roundRect(t.x0, t.y0, t.x1 - t.x0, t.y1 - t.y0, t.r);
+    TRACK_PTS.forEach((pt, i) => (i === 0 ? x.moveTo(pt.x, pt.y) : x.lineTo(pt.x, pt.y)));
   };
   trackPath();
   x.strokeStyle = '#10141f';
@@ -272,6 +271,18 @@ function buildStaticLayer(w: number, h: number) {
 
 // ---------- Вспомогательные функции рисования ----------
 
+// Поле напарника рисуется перевёрнутым на 180°. Подписи внутри поля рисуются
+// с обратным поворотом, чтобы текст читался прямо. FLIP выставляет drawScene.
+let FLIP = false;
+function uText(x: CanvasRenderingContext2D, mode: 'fill' | 'stroke', text: string, px: number, py: number) {
+  x.save();
+  x.translate(px, py);
+  if (FLIP) x.rotate(Math.PI);
+  if (mode === 'fill') x.fillText(text, 0, 0);
+  else x.strokeText(text, 0, 0);
+  x.restore();
+}
+
 function drawChevrons(x: CanvasRenderingContext2D, vnow: number) {
   // Бегущие стрелки направления — единственная анимация трассы
   const n = 8;
@@ -279,7 +290,7 @@ function drawChevrons(x: CanvasRenderingContext2D, vnow: number) {
   const off = (vnow * 26) % step;
   x.fillStyle = 'rgba(148,180,255,0.30)';
   for (let i = 0; i < n; i++) {
-    const p = pathPoint(i * step + off);
+    const p = pathPoint((i * step + off) % PERIMETER);
     const a = Math.atan2(p.ty, p.tx);
     x.save();
     x.translate(p.x, p.y);
@@ -360,14 +371,20 @@ function drawScene(
   g: Engine,
   vnow: number,
   fx: StageFx | null,
+  flip = false,
 ) {
-  x.setTransform(staticW / STAGE_W, 0, 0, staticH / STAGE_H, 0, 0);
+  FLIP = flip;
+  const sx = staticW / STAGE_W;
+  const sy = staticH / STAGE_H;
+  // поле: обычное или перевёрнутое на 180° (поле напарника)
+  const board = () => (flip ? x.setTransform(-sx, 0, 0, -sy, staticW, staticH) : x.setTransform(sx, 0, 0, sy, 0, 0));
+  board();
 
   // фон + сетка + трасса
   if (staticLayer && staticW === x.canvas.width && staticH === x.canvas.height) {
-    x.setTransform(1, 0, 0, 1, 0, 0);
+    x.setTransform(flip ? -1 : 1, 0, 0, flip ? -1 : 1, flip ? staticW : 0, flip ? staticH : 0);
     x.drawImage(staticLayer, 0, 0);
-    x.setTransform(staticW / STAGE_W, 0, 0, staticH / STAGE_H, 0, 0);
+    board();
   } else {
     x.fillStyle = '#161b2c';
     x.fillRect(0, 0, STAGE_W, STAGE_H);
@@ -491,7 +508,7 @@ function drawScene(
       x.fillStyle = '#fcd34d';
       x.textAlign = 'center';
       x.textBaseline = 'middle';
-      x.fillText(label, c.x + 11 + bw / 2, c.y - 32);
+      uText(x, 'fill', label, c.x + 11 + bw / 2, c.y - 32);
       // накопление: сколько процентов урона даёт заряд этого шарика
       if (g.mode === 'accumulate') {
         const pctLabel = `+${Math.round((accumMul(o.level) - 1) * 100)}%`;
@@ -500,9 +517,9 @@ function drawScene(
         x.textBaseline = 'middle';
         x.lineWidth = 3;
         x.strokeStyle = 'rgba(0,0,0,0.85)';
-        x.strokeText(pctLabel, c.x + 11 + bw / 2, c.y - 12);
+        uText(x, 'stroke', pctLabel, c.x + 11 + bw / 2, c.y - 12);
         x.fillStyle = '#fde68a';
-        x.fillText(pctLabel, c.x + 11 + bw / 2, c.y - 12);
+        uText(x, 'fill', pctLabel, c.x + 11 + bw / 2, c.y - 12);
       }
     }
 
@@ -539,7 +556,7 @@ function drawScene(
         x.fillStyle = '#fcd34d';
         x.textAlign = 'center';
         x.textBaseline = 'middle';
-        x.fillText(label, c.x, c.y - 51);
+        uText(x, 'fill', label, c.x, c.y - 51);
       }
     }
   }
@@ -572,7 +589,7 @@ function drawScene(
       x.fillStyle = '#67e8f9';
       x.textAlign = 'center';
       x.textBaseline = 'middle';
-      x.fillText(`${pts.length}`, last.x, last.y - 48);
+      uText(x, 'fill', `${pts.length}`, last.x, last.y - 48);
     }
   } else if (fx && fx.dragFrom !== -1 && fx.dragHover !== -1) {
     const a = cellC(fx.dragFrom);
@@ -720,9 +737,9 @@ function drawScene(
       x.textAlign = 'center';
       x.textBaseline = 'alphabetic';
       x.fillStyle = 'rgba(0,0,0,0.55)';
-      x.fillText(look.name, ex + 1, ey - r - 17);
+      uText(x, 'fill', look.name, ex + 1, ey - r - 17);
       x.fillStyle = look.color;
-      x.fillText(look.name, ex, ey - r - 18);
+      uText(x, 'fill', look.name, ex, ey - r - 18);
     }
   }
 
@@ -798,7 +815,7 @@ function drawScene(
       x.textAlign = 'center';
       x.textBaseline = 'middle';
       x.fillStyle = pt.color;
-      x.fillText(pt.text, pt.x, pt.y - 26 * t);
+      uText(x, 'fill', pt.text, pt.x, pt.y - 26 * t);
     } else if (pt.kind === 'arrow') {
       const ang = Math.atan2(pt.vy, pt.vx);
       const alpha = Math.min(1, (1 - t) * 1.35) * Math.min(1, t * 5 + 0.25);
@@ -865,6 +882,9 @@ function drawScene(
     x.fillRect(0, 0, STAGE_W, STAGE_H);
   }
 
+  // --- статус и баннер: всегда прямо, поверх поля (без переворота) ---
+  FLIP = false;
+  x.setTransform(sx, 0, 0, sy, 0, 0);
   // --- компактный статус (без лишних надписей) ---
   if (g.status === 'prep') {
     const secs = Math.max(0, Math.ceil(g.prepUntil - g.now));
@@ -925,6 +945,7 @@ export function GameStage({
   onDragPair,
   onChainFire,
   readOnly = false,
+  frozen = false,
 }: {
   g: Engine;
   paused: boolean;
@@ -936,6 +957,8 @@ export function GameStage({
   onChainFire: (cells: number[]) => void;
   // только просмотр (поле напарника в кооперативе): без ввода, время идёт по снимкам
   readOnly?: boolean;
+  // поле замерло (игрок вышел из матча): без движения врагов
+  frozen?: boolean;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -947,6 +970,8 @@ export function GameStage({
   const speedRef = useRef(speed);
   const helpRef = useRef(helpOpen);
   pausedRef.current = paused;
+  const frozenRef = useRef(frozen);
+  frozenRef.current = frozen;
   speedRef.current = speed;
   helpRef.current = helpOpen;
 
@@ -984,7 +1009,7 @@ export function GameStage({
       last = t;
       const active = g.status === 'prep' || g.status === 'wave';
       if (readOnly) {
-        if (active) g.extrapolate(dt);
+        if (active && !frozenRef.current) g.extrapolate(dt);
       } else if (active && !pausedRef.current && !helpRef.current) {
         g.step(dt * speedRef.current);
       }
@@ -1022,7 +1047,7 @@ export function GameStage({
       }
 
       ctx.clearRect(0, 0, cv.width, cv.height);
-      drawScene(ctx, g, t / 1000, fxRef.current);
+      drawScene(ctx, g, t / 1000, fxRef.current, readOnly);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);

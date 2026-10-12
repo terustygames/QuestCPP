@@ -54,52 +54,49 @@ export function isAdj(a: number, b: number) {
   return (A.r === B.r && Math.abs(A.c - B.c) === 1) || (A.c === B.c && Math.abs(A.r - B.r) === 1);
 }
 
-// ---------- Трасса врагов: прямоугольное кольцо вокруг сетки ----------
-export const TRACK = { x0: 26, y0: 110, x1: 614, y1: 550, r: 40 };
+// ---------- Трасса врагов: ломаная линия по полю ----------
+// Спавн — левый нижний угол поля, путь идёт вдоль низа и правой стороны,
+// затем вдоль верха к центру и выходит в середине верхнего края.
+// В кооперативе у каждого игрока выход стоит на стыке полей: поле напарника
+// повёрнуто на 180°, и оба пути сходятся в одну общую точку в центре экрана.
+export const TRACK_PTS = [
+  { x: 26, y: 550 }, // спавн
+  { x: 614, y: 550 },
+  { x: 614, y: 110 },
+  { x: 320, y: 110 },
+  { x: 320, y: 0 }, // выход (середина верхнего края поля)
+];
+const SEG_LEN = TRACK_PTS.slice(1).map((p, i) => Math.hypot(p.x - TRACK_PTS[i].x, p.y - TRACK_PTS[i].y));
+// Длина пути от спавна до выхода
+export const PERIMETER = SEG_LEN.reduce((a, b) => a + b, 0);
+// Враг «утёк», когда дошёл до выхода
+export const LEAK_AT = PERIMETER;
+// Прежний путь (кольцо) до выхода — 1847 px. Скорости врагов умножаются на этот коэффициент,
+// чтобы новый путь проходился за то же время, что и прежний.
+export const PATH_SPEED_SCALE = 1847.3 / PERIMETER;
 
-const R = TRACK.r;
-const L_TOP = TRACK.x1 - R - (TRACK.x0 + R); // длина верхней/нижней прямой
-const L_SIDE = TRACK.y1 - R - (TRACK.y0 + R); // длина боковой прямой
-const L_ARC = (Math.PI / 2) * R; // длина одного закругления
-export const PERIMETER = 2 * (L_TOP + L_SIDE) + 4 * L_ARC;
-// Враг "утёк", когда прошёл почти полный круг.
-// Смещаем точку выхода подальше от точки спавна, чтобы красная и
-// зелёная метки не сливались в одном углу.
-export const LEAK_AT = PERIMETER - 140;
-
-// Точка на трассе по пройденной дистанции p (+ касательная tx,ty куда он идёт)
+// Точка на трассе по пройденной дистанции p (+ касательная tx,ty куда он идёт).
+// За пределами пути значение зажимается: до спавна — спавн, после — выход.
 export function pathPoint(p: number) {
-  let d = ((p % PERIMETER) + PERIMETER) % PERIMETER;
-  const t = TRACK;
-  if (d < L_TOP) return { x: t.x0 + R + d, y: t.y0, tx: 1, ty: 0 };
-  d -= L_TOP;
-  if (d < L_ARC) {
-    const a = -Math.PI / 2 + d / R;
-    const cx = t.x1 - R, cy = t.y0 + R;
-    return { x: cx + R * Math.cos(a), y: cy + R * Math.sin(a), tx: -Math.sin(a), ty: Math.cos(a) };
+  const d = Math.min(PERIMETER, Math.max(0, p));
+  let rest = d;
+  for (let i = 0; i < SEG_LEN.length; i++) {
+    const a = TRACK_PTS[i];
+    const b = TRACK_PTS[i + 1];
+    const L = SEG_LEN[i];
+    if (rest <= L || i === SEG_LEN.length - 1) {
+      const t = L > 0 ? Math.min(1, rest / L) : 0;
+      return {
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t,
+        tx: (b.x - a.x) / L,
+        ty: (b.y - a.y) / L,
+      };
+    }
+    rest -= L;
   }
-  d -= L_ARC;
-  if (d < L_SIDE) return { x: t.x1, y: t.y0 + R + d, tx: 0, ty: 1 };
-  d -= L_SIDE;
-  if (d < L_ARC) {
-    const a = d / R;
-    const cx = t.x1 - R, cy = t.y1 - R;
-    return { x: cx + R * Math.cos(a), y: cy + R * Math.sin(a), tx: -Math.sin(a), ty: Math.cos(a) };
-  }
-  d -= L_ARC;
-  if (d < L_TOP) return { x: t.x1 - R - d, y: t.y1, tx: -1, ty: 0 };
-  d -= L_TOP;
-  if (d < L_ARC) {
-    const a = Math.PI / 2 + d / R;
-    const cx = t.x0 + R, cy = t.y1 - R;
-    return { x: cx + R * Math.cos(a), y: cy + R * Math.sin(a), tx: -Math.sin(a), ty: Math.cos(a) };
-  }
-  d -= L_ARC;
-  if (d < L_SIDE) return { x: t.x0, y: t.y1 - R - d, tx: 0, ty: -1 };
-  d -= L_SIDE;
-  const a = Math.PI + d / R;
-  const cx = t.x0 + R, cy = t.y0 + R;
-  return { x: cx + R * Math.cos(a), y: cy + R * Math.sin(a), tx: -Math.sin(a), ty: Math.cos(a) };
+  const last = TRACK_PTS[TRACK_PTS.length - 1];
+  return { x: last.x, y: last.y, tx: 0, ty: -1 };
 }
 
 // ---------- Описание типов шариков (всего 11) ----------
