@@ -7,6 +7,9 @@ import { errorMessage } from '../firebase';
 import { ROOM_SIZE, createRoom, joinRoom, leaveRoom, normalizeCode, startRoom, watchInfo, type RoomInfo } from '../services/rooms';
 import { META_CFG } from '../game/meta';
 
+// Подставляется сборкой (vite.config.ts): время сборки этой версии игры
+declare const __BUILD_STAMP__: string;
+
 export function CoopLobby({
   account,
   deckReady,
@@ -122,7 +125,9 @@ export function CoopLobby({
       </header>
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-6 pt-4">
-        {notReady ? (
+        <div className="relative z-10 shrink-0 px-4 text-[11px] text-slate-500">версия игры: {__BUILD_STAMP__}</div>
+
+      {notReady ? (
           <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-[14px] text-amber-100">
             Для игры вдвоём нужен вход в аккаунт. Откройте меню «три полоски» → «Аккаунт».
           </div>

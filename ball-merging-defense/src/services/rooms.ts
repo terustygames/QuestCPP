@@ -74,7 +74,7 @@ export async function joinRoom(input: string, login: string): Promise<string> {
   if (code.length !== CODE_LEN) throw new Error(`Код комнаты — ${CODE_LEN} символов`);
   const snap = await get(roomRef(code, 'info'));
   const cur = (snap.val() as RoomInfo | null) ?? null;
-  if (!cur) throw new Error('Комната с таким кодом не найдена');
+  if (!cur) throw new Error(`Комната ${code} не найдена в базе. Проверьте код или создайте комнату заново`);
   const players = { ...(cur.players ?? {}) };
   if (players[uid]) return code; // уже в этой комнате (например, после перезапуска)
   if (cur.status !== 'lobby') throw new Error('Игра в этой комнате уже идёт');

@@ -31,8 +31,14 @@ function publishStandalone(): Plugin {
 }
 
 // https://vite.dev/config/
+// Метка сборки: видно в лобби, чтобы понять, какая версия открыта на телефоне
+const BUILD_STAMP = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', dateStyle: 'short', timeStyle: 'short' });
+
 export default defineConfig({
   plugins: [react(), tailwindcss(), viteSingleFile(), publishStandalone()],
+  define: {
+    __BUILD_STAMP__: JSON.stringify(BUILD_STAMP),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
