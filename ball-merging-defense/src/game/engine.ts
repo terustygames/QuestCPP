@@ -24,6 +24,7 @@ import {
   cellC,
   pathPoint,
   TYPE_INFO,
+  gasRadius,
   type BossId,
   type OrbType,
 } from './config';
@@ -125,6 +126,21 @@ export interface ProjState {
   dmgMul?: number; // накопление: множитель урона всех попаданий снаряда
 }
 
+// Облако газа: не снаряд, а область у цели. Разрастается, держится и жжёт врагов внутри.
+export interface GasCloud {
+  id: number;
+  x: number;
+  y: number;
+  age: number; // сколько прошло с рождения, с
+  life: number; // сколько держится всего, с
+  rMax: number; // радиус при полном разлёте, px
+  nextTick: number; // время от рождения, когда следующий тик урона
+  dmg: number; // база урона за тик (до дерева и накопления)
+  slowF: number; // скорость врагов внутри облака (×)
+  dmgMul: number; // накопление: множитель урона залпа
+  seed: number; // разброс внешнего вида
+}
+
 export interface NeedleState {
   id: number;
   x: number;
@@ -175,6 +191,7 @@ export class Engine {
   grid: (OrbState | null)[] = Array(COLS * ROWS).fill(null);
   enemies: EnemyState[] = [];
   projs: ProjState[] = [];
+  clouds: GasCloud[] = []; // облака газа (шарик «Газ»)
   needles: NeedleState[] = [];
   parts: Particle[] = [];
 
@@ -236,6 +253,7 @@ export class Engine {
     vampire: 1,
     barrage: 1,
     mark: 1,
+    gas: 1,
   };
 
   // --- автоматическое заполнение пустых клеток ---
@@ -396,6 +414,7 @@ export class Engine {
     this.endReason = 'loss';
     for (const k of Object.keys(this.typeLevels) as OrbType[]) this.typeLevels[k] = 1;
     this.markDrainAcc = 0;
+    this.clouds = [];
     this.refillField();
     this.setBanner('Поле готово. Волна через 9 секунд');
   }
@@ -584,8 +603,10 @@ export class Engine {
       n.y += n.dy * 540 * dt;
       n.life -= dt;
     }
+    for (const c of this.clouds) c.age += dt;
     this.projs = this.projs.filter((p) => p.life > 0);
     this.needles = this.needles.filter((n) => n.life > 0);
+    this.clouds = this.clouds.filter((c) => c.age < c.life);
   }
 
   callWaveNow() {
@@ -990,6 +1011,23 @@ export class Engine {
   // bonus — комбо-бонус: каждый шарик в цепи добавляет +1 к урону снарядов.
   fireOrbAt(x: number, y: number, type: OrbType, count: number, bonus = 0, dmgMul = 1) {
     const g = this.typeLevels[type] - 1;
+    if (type === 'gas') {
+      // газ не летит: каждый выстрел — облако у самого продвинутого врага (чуть в стороне)
+      for (let k = 0; k < count; k++) {
+        const target = this.pickTarget();
+        if (!target) break;
+        const tp = this.at(target);
+        const jit = k === 0 ? 0 : 26;
+        this.spawnCloud(
+          tp.x + (Math.random() - 0.5) * jit * 2,
+          tp.y + (Math.random() - 0.5) * jit * 2,
+          bonus,
+          dmgMul,
+          g,
+        );
+      }
+      return;
+    }
     for (let k = 0; k < count; k++) {
       // метка стреляет в случайного врага, остальные шарики — в ближних по трассе
       const target = type === 'mark' ? this.randomTarget() : this.pickTarget();
@@ -1023,6 +1061,53 @@ export class Engine {
         bonus, dmgMul,
       });
     }
+  }
+
+  // Облако газа в точке (x, y) моего поля
+  spawnCloud(x: number, y: number, bonus: number, dmgMul: number, g: number) {
+    this.clouds.push({
+      id: this.nextId++,
+      x,
+      y,
+      age: 0,
+      life: CONFIG.gas.duration + 0.4 * g + this.m('gas', 'dur'),
+      rMax: CONFIG.gas.radius + 15 * g + this.m('gas', 'radius'),
+      nextTick: CONFIG.gas.tick,
+      dmg: 1 + g + bonus,
+      slowF: Math.max(0.2, CONFIG.gas.slow + this.m('gas', 'slow')),
+      dmgMul,
+      seed: Math.random() * 10,
+    });
+    this.spark(x, y, TYPE_INFO.gas.color, 6, 60);
+  }
+
+  // Облака: разрастаются, замедляют врагов внутри, раз в тик жгут их.
+  // Враги напарника тоже попадают в облако (урон уходит владельцу через outHits).
+  private updateClouds(dt: number) {
+    if (!this.clouds.length) return;
+    for (const c of this.clouds) {
+      c.age += dt;
+      const r = gasRadius(c);
+      const tick = c.age >= c.nextTick;
+      if (tick) c.nextTick += CONFIG.gas.tick;
+      for (const e of this.allEnemies()) {
+        if (e.dead) continue;
+        const q = this.at(e);
+        const dx = q.x - c.x, dy = q.y - c.y;
+        const rr = r + e.radius;
+        if (dx * dx + dy * dy >= rr * rr) continue;
+        // замедление: пока враг внутри, оно продлевается каждый кадр
+        const stillSlow = this.now < e.slowUntil;
+        e.slowFactor = stillSlow ? Math.min(e.slowFactor, c.slowF) : c.slowF;
+        e.slowUntil = Math.max(e.slowUntil, this.now + 0.15);
+        if (tick) {
+          this.hitMul = c.dmgMul;
+          this.damage(e, this.hitDmg(c.dmg, 'gas'), '#d9f99d', false);
+          this.hitMul = 1;
+        }
+      }
+    }
+    this.clouds = this.clouds.filter((c) => c.age < c.life);
   }
 
   // Цель: один из самых продвинутых к выходу врагов
@@ -1281,6 +1366,7 @@ export class Engine {
 
     // --- враги ---
     this.puddles = this.puddles.filter((pd) => pd.until > this.now);
+    this.updateClouds(dt);
     const leakedNow: EnemyState[] = [];
     for (const e of this.enemies) {
       if (e.marks.length) {

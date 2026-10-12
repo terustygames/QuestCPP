@@ -17,7 +17,8 @@ export type OrbType =
   | 'pierce'
   | 'vampire'
   | 'barrage'
-  | 'mark';
+  | 'mark'
+  | 'gas';
 
 // ---------- Размеры игрового поля (логические пиксели) ----------
 // Портретная ориентация: поле рассчитано под вертикальный экран телефона.
@@ -98,7 +99,7 @@ export function pathPoint(p: number) {
   return { x: last.x, y: last.y, tx: 0, ty: -1 };
 }
 
-// ---------- Описание типов шариков (всего 11) ----------
+// ---------- Описание типов шариков (всего 13) ----------
 // Шесть базовых типов открыты с начала, остальные пять открываются сундуками (ежедневным и после забега).
 export const TYPE_INFO: Record<
   OrbType,
@@ -181,6 +182,13 @@ export const TYPE_INFO: Record<
     glow: 'rgba(232,121,249,',
     desc: 'ставит метки на случайных врагов: метка жжёт врага и высасывает из него эссенцию',
   },
+  gas: {
+    name: 'Газ',
+    color: '#a3e635',
+    dark: '#365314',
+    glow: 'rgba(163,230,53,',
+    desc: 'выпускает облако газа по радиусу: жжёт и замедляет всех врагов внутри облака',
+  },
   barrage: {
     name: 'Шквал',
     color: '#2dd4bf',
@@ -191,7 +199,7 @@ export const TYPE_INFO: Record<
 };
 
 export const ALL_TYPES: OrbType[] = [
-  'fire', 'ice', 'bolt', 'poison', 'spiky', 'amp', 'nova', 'stun', 'pierce', 'vampire', 'barrage', 'mark',
+  'fire', 'ice', 'bolt', 'poison', 'spiky', 'amp', 'nova', 'stun', 'pierce', 'vampire', 'barrage', 'mark', 'gas',
 ];
 // Базовая колода обычного режима
 export const CLASSIC_TYPES: OrbType[] = ['fire', 'ice', 'bolt', 'poison', 'spiky', 'amp'];
@@ -319,7 +327,23 @@ export const CONFIG = {
     puddleSpeed: 1.6, // скорость мобов внутри лужи (×; 1.6 = +60%)
     puddleBoss: false, // действует ли лужа на боссов
   },
+
+  // Газ: шарик выпускает облако не снарядом, а облаком у цели. Облако разрастается
+  // до radius за spread секунд, держится duration и каждые tick секунд жжёт врагов внутри.
+  gas: {
+    radius: 80, // радиус облака при полном разлёте, px
+    spread: 0.5, // секунд на разлёт облака до полного радиуса
+    duration: 3.2, // сколько секунд облако держится
+    tick: 0.4, // раз в сколько секунд облако жжёт врагов внутри
+    slow: 0.6, // скорость врагов внутри облака (×; 0.6 = на 40% медленнее)
+  },
 };
+
+// Радиус облака газа в момент c.age: быстро разрастается и останавливается
+export function gasRadius(c: { age: number; rMax: number }): number {
+  const t = Math.min(1, Math.max(0, c.age / CONFIG.gas.spread));
+  return c.rMax * (1 - (1 - t) * (1 - t));
+}
 
 // Множитель урона залпа заряженного шарика (только для заряда 2 и выше)
 export function accumMul(level: number): number {
@@ -357,6 +381,13 @@ export function typeStatValue(t: OrbType, stat: string, lvl: number): number {
       return stat === 'dmg' ? 1 + g : 1; // урон / эссенция за попадание
     case 'barrage':
       return 5 + g; // снарядов в залпе
+    case 'gas':
+      // rad — радиус облака; dur — длительность; dmg — урон за тик; slow — скорость врагов внутри
+      if (stat === 'rad') return CONFIG.gas.radius + 15 * g;
+      if (stat === 'dur') return CONFIG.gas.duration + 0.4 * g;
+      if (stat === 'dmg') return 1 + g;
+      if (stat === 'slow') return CONFIG.gas.slow;
+      return 1;
     case 'mark':
       // dmg — урон попадания; dps — урон метки в секунду; dur — длительность метки;
       // cap — меток на одном враге (без дерева)
@@ -425,6 +456,14 @@ export function typeStatRows(t: OrbType, lvl: number): StatRow[] {
       return [R('Урон', v('dmg'), n('dmg')), R('Эссенция за попадание', 1, 1)];
     case 'barrage':
       return [R('Снарядов в залпе', v('x'), n('x')), R('Урон снаряда', 1, 1)];
+    case 'gas':
+      return [
+        R('Урон за тик', v('dmg'), n('dmg')),
+        R('Тик урона', CONFIG.gas.tick, CONFIG.gas.tick, ' с'),
+        R('Радиус облака', v('rad'), n('rad')),
+        R('Длительность облака', v('dur'), n('dur'), ' с'),
+        R('Скорость врагов в облаке', v('slow') * 100, n('slow') * 100, '%'),
+      ];
     case 'mark':
       return [
         R('Урон попадания', v('dmg'), n('dmg')),

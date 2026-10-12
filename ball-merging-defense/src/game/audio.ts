@@ -105,6 +105,10 @@ export const sfx = {
     else if (kind === 'vampire') tone(300, 120, 0.12, 'sine', 0.1);
     else if (kind === 'barrage') [0, 0.05, 0.1].forEach((d) => tone(520, 320, 0.05, 'triangle', 0.05, d));
     else if (kind === 'amp') tone(660, 990, 0.08, 'triangle', 0.07);
+    else if (kind === 'gas') {
+      tone(260, 90, 0.2, 'sawtooth', 0.035);
+      noiseBurst(0.18, 0.05);
+    }
     else tone(430, 170, 0.13, 'sine', 0.09);
   },
   // тики ленты рулетки босса (по ходу вращения)

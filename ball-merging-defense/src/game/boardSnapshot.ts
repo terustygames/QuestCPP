@@ -4,7 +4,7 @@
 // пустые массивы RTDB не хранит вовсе, поэтому при чтении они восстанавливаются.
 // Числа округляются до 0.1 (для картинки этого достаточно) — снимок короче.
 
-import type { Engine, EnemyState, NeedleState, OrbState, ProjState, Puddle, Status, Mode } from './engine';
+import type { Engine, EnemyState, GasCloud, NeedleState, OrbState, ProjState, Puddle, Status, Mode } from './engine';
 import { COLS, ROWS } from './config';
 import type { OrbType } from './config';
 
@@ -22,6 +22,7 @@ export interface BoardSnapshot {
   puddles: Puddle[];
   projs: ProjState[];
   needles: NeedleState[];
+  clouds?: GasCloud[];
 }
 
 const r1 = (v: number) => Math.round(v * 10) / 10;
@@ -52,6 +53,15 @@ export function snapshotOf(g: Engine): BoardSnapshot {
         marks: e.marks.map((m) => ({ until: r1(m.until), dps: m.dps })),
       })),
     puddles: g.puddles.map((p) => ({ ...p, p: r1(p.p), until: r1(p.until) })),
+    // облака газа: позиция, возраст и радиус (остальное сторона напарника не использует)
+    clouds: g.clouds.map((c) => ({
+      ...c,
+      x: r1(c.x),
+      y: r1(c.y),
+      age: r1(c.age),
+      life: r1(c.life),
+      nextTick: r1(c.nextTick),
+    })),
     // снаряды и шипы: позиции и направление; короткий след (до 3 точек)
     projs: g.projs.map((p) => ({
       ...p,
@@ -105,5 +115,6 @@ export function applySnapshot(g: Engine, s: BoardSnapshot): void {
   g.puddles = s.puddles ?? [];
   g.projs = (s.projs ?? []).map((p) => ({ ...p, trail: p.trail ?? [] }));
   g.needles = s.needles ?? [];
+  g.clouds = s.clouds ?? [];
   g.parts = [];
 }

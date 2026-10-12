@@ -27,11 +27,12 @@ import {
   pathPoint,
   TYPE_INFO,
   accumMul,
+  gasRadius,
   MINI_DEF,
   type BossId,
   type OrbType,
 } from '../game/config';
-import type { Engine } from '../game/engine';
+import type { Engine, GasCloud } from '../game/engine';
 import { chargeTint } from '../game/charger';
 
 
@@ -167,6 +168,13 @@ function drawOrbMark(x: CanvasRenderingContext2D, type: OrbType, cx: number, cy:
       for (const rr of [8, 15]) {
         x.beginPath();
         x.arc(-9, 0, rr, -Math.PI / 3, Math.PI / 3);
+        x.stroke();
+      }
+      break;
+    case 'gas': // облако: три перекрывающихся круга
+      for (const [px, py, rr] of [[-6, 2, 6], [5, -2, 7], [0, 6, 5]] as const) {
+        x.beginPath();
+        x.arc(px, py, rr, 0, Math.PI * 2);
         x.stroke();
       }
       break;
@@ -405,17 +413,100 @@ export interface StageFx {
   placeHover: number; // пустая клетка под пальцем (можно поставить)
 }
 
+// Облако газа: несколько мягких пятен, колышутся; тают в начале и в конце жизни
+function drawGas(x: CanvasRenderingContext2D, c: GasCloud, vnow: number) {
+  const r = gasRadius(c);
+  const fade = Math.min(1, c.age / 0.25) * Math.min(1, (c.life - c.age) / 0.7);
+  if (fade <= 0 || r <= 0) return;
+  const glow = TYPE_INFO.gas.glow;
+  for (let i = 0; i < 7; i++) {
+    const dir = i % 2 ? 1 : -1;
+    const ang = c.seed + i * 0.9 + vnow * 0.25 * dir;
+    const dist = r * (0.2 + 0.5 * ((i * 0.37 + c.seed * 0.1) % 1));
+    const px = c.x + Math.cos(ang) * dist;
+    const py = c.y + Math.sin(ang) * dist * 0.8;
+    const pr = r * (0.42 + 0.08 * Math.sin(vnow * 1.7 + i));
+    const grd = x.createRadialGradient(px, py, 0, px, py, pr);
+    grd.addColorStop(0, `${glow}${(0.32 * fade).toFixed(3)})`);
+    grd.addColorStop(1, `${glow}0)`);
+    x.fillStyle = grd;
+    x.beginPath();
+    x.arc(px, py, pr, 0, Math.PI * 2);
+    x.fill();
+  }
+  // тонкая кромка: граница облака видна
+  x.strokeStyle = `${glow}${(0.3 * fade).toFixed(3)})`;
+  x.lineWidth = 1.5;
+  x.beginPath();
+  x.arc(c.x, c.y, r, 0, Math.PI * 2);
+  x.stroke();
+}
+
+// Облака, иглы и снаряды одного поля. Рисуются в текущей системе координат (setView).
+function drawShots(x: CanvasRenderingContext2D, g: Engine, vnow: number) {
+  for (const c of g.clouds) drawGas(x, c, vnow);
+  // --- иглы ---
+  for (const n of g.needles) {
+    const dx = Math.cos(n.ang) * 14;
+    const dy = Math.sin(n.ang) * 14;
+    x.lineCap = 'round';
+    x.strokeStyle = 'rgba(168,85,247,0.28)';
+    x.lineWidth = 9;
+    x.beginPath();
+    x.moveTo(n.x - dx, n.y - dy);
+    x.lineTo(n.x + dx, n.y + dy);
+    x.stroke();
+    x.strokeStyle = 'rgba(233,213,255,0.95)';
+    x.lineWidth = 3;
+    x.beginPath();
+    x.moveTo(n.x - dx, n.y - dy);
+    x.lineTo(n.x + dx, n.y + dy);
+    x.stroke();
+  }
+
+  // --- снаряды ---
+  for (const p of g.projs) {
+    const info = TYPE_INFO[p.kind];
+    const sp = Math.hypot(p.vx, p.vy) || 1;
+    const nx = -p.vy / sp;
+    const ny = p.vx / sp;
+    // шлейф
+    for (let k = 0; k < Math.min(4, p.trail.length); k++) {
+      const tp = p.trail[k];
+      x.globalAlpha = 0.28 - k * 0.055;
+      x.fillStyle = info.color;
+      x.beginPath();
+      x.arc(tp.x, tp.y, 3.6 - k * 0.55, 0, Math.PI * 2);
+      x.fill();
+    }
+    x.globalAlpha = 1;
+    // плоская голова с лёгким вилянием
+    const off = Math.sin(p.age * 9 + p.seed) * 4;
+    const hx = p.x + nx * off;
+    const hy = p.y + ny * off;
+    x.fillStyle = info.dark;
+    x.beginPath();
+    x.arc(hx, hy, 6, 0, Math.PI * 2);
+    x.fill();
+    x.fillStyle = info.color;
+    x.beginPath();
+    x.arc(hx, hy, 4.5, 0, Math.PI * 2);
+    x.fill();
+  }
+}
+
 // ---------- Главный рендер кадра ----------
 // Рисует одно поле. view — как поле ложится на холст.
 // opts.interactive — подсветки под пальцем и выбор (только у моего поля);
 // opts.chrome — подписи статуса и баннер (только у моего поля).
+// opts.shots — облака, иглы и снаряды (поле напарника рисуется отдельно, см. loop).
 function drawScene(
   x: CanvasRenderingContext2D,
   g: Engine,
   vnow: number,
   fx0: StageFx | null,
   view: View,
-  opts: { interactive: boolean; chrome: boolean },
+  opts: { interactive: boolean; chrome: boolean; shots: boolean },
 ) {
   setView(x, view);
   const fx = opts.interactive ? fx0 : null;
@@ -774,54 +865,8 @@ function drawScene(
     }
   }
 
-  // --- иглы ---
-  for (const n of g.needles) {
-    const dx = Math.cos(n.ang) * 14;
-    const dy = Math.sin(n.ang) * 14;
-    x.lineCap = 'round';
-    x.strokeStyle = 'rgba(168,85,247,0.28)';
-    x.lineWidth = 9;
-    x.beginPath();
-    x.moveTo(n.x - dx, n.y - dy);
-    x.lineTo(n.x + dx, n.y + dy);
-    x.stroke();
-    x.strokeStyle = 'rgba(233,213,255,0.95)';
-    x.lineWidth = 3;
-    x.beginPath();
-    x.moveTo(n.x - dx, n.y - dy);
-    x.lineTo(n.x + dx, n.y + dy);
-    x.stroke();
-  }
-
-  // --- снаряды ---
-  for (const p of g.projs) {
-    const info = TYPE_INFO[p.kind];
-    const sp = Math.hypot(p.vx, p.vy) || 1;
-    const nx = -p.vy / sp;
-    const ny = p.vx / sp;
-    // шлейф
-    for (let k = 0; k < Math.min(4, p.trail.length); k++) {
-      const tp = p.trail[k];
-      x.globalAlpha = 0.28 - k * 0.055;
-      x.fillStyle = info.color;
-      x.beginPath();
-      x.arc(tp.x, tp.y, 3.6 - k * 0.55, 0, Math.PI * 2);
-      x.fill();
-    }
-    x.globalAlpha = 1;
-    // плоская голова с лёгким вилянием
-    const off = Math.sin(p.age * 9 + p.seed) * 4;
-    const hx = p.x + nx * off;
-    const hy = p.y + ny * off;
-    x.fillStyle = info.dark;
-    x.beginPath();
-    x.arc(hx, hy, 6, 0, Math.PI * 2);
-    x.fill();
-    x.fillStyle = info.color;
-    x.beginPath();
-    x.arc(hx, hy, 4.5, 0, Math.PI * 2);
-    x.fill();
-  }
+  // --- облака, иглы и снаряды: своё поле — здесь; поле напарника — отдельным вызовом ---
+  if (opts.shots) drawShots(x, g, vnow);
 
   // --- частицы ---
   for (const pt of g.parts) {
@@ -1066,7 +1111,7 @@ export function GameStage({
           lastRemote = t;
           rctx.setTransform(1, 0, 0, 1, 0, 0);
           rctx.clearRect(0, 0, STAGE_W, STAGE_H);
-          drawScene(rctx, rem, t / 1000, null, VIEW_REMOTE, { interactive: false, chrome: false });
+          drawScene(rctx, rem, t / 1000, null, VIEW_REMOTE, { interactive: false, chrome: false, shots: false });
           if (frozenRef.current) {
             rctx.setTransform(1, 0, 0, 1, 0, 0);
             rctx.fillStyle = 'rgba(71,85,105,0.55)';
@@ -1115,7 +1160,14 @@ export function GameStage({
       drawScene(ctx, g, t / 1000, fxRef.current, mode === 'coop' ? VIEW_OWN : VIEW_SOLO, {
         interactive: true,
         chrome: true,
+        shots: true,
       });
+      // снаряды и облака напарника: рисуются прямо на главном холсте, в его зеркальной системе.
+      // Снаряд, летящий к моим врагам, уходит за край его поля, и в его холсте он бы обрезался.
+      if (rem && !frozenRef.current) {
+        setView(ctx, VIEW_REMOTE);
+        drawShots(ctx, rem, t / 1000);
+      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
