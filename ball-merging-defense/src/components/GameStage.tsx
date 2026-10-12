@@ -371,6 +371,25 @@ function uText(x: CanvasRenderingContext2D, mode: 'fill' | 'stroke', text: strin
   x.restore();
 }
 
+// Заливка многоугольника, повёрнутого на угол a и сдвинутого в (px, py).
+// Точки считаются вручную: нет save/translate/rotate/restore на каждый шип и стрелку.
+const CHEVRON_PTS: [number, number][] = [[5, 0], [-5, -5.5], [-2.5, 0], [-5, 5.5]];
+const SPIKE_PTS: [number, number][] = [[9, 0], [-4, -4.5], [-4, 4.5]];
+function fillRotatedPoly(x: CanvasRenderingContext2D, px: number, py: number, a: number, pts: [number, number][]) {
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  x.beginPath();
+  for (let i = 0; i < pts.length; i++) {
+    const [u, v] = pts[i];
+    const X = px + u * c - v * s;
+    const Y = py + u * s + v * c;
+    if (i === 0) x.moveTo(X, Y);
+    else x.lineTo(X, Y);
+  }
+  x.closePath();
+  x.fill();
+}
+
 function drawChevrons(x: CanvasRenderingContext2D, vnow: number) {
   // Бегущие стрелки направления — единственная анимация трассы
   const n = 8;
@@ -380,17 +399,7 @@ function drawChevrons(x: CanvasRenderingContext2D, vnow: number) {
   for (let i = 0; i < n; i++) {
     const p = pathPoint((i * step + off) % PERIMETER);
     const a = Math.atan2(p.ty, p.tx);
-    x.save();
-    x.translate(p.x, p.y);
-    x.rotate(a);
-    x.beginPath();
-    x.moveTo(5, 0);
-    x.lineTo(-5, -5.5);
-    x.lineTo(-2.5, 0);
-    x.lineTo(-5, 5.5);
-    x.closePath();
-    x.fill();
-    x.restore();
+    fillRotatedPoly(x, p.x, p.y, a, CHEVRON_PTS);
   }
 }
 
@@ -601,18 +610,153 @@ function drawShots(x: CanvasRenderingContext2D, g: Engine, vnow: number) {
   }
 }
 
+// Враги одного поля. Рисуются в текущей системе координат (setView).
+// Поле напарника — на главном холсте (как снаряды), а не в его холсте:
+// иначе враг на общей линии обрезается по нижнему краю его поля.
+function drawEnemies(x: CanvasRenderingContext2D, g: Engine, vnow: number) {
+  for (const e of g.enemies) {
+    const pos = g.at(e);
+    const wob = Math.sin(e.id * 1.7 + e.p * 0.02) * 5;
+    const ex = pos.x - pos.ty * wob;
+    const ey = pos.y + pos.tx * wob;
+    const r = e.radius;
+    const flash = g.now < e.flashUntil;
+
+    // плоское тело: однотонный круг с тёмной кромкой
+    const def = e.boss ? BOSS_DEFS[(e.bossId || 1) as BossId] : null;
+    // минибосс — свои цвета (MINI_DEF); у обычного и заряжающегося цвета прежние
+    const look = def ?? (e.mini ? MINI_DEF : null);
+    // заряжающийся моб: серый → сиреневый по мере зарядки; полностью заряжен — светится
+    const charge = e.chargeT > 0 ? g.chargeLevel(e) : 0;
+    const tint = e.chargeT > 0 ? chargeTint(charge) : null;
+    x.fillStyle = look ? look.dark : tint ? tint.dark : '#2b3548';
+    if (charge >= 1) {
+      x.save();
+      x.shadowColor = 'rgba(192,132,252,0.95)';
+      x.shadowBlur = 16 + 6 * Math.sin(vnow * 6);
+    }
+    x.beginPath();
+    x.arc(ex, ey, r, 0, Math.PI * 2);
+    x.fill();
+    if (charge >= 1) x.restore();
+    x.fillStyle = look ? look.color : tint ? tint.body : '#5c6b85';
+    x.beginPath();
+    x.arc(ex, ey, r - 2.5, 0, Math.PI * 2);
+    x.fill();
+    if (charge >= 1) {
+      x.strokeStyle = `rgba(216,180,254,${(0.45 + 0.25 * Math.sin(vnow * 6)).toFixed(3)})`;
+      x.lineWidth = 2;
+      x.beginPath();
+      x.arc(ex, ey, r + 3, 0, Math.PI * 2);
+      x.stroke();
+    }
+
+    // резонанс: помеченный враг обведён пунктиром
+    if (g.now < (e.vulnUntil ?? 0)) {
+      x.save();
+      x.strokeStyle = 'rgba(103,232,249,0.9)';
+      x.lineWidth = 1.8;
+      x.setLineDash([4, 4]);
+      x.lineDashOffset = -vnow * 12;
+      x.beginPath();
+      x.arc(ex, ey, r + 6, 0, Math.PI * 2);
+      x.stroke();
+      x.restore();
+    }
+
+    if (g.now < e.slowUntil) {
+      x.strokeStyle = 'rgba(70,200,255,0.85)';
+      x.lineWidth = 2;
+      x.beginPath();
+      x.arc(ex, ey, r + 3, 0, Math.PI * 2);
+      x.stroke();
+    }
+    if (g.now < e.stunUntil) {
+      // паралич: жёлтое кольцо
+      x.strokeStyle = 'rgba(255,176,32,0.95)';
+      x.lineWidth = 2.5;
+      x.setLineDash([6, 5]);
+      x.beginPath();
+      x.arc(ex, ey, r + 5, vnow * 2, vnow * 2 + Math.PI * 2);
+      x.stroke();
+      x.setLineDash([]);
+    }
+    if (e.dots.length) {
+      x.strokeStyle = 'rgba(74,222,128,0.75)';
+      x.lineWidth = 2;
+      x.beginPath();
+      x.arc(ex, ey, r + 6, 0, Math.PI * 2);
+      x.stroke();
+    }
+    if (e.marks.length) {
+      // метка шарика «Метка»: пунктирное кольцо, вращается; по числу меток — точки
+      x.strokeStyle = 'rgba(232,121,249,0.95)';
+      x.lineWidth = 2;
+      x.setLineDash([4, 4]);
+      x.beginPath();
+      x.arc(ex, ey, r + 10, -vnow * 1.5, -vnow * 1.5 + Math.PI * 2);
+      x.stroke();
+      x.setLineDash([]);
+      x.fillStyle = 'rgba(232,121,249,0.95)';
+      for (let k = 0; k < e.marks.length; k++) {
+        x.beginPath();
+        x.arc(ex - 5 + k * 10, ey + r + 13, 2.2, 0, Math.PI * 2);
+        x.fill();
+      }
+    }
+    if (flash) {
+      x.fillStyle = 'rgba(255,255,255,0.7)';
+      x.beginPath();
+      x.arc(ex, ey, r, 0, Math.PI * 2);
+      x.fill();
+    }
+
+    // глаза (смотрят по ходу движения)
+    x.fillStyle = 'rgba(0,0,0,0.8)';
+    const fxo = pos.tx * r * 0.25;
+    const fyo = pos.ty * r * 0.25;
+    x.beginPath();
+    x.arc(ex - r * 0.3 + fxo, ey - r * 0.15 + fyo, 2.6, 0, Math.PI * 2);
+    x.arc(ex + r * 0.3 + fxo, ey - r * 0.15 + fyo, 2.6, 0, Math.PI * 2);
+    x.fill();
+
+    // полоска здоровья
+    const bw = e.boss ? 46 : e.mini ? 36 : 28;
+    const pct = Math.max(0, e.hp / e.maxHp);
+    x.fillStyle = 'rgba(0,0,0,0.6)';
+    roundedRect(x, ex - bw / 2, ey - r - 11, bw, 4, 2);
+    x.fill();
+    x.fillStyle = pct > 0.5 ? '#4ade80' : pct > 0.25 ? '#facc15' : '#ef4444';
+    if (pct > 0) {
+      roundedRect(x, ex - bw / 2, ey - r - 11, bw * pct, 4, 2);
+      x.fill();
+    }
+    // имя босса над полоской здоровья
+    if (look) {
+      x.font = '800 11px Manrope, system-ui, sans-serif';
+      x.textAlign = 'center';
+      x.textBaseline = 'alphabetic';
+      x.fillStyle = 'rgba(0,0,0,0.55)';
+      uText(x, 'fill', look.name, ex + 1, ey - r - 17);
+      x.fillStyle = look.color;
+      uText(x, 'fill', look.name, ex, ey - r - 18);
+    }
+  }
+}
+
 // ---------- Главный рендер кадра ----------
 // Рисует одно поле. view — как поле ложится на холст.
 // opts.interactive — подсветки под пальцем и выбор (только у моего поля);
 // opts.chrome — подписи статуса и баннер (только у моего поля).
 // opts.shots — облака, иглы и снаряды (поле напарника рисуется отдельно, см. loop).
+// opts.enemies — враги (поле напарника рисуется отдельно, см. loop).
 function drawScene(
   x: CanvasRenderingContext2D,
   g: Engine,
   vnow: number,
   fx0: StageFx | null,
   view: View,
-  opts: { interactive: boolean; chrome: boolean; shots: boolean },
+  opts: { interactive: boolean; chrome: boolean; shots: boolean; enemies: boolean },
 ) {
   setView(x, view);
   const fx = opts.interactive ? fx0 : null;
@@ -694,16 +838,7 @@ function drawScene(
       x.fillStyle = 'rgba(177,108,255,0.9)';
       for (let k = 0; k < 12; k++) {
         const a = rot + (Math.PI * 2 * k) / 12;
-        x.save();
-        x.translate(c.x + Math.cos(a) * 38, c.y + Math.sin(a) * 38);
-        x.rotate(a);
-        x.beginPath();
-        x.moveTo(9, 0);
-        x.lineTo(-4, -4.5);
-        x.lineTo(-4, 4.5);
-        x.closePath();
-        x.fill();
-        x.restore();
+        fillRotatedPoly(x, c.x + Math.cos(a) * 38, c.y + Math.sin(a) * 38, a, SPIKE_PTS);
       }
     }
 
@@ -855,134 +990,7 @@ function drawScene(
   }
 
   // --- враги ---
-  for (const e of g.enemies) {
-    const pos = g.at(e);
-    const wob = Math.sin(e.id * 1.7 + e.p * 0.02) * 5;
-    const ex = pos.x - pos.ty * wob;
-    const ey = pos.y + pos.tx * wob;
-    const r = e.radius;
-    const flash = g.now < e.flashUntil;
-
-    // плоское тело: однотонный круг с тёмной кромкой
-    const def = e.boss ? BOSS_DEFS[(e.bossId || 1) as BossId] : null;
-    // минибосс — свои цвета (MINI_DEF); у обычного и заряжающегося цвета прежние
-    const look = def ?? (e.mini ? MINI_DEF : null);
-    // заряжающийся моб: серый → сиреневый по мере зарядки; полностью заряжен — светится
-    const charge = e.chargeT > 0 ? g.chargeLevel(e) : 0;
-    const tint = e.chargeT > 0 ? chargeTint(charge) : null;
-    x.fillStyle = look ? look.dark : tint ? tint.dark : '#2b3548';
-    if (charge >= 1) {
-      x.save();
-      x.shadowColor = 'rgba(192,132,252,0.95)';
-      x.shadowBlur = 16 + 6 * Math.sin(vnow * 6);
-    }
-    x.beginPath();
-    x.arc(ex, ey, r, 0, Math.PI * 2);
-    x.fill();
-    if (charge >= 1) x.restore();
-    x.fillStyle = look ? look.color : tint ? tint.body : '#5c6b85';
-    x.beginPath();
-    x.arc(ex, ey, r - 2.5, 0, Math.PI * 2);
-    x.fill();
-    if (charge >= 1) {
-      x.strokeStyle = `rgba(216,180,254,${(0.45 + 0.25 * Math.sin(vnow * 6)).toFixed(3)})`;
-      x.lineWidth = 2;
-      x.beginPath();
-      x.arc(ex, ey, r + 3, 0, Math.PI * 2);
-      x.stroke();
-    }
-
-    // резонанс: помеченный враг обведён пунктиром
-    if (g.now < (e.vulnUntil ?? 0)) {
-      x.save();
-      x.strokeStyle = 'rgba(103,232,249,0.9)';
-      x.lineWidth = 1.8;
-      x.setLineDash([4, 4]);
-      x.lineDashOffset = -vnow * 12;
-      x.beginPath();
-      x.arc(ex, ey, r + 6, 0, Math.PI * 2);
-      x.stroke();
-      x.restore();
-    }
-
-    if (g.now < e.slowUntil) {
-      x.strokeStyle = 'rgba(70,200,255,0.85)';
-      x.lineWidth = 2;
-      x.beginPath();
-      x.arc(ex, ey, r + 3, 0, Math.PI * 2);
-      x.stroke();
-    }
-    if (g.now < e.stunUntil) {
-      // паралич: жёлтое кольцо
-      x.strokeStyle = 'rgba(255,176,32,0.95)';
-      x.lineWidth = 2.5;
-      x.setLineDash([6, 5]);
-      x.beginPath();
-      x.arc(ex, ey, r + 5, vnow * 2, vnow * 2 + Math.PI * 2);
-      x.stroke();
-      x.setLineDash([]);
-    }
-    if (e.dots.length) {
-      x.strokeStyle = 'rgba(74,222,128,0.75)';
-      x.lineWidth = 2;
-      x.beginPath();
-      x.arc(ex, ey, r + 6, 0, Math.PI * 2);
-      x.stroke();
-    }
-    if (e.marks.length) {
-      // метка шарика «Метка»: пунктирное кольцо, вращается; по числу меток — точки
-      x.strokeStyle = 'rgba(232,121,249,0.95)';
-      x.lineWidth = 2;
-      x.setLineDash([4, 4]);
-      x.beginPath();
-      x.arc(ex, ey, r + 10, -vnow * 1.5, -vnow * 1.5 + Math.PI * 2);
-      x.stroke();
-      x.setLineDash([]);
-      x.fillStyle = 'rgba(232,121,249,0.95)';
-      for (let k = 0; k < e.marks.length; k++) {
-        x.beginPath();
-        x.arc(ex - 5 + k * 10, ey + r + 13, 2.2, 0, Math.PI * 2);
-        x.fill();
-      }
-    }
-    if (flash) {
-      x.fillStyle = 'rgba(255,255,255,0.7)';
-      x.beginPath();
-      x.arc(ex, ey, r, 0, Math.PI * 2);
-      x.fill();
-    }
-
-    // глаза (смотрят по ходу движения)
-    x.fillStyle = 'rgba(0,0,0,0.8)';
-    const fxo = pos.tx * r * 0.25;
-    const fyo = pos.ty * r * 0.25;
-    x.beginPath();
-    x.arc(ex - r * 0.3 + fxo, ey - r * 0.15 + fyo, 2.6, 0, Math.PI * 2);
-    x.arc(ex + r * 0.3 + fxo, ey - r * 0.15 + fyo, 2.6, 0, Math.PI * 2);
-    x.fill();
-
-    // полоска здоровья
-    const bw = e.boss ? 46 : e.mini ? 36 : 28;
-    const pct = Math.max(0, e.hp / e.maxHp);
-    x.fillStyle = 'rgba(0,0,0,0.6)';
-    roundedRect(x, ex - bw / 2, ey - r - 11, bw, 4, 2);
-    x.fill();
-    x.fillStyle = pct > 0.5 ? '#4ade80' : pct > 0.25 ? '#facc15' : '#ef4444';
-    if (pct > 0) {
-      roundedRect(x, ex - bw / 2, ey - r - 11, bw * pct, 4, 2);
-      x.fill();
-    }
-    // имя босса над полоской здоровья
-    if (look) {
-      x.font = '800 11px Manrope, system-ui, sans-serif';
-      x.textAlign = 'center';
-      x.textBaseline = 'alphabetic';
-      x.fillStyle = 'rgba(0,0,0,0.55)';
-      uText(x, 'fill', look.name, ex + 1, ey - r - 17);
-      x.fillStyle = look.color;
-      uText(x, 'fill', look.name, ex, ey - r - 18);
-    }
-  }
+  if (opts.enemies) drawEnemies(x, g, vnow);
 
   // --- облака, иглы и снаряды: своё поле — здесь; поле напарника — отдельным вызовом ---
   if (opts.shots) drawShots(x, g, vnow);
@@ -1230,12 +1238,7 @@ export function GameStage({
           lastRemote = t;
           rctx.setTransform(1, 0, 0, 1, 0, 0);
           rctx.clearRect(0, 0, STAGE_W, STAGE_H);
-          drawScene(rctx, rem, t / 1000, null, VIEW_REMOTE, { interactive: false, chrome: false, shots: false });
-          if (frozenRef.current) {
-            rctx.setTransform(1, 0, 0, 1, 0, 0);
-            rctx.fillStyle = 'rgba(71,85,105,0.55)';
-            rctx.fillRect(0, 0, STAGE_W, STAGE_H);
-          }
+          drawScene(rctx, rem, t / 1000, null, VIEW_REMOTE, { interactive: false, chrome: false, shots: false, enemies: false });
         }
       }
 
@@ -1280,12 +1283,20 @@ export function GameStage({
         interactive: true,
         chrome: true,
         shots: true,
+        enemies: true,
       });
       // снаряды и облака напарника: рисуются прямо на главном холсте, в его зеркальной системе.
       // Снаряд, летящий к моим врагам, уходит за край его поля, и в его холсте он бы обрезался.
-      if (rem && !frozenRef.current) {
+      if (rem) {
         setView(ctx, VIEW_REMOTE);
-        drawShots(ctx, rem, t / 1000);
+        if (!frozenRef.current) drawShots(ctx, rem, t / 1000);
+        drawEnemies(ctx, rem, t / 1000);
+        if (frozenRef.current) {
+          // напарник вышел: его половина серая (поле и враги)
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.fillStyle = 'rgba(71,85,105,0.55)';
+          ctx.fillRect(0, 0, cv.width, cv.height / 2);
+        }
       }
       raf = requestAnimationFrame(loop);
     };
