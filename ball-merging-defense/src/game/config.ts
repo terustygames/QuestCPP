@@ -36,8 +36,8 @@ export const STAGE_H = 620;
 // ---------- Сетка шариков ----------
 export const COLS = 7;
 export const ROWS = 5;
-export const CELL = 64;
-export const GAP = 10;
+export const CELL = 70; // клетка крупнее: шарики легче нажимать пальцем
+export const GAP = 8;
 export const GRID_X = Math.round((STAGE_W - (COLS * CELL + (COLS - 1) * GAP)) / 2);
 export const GRID_Y = 150;
 
