@@ -4,7 +4,7 @@
 // пустые массивы RTDB не хранит вовсе, поэтому при чтении они восстанавливаются.
 // Числа округляются до 0.1 (для картинки этого достаточно) — снимок короче.
 
-import type { Engine, EnemyState, GasCloud, NeedleState, OrbState, ProjState, Puddle, Status, Mode, TrapState } from './engine';
+import type { BengalSpark, Engine, EnemyState, GasCloud, NeedleState, OrbState, ProjState, Puddle, Status, Mode, TrapState } from './engine';
 import { COLS, ROWS } from './config';
 import type { OrbType } from './config';
 
@@ -25,7 +25,14 @@ export interface BoardSnapshot {
   needles: NeedleState[];
   clouds?: GasCloud[];
   traps?: TrapState[]; // мины и бомбы на поле (показываются напарнику)
+  sparks?: SparkWire[]; // искры бенгальского (показываются напарнику)
 }
+
+// Искра в снимке: только то, что нужно для картинки и движения
+export type SparkWire = Pick<BengalSpark, 'x' | 'y' | 'vx' | 'vy' | 'age' | 'life'>;
+
+// Задержка снимка в пути, с. Позиции в снимке сдвигаются на эту величину вперёд.
+const SNAP_LAG = 0.15;
 
 const r1 = (v: number) => Math.round(v * 10) / 10;
 
@@ -88,6 +95,14 @@ export function snapshotOf(g: Engine): BoardSnapshot {
       hitIds: p.hitIds ? [...p.hitIds] : undefined,
     })),
     needles: g.needles.map((n) => ({ ...n, x: r1(n.x), y: r1(n.y), dx: r1(n.dx), dy: r1(n.dy), ang: r1(n.ang), life: r1(n.life) })),
+    sparks: g.bengalSparks.map((k) => ({
+      x: r1(k.x),
+      y: r1(k.y),
+      vx: Math.round(k.vx),
+      vy: Math.round(k.vy),
+      age: r1(k.age),
+      life: r1(k.life),
+    })),
   };
 }
 
@@ -104,8 +119,11 @@ export function decodeSnapshot(raw: unknown): BoardSnapshot | null {
 }
 
 // Переносит снимок в движок (поле напарника). Движок только для отрисовки.
+// Враги и снаряды не прыгают на каждом снимке: старые позиции сохраняются, а цель (с поправкой
+// на задержку) отдаётся движку, который плавно подтягивает картинку (см. Engine.extrapolate).
 export function applySnapshot(g: Engine, s: BoardSnapshot): void {
-  g.now = s.now;
+  const lagged = s.now + SNAP_LAG;
+  if (Math.abs(g.now - lagged) > 0.3) g.now = lagged;
   g.status = s.status;
   g.mode = s.mode ?? 'combine';
   g.wave = s.wave;
@@ -121,15 +139,54 @@ export function applySnapshot(g: Engine, s: BoardSnapshot): void {
   });
   g.grid = cells;
 
-  g.enemies = (s.enemies ?? []).map((e) => ({
-    ...e,
-    dots: e.dots ?? [],
-    marks: e.marks ?? [],
-  }));
+  // враги: прежняя позиция на экране, цель — позиция из снимка плюс путь за задержку
+  const oldEnemyP = new Map(g.enemies.map((e) => [e.id, e.p]));
+  const enemyTarget = new Map<number, number>();
+  g.enemies = (s.enemies ?? []).map((e) => {
+    const ne: EnemyState = { ...e, dots: e.dots ?? [], marks: e.marks ?? [] };
+    const moving = s.now >= e.stunUntil;
+    const target = ne.p + (moving ? ne.speed * SNAP_LAG : 0);
+    enemyTarget.set(ne.id, target);
+    const prev = oldEnemyP.get(ne.id);
+    // сильный скачок (новый враг или сбой идентификатора) — ставим сразу
+    ne.p = prev !== undefined && Math.abs(prev - target) < 60 ? prev : target;
+    return ne;
+  });
+  g.remoteEnemyTarget = enemyTarget;
+
+  // снаряды: то же самое по координатам
+  const oldProjPos = new Map(g.projs.map((p) => [p.id, { x: p.x, y: p.y }]));
+  const projTarget = new Map<number, { x: number; y: number }>();
+  g.projs = (s.projs ?? []).map((p) => {
+    const np: ProjState = { ...p, trail: p.trail ?? [] };
+    const t = { x: np.x + np.vx * SNAP_LAG, y: np.y + np.vy * SNAP_LAG };
+    projTarget.set(np.id, t);
+    const prev = oldProjPos.get(np.id);
+    if (prev && Math.hypot(prev.x - t.x, prev.y - t.y) < 60) {
+      np.x = prev.x;
+      np.y = prev.y;
+    } else {
+      np.x = t.x;
+      np.y = t.y;
+    }
+    return np;
+  });
+  g.remoteProjTarget = projTarget;
+
   g.puddles = s.puddles ?? [];
-  g.projs = (s.projs ?? []).map((p) => ({ ...p, trail: p.trail ?? [] }));
   g.needles = s.needles ?? [];
   g.clouds = s.clouds ?? [];
   g.traps = s.traps ?? [];
+  // искры: сдвигаются на задержку, дальше летят сами (Engine.extrapolate)
+  g.bengalSparks = (s.sparks ?? []).map((k) => ({
+    x: k.x + k.vx * SNAP_LAG,
+    y: k.y + k.vy * SNAP_LAG,
+    vx: k.vx,
+    vy: k.vy,
+    age: k.age + SNAP_LAG,
+    life: k.life,
+    dmg: 0, // на стороне напарника не жгут: только картинка
+    dmgMul: 1,
+  }));
   g.parts = [];
 }

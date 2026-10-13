@@ -229,6 +229,9 @@ export class Engine {
   grid: (OrbState | null)[] = Array(COLS * ROWS).fill(null);
   enemies: EnemyState[] = [];
   projs: ProjState[] = [];
+  // поле напарника: куда враги и снаряды должны прийти по последнему снимку (см. extrapolate)
+  remoteEnemyTarget = new Map<number, number>();
+  remoteProjTarget = new Map<number, { x: number; y: number }>();
   clouds: GasCloud[] = []; // облака газа (шарик «Газ»)
   traps: TrapState[] = []; // мины и бомбы на трассе (шарики «Мина» и «Бомба»)
   needles: NeedleState[] = [];
@@ -753,16 +756,40 @@ export class Engine {
   // Кооператив, поле напарника: время и движение врагов между снимками
   extrapolate(dt: number) {
     this.now += dt;
+    // Поле напарника: враги и снаряды не прыгают на каждом снимке. Картинка плавно подтягивается
+    // к цели (где они должны быть по последнему снимку, с поправкой на задержку сети).
+    const k = Math.min(1, dt * 6);
     for (const e of this.enemies) {
       const slowF = this.now < e.slowUntil ? e.slowFactor : 1;
-      e.p += e.speed * slowF * dt;
+      const step = (this.now < e.stunUntil ? 0 : e.speed) * slowF * dt;
+      e.p += step;
+      const t = this.remoteEnemyTarget.get(e.id);
+      if (t !== undefined) {
+        const nt = t + step;
+        this.remoteEnemyTarget.set(e.id, nt);
+        e.p += (nt - e.p) * k;
+      }
     }
     // снаряды и шипы летят по последней скорости (между снимками)
     for (const p of this.projs) {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.life -= dt;
+      const t = this.remoteProjTarget.get(p.id);
+      if (t !== undefined) {
+        t.x += p.vx * dt;
+        t.y += p.vy * dt;
+        p.x += (t.x - p.x) * k;
+        p.y += (t.y - p.y) * k;
+      }
     }
+    // искры бенгальского между снимками летят дальше
+    for (const s of this.bengalSparks) {
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.age += dt;
+    }
+    this.bengalSparks = this.bengalSparks.filter((s) => s.age < s.life);
     for (const n of this.needles) {
       n.x += n.dx * 540 * dt;
       n.y += n.dy * 540 * dt;
