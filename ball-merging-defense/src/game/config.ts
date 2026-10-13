@@ -36,8 +36,8 @@ export const STAGE_H = 620;
 // ---------- Сетка шариков ----------
 export const COLS = 7;
 export const ROWS = 5;
-export const CELL = 70; // клетка крупнее: шарики легче нажимать пальцем
-export const GAP = 8;
+export const CELL = 78; // клетка крупнее: шарики легче нажимать пальцем
+export const GAP = 6;
 export const GRID_X = Math.round((STAGE_W - (COLS * CELL + (COLS - 1) * GAP)) / 2);
 export const GRID_Y = 150;
 
@@ -69,9 +69,9 @@ export function isAdj(a: number, b: number) {
 // стоит сверху, зеркально по вертикали, поэтому его путь сходится с моим в одну линию,
 // а выход обоих полей — один, справа в центре.
 export const TRACK_PTS = [
-  { x: 26, y: 550 }, // спавн
-  { x: 26, y: 0 }, // вверх по левому краю до общей линии
-  { x: 614, y: 0 }, // вправо до выхода
+  { x: 14, y: 550 }, // спавн
+  { x: 14, y: 0 }, // вверх по левому краю до общей линии
+  { x: 626, y: 0 }, // вправо до выхода
 ];
 const SEG_LEN = TRACK_PTS.slice(1).map((p, i) => Math.hypot(p.x - TRACK_PTS[i].x, p.y - TRACK_PTS[i].y));
 // Длина пути от спавна до выхода
