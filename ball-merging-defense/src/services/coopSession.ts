@@ -1,6 +1,5 @@
 // Сессия кооперативной игры: связывает движок игрока с комнатой в Realtime Database.
-// - своё поле публикуется в rooms/{code}/boards/{uid} примерно 4 раза в секунду, но только если
-//   оно изменилось (или раз в 2 с для проверки связи); снимок сжимается (boardWire.ts);
+// - своё поле публикуется в rooms/{code}/boards/{uid} примерно 4 раза в секунду;
 // - поле напарника подтягивается из rooms/{code}/boards/{other} в движок remote (только просмотр);
 //   его враги попадают в мой движок как «чужие» (me.setForeign): мои снаряды и иглы бьют и их;
 // - мои попадания по врагам напарника и награды за убийства уходят ему через rooms/{code}/inbox/{other};
@@ -12,7 +11,6 @@
 //   (rooms/{code}/speed/{uid}); согласованное значение — rooms/{code}/speed/value.
 import type { Engine } from '../game/engine';
 import { applySnapshot, decodeSnapshot, encodeSnapshot, snapshotOf } from '../game/boardSnapshot';
-import { packBoard, unpackBoard } from './boardWire';
 import {
   endRoomGame,
   leakLives,
@@ -30,8 +28,6 @@ import {
 } from './rooms';
 
 const PUBLISH_MS = 250;
-// Если поле не менялось, всё равно шлём раз в столько миллисекунд (напарник сверяет время)
-const HEARTBEAT_MS = 2000;
 
 export interface CoopHooks {
   onRemoteLeft?: (left: boolean) => void;
@@ -57,15 +53,6 @@ export class CoopSession {
   private speedVotes: Record<string, unknown> = {};
   private agreedSpeed: 1 | 2 = 1;
   private myVote: 1 | 2 | null = null;
-  // отправка поля: последний отправленный снимок без времени, время отправки, номер отправки
-  private lastBoardKey = '';
-  private lastBoardAt = -Infinity;
-  private boardSeq = 0;
-  // приём поля напарника: номер последнего принятого снимка и номер запроса
-  private inSeq = 0;
-  private appliedIn = 0;
-  // часы для проверки «давно не слали» (подменяются в тестах)
-  clock: () => number = () => Date.now();
 
   constructor(
     private readonly code: string,
@@ -145,26 +132,6 @@ export class CoopSession {
     if (data.k && data.k > 0) this.me.creditShared(data.k);
   }
 
-  // Снимок уходит, если он отличается от прошлого (без времени), пока есть движущиеся объекты,
-  // либо если прошло HEARTBEAT_MS. Пустое поле в подготовке не шлёт ничего лишнего.
-  private publishBoardIfChanged(): void {
-    const snap = snapshotOf(this.me);
-    const moving = snap.enemies.length > 0 || snap.projs.length > 0 || snap.needles.length > 0 || (snap.clouds?.length ?? 0) > 0;
-    const key = encodeSnapshot({ ...snap, now: 0 });
-    const nowMs = this.clock();
-    if (!moving && key === this.lastBoardKey && nowMs - this.lastBoardAt < HEARTBEAT_MS) return;
-    this.lastBoardKey = key;
-    this.lastBoardAt = nowMs;
-    const seq = ++this.boardSeq;
-    packBoard(encodeSnapshot(snap))
-      .then((raw) => {
-        // отправляем только самый свежий снимок: более старый уже не нужен
-        if (this.stopped || seq !== this.boardSeq) return;
-        return publishBoard(this.code, this.uid, raw);
-      })
-      .catch(() => undefined);
-  }
-
   // Исходящие: мои попадания по врагам напарника и награды за мои убийства
   private flushOutbox(): void {
     const me = this.me;
@@ -189,24 +156,16 @@ export class CoopSession {
       this.remoteUid = others[0];
       this.unsubBoard = watchValue(this.code, `boards/${this.remoteUid}`, (raw) => {
         if (typeof raw !== 'string') return;
-        // распаковка асинхронная: снимок, который пришёл раньше уже применённого, пропускаем
-        const seq = ++this.inSeq;
-        unpackBoard(raw)
-          .then((json) => {
-            if (this.stopped || seq <= this.appliedIn) return;
-            let parsed: unknown = null;
-            try {
-              parsed = JSON.parse(json);
-            } catch {
-              return;
-            }
-            const snap = decodeSnapshot(parsed);
-            if (!snap) return;
-            this.appliedIn = seq;
-            applySnapshot(this.remote, snap);
-            this.syncForeign();
-          })
-          .catch(() => undefined);
+        let parsed: unknown = null;
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          return;
+        }
+        const snap = decodeSnapshot(parsed);
+        if (!snap) return;
+        applySnapshot(this.remote, snap);
+        this.syncForeign();
       });
       const login = info.players[this.remoteUid]?.login;
       if (login) this.hooks.onRemoteLogin?.(login);
@@ -221,8 +180,10 @@ export class CoopSession {
     if (this.stopped) return;
     const me = this.me;
 
-    // 1. своё поле — напарнику (только если изменилось или пора для проверки связи)
-    if (me.status !== 'title') this.publishBoardIfChanged();
+    // 1. своё поле — напарнику
+    if (me.status !== 'title') {
+      publishBoard(this.code, this.uid, encodeSnapshot(snapshotOf(me))).catch(() => {});
+    }
 
     // 1б. попадания по врагам напарника и награды — ему в очередь
     this.flushOutbox();
