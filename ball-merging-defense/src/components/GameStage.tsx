@@ -671,6 +671,173 @@ function drawBengalHead(x: CanvasRenderingContext2D, hx: number, hy: number) {
   x.fill();
 }
 
+// ---------- Слияние в накоплении: металлболлы в шейдере (WebGL) ----------
+// Поле двух шариков: сумма r²/d² по каждому центру. Контур поля — тело объединённого шарика,
+// доля каждого шарика в поле задаёт цвет, поэтому цвета перетекают друг в друга.
+// Без WebGL анимация не рисуется сложным полем: показываются два круга.
+const MB_PX = 320; // размер текстуры шейдера (пиксели)
+const MB_VERT = 'attribute vec2 aPos; void main(){ gl_Position = vec4(aPos, 0.0, 1.0); }';
+const MB_FRAG = `
+precision highp float;
+uniform vec2 uRes;
+uniform vec2 uA;
+uniform vec2 uB;
+uniform float uRA;
+uniform float uRB;
+uniform vec3 uCA;
+uniform vec3 uCB;
+uniform float uMix;
+uniform float uFlash;
+void main() {
+  vec2 p = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
+  float dA = max(distance(p, uA), 0.001);
+  float dB = max(distance(p, uB), 0.001);
+  float fa = (uRA * uRA) / (dA * dA);
+  float fb = (uRB * uRB) / (dB * dB);
+  float f = fa + fb;
+  float alpha = smoothstep(0.96, 1.04, f);
+  float wa = fa / max(f, 0.0001);
+  vec3 cA = mix(uCA, uCB, uMix);
+  vec3 col = mix(uCB, cA, wa);
+  float rim = smoothstep(1.0, 2.4, f);
+  col *= mix(0.62, 1.12, rim);
+  col += vec3(1.0) * smoothstep(3.0, 6.0, f) * 0.18;
+  col = mix(col, vec3(1.0), uFlash * smoothstep(1.3, 3.0, f) * 0.85);
+  gl_FragColor = vec4(col * alpha, alpha);
+}`;
+
+let mbCanvas: HTMLCanvasElement | null = null;
+let mbGl: WebGLRenderingContext | null = null;
+let mbInit: 'none' | 'ok' | 'fail' = 'none';
+const mbU: Record<string, WebGLUniformLocation | null> = {};
+
+function initMetaballs(): boolean {
+  if (mbInit !== 'none') return mbInit === 'ok';
+  mbInit = 'fail';
+  try {
+    const c = document.createElement('canvas');
+    c.width = MB_PX;
+    c.height = MB_PX;
+    const gl = c.getContext('webgl', { alpha: true, premultipliedAlpha: true, preserveDrawingBuffer: true }) as WebGLRenderingContext | null;
+    if (!gl) return false;
+    const compile = (type: number, src: string) => {
+      const s = gl.createShader(type);
+      if (!s) throw new Error('shader');
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) ?? 'compile');
+      return s;
+    };
+    const prog = gl.createProgram();
+    if (!prog) return false;
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, MB_VERT));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, MB_FRAG));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error('link');
+    gl.useProgram(prog);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, 'aPos');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    for (const n of ['uRes', 'uA', 'uB', 'uRA', 'uRB', 'uCA', 'uCB', 'uMix', 'uFlash']) {
+      mbU[n] = gl.getUniformLocation(prog, n);
+    }
+    mbCanvas = c;
+    mbGl = gl;
+    mbInit = 'ok';
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function hexRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+}
+
+// Анимация слияния: A перетекает в B (ease-in), затем A гаснет, B раздувается, цвет переходит
+function drawMergeFx(x: CanvasRenderingContext2D, g: Engine, _vnow: number) {
+  const f = g.mergeFx;
+  if (!f) return;
+  const t = g.now - f.t0;
+  if (t < 0 || t > f.dur) return;
+  const R = 35; // радиус шарика на поле (как у спрайта)
+  const s = Math.min(1, t / (f.dur * 0.6));
+  const e = s * s * (3 - 2 * s);
+  const ax = f.ax + (f.bx - f.ax) * e;
+  const ay = f.ay + (f.by - f.ay) * e;
+  const m = Math.min(1, Math.max(0, (t - f.dur * 0.3) / (f.dur * 0.5)));
+  const rA = R * (1 - m);
+  const rB = R * (1 + 0.12 * Math.sin(Math.PI * m));
+  const flash = Math.sin(Math.PI * m);
+  const cA = hexRgb(TYPE_INFO[f.typeA].color);
+  const cB = hexRgb(TYPE_INFO[f.typeB].color);
+
+  if (initMetaballs() && mbGl && mbCanvas) {
+    // квадрат вокруг обоих шариков (в логических px поля)
+    const mx = (f.ax + f.bx) / 2;
+    const my = (f.ay + f.by) / 2;
+    const half = Math.hypot(f.bx - f.ax, f.by - f.ay) / 2 + R + 14;
+    const k = MB_PX / (half * 2);
+    const gl = mbGl;
+    gl.viewport(0, 0, MB_PX, MB_PX);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform2f(mbU.uRes, MB_PX, MB_PX);
+    gl.uniform2f(mbU.uA, (ax - (mx - half)) * k, (ay - (my - half)) * k);
+    gl.uniform2f(mbU.uB, (f.bx - (mx - half)) * k, (f.by - (my - half)) * k);
+    gl.uniform1f(mbU.uRA, rA * k);
+    gl.uniform1f(mbU.uRB, rB * k);
+    gl.uniform3f(mbU.uCA, cA[0], cA[1], cA[2]);
+    gl.uniform3f(mbU.uCB, cB[0], cB[1], cB[2]);
+    gl.uniform1f(mbU.uMix, m);
+    gl.uniform1f(mbU.uFlash, flash * 0.9);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    x.drawImage(mbCanvas, mx - half, my - half, half * 2, half * 2);
+    return;
+  }
+  // запасной вариант без WebGL: два круга
+  x.save();
+  x.fillStyle = TYPE_INFO[f.typeB].color;
+  x.beginPath();
+  x.arc(f.bx, f.by, rB, 0, Math.PI * 2);
+  x.fill();
+  if (rA > 0.5) {
+    x.fillStyle = TYPE_INFO[f.typeA].color;
+    x.beginPath();
+    x.arc(ax, ay, rA, 0, Math.PI * 2);
+    x.fill();
+  }
+  x.restore();
+}
+
+// Перетаскиваемый шарик следует за пальцем (накопление)
+function drawDragGhost(x: CanvasRenderingContext2D, gs: Gesture | null, g: Engine) {
+  if (!gs || !gs.drag || !gs.moved || g.mode !== 'accumulate' || gs.px === undefined || gs.py === undefined) return;
+  const o = g.grid[gs.cell];
+  if (!o) return;
+  const sprites = getOrbSprites();
+  x.save();
+  x.globalAlpha = 0.92;
+  x.drawImage(sprites[o.type], gs.px - 48, gs.py - 48, 96, 96);
+  x.restore();
+}
+
+// Можно ли слить два шарика (та же логика, что в движке mergePair)
+function canMergeCells(g: Engine, a: number, b: number): boolean {
+  const A = g.grid[a];
+  const B = g.grid[b];
+  if (!A || !B) return false;
+  if (A.type === 'swap' || B.type === 'swap' || A.type === 'trigger' || B.type === 'trigger') return false;
+  if (A.type !== B.type && A.type !== 'spiky' && B.type !== 'spiky') return false;
+  return A.level + B.level <= CONFIG.maxLevel;
+}
+
 function drawShots(x: CanvasRenderingContext2D, g: Engine, vnow: number) {
   for (const c of g.clouds) drawGas(x, c, vnow);
   for (const t of g.traps) drawTrap(x, t, g.now, vnow);
@@ -1261,6 +1428,8 @@ interface Gesture {
   hover: number; // клетка под пальцем (для drag)
   chain: number[]; // проведённая линия клеток (режим совмещения)
   done: boolean;
+  px?: number; // где палец сейчас (координаты моего поля), для призрака шарика
+  py?: number;
 }
 
 const MOVE_TOL = 16; // логических px, после этого жест считается движением
@@ -1413,6 +1582,10 @@ export function GameStage({
         shots: true,
         enemies: true,
       });
+      // слияние в накоплении (металлболлы) и призрак перетаскиваемого шарика: в системе моего поля
+      setView(ctx, mode === 'coop' ? VIEW_OWN : VIEW_SOLO);
+      drawMergeFx(ctx, g, t / 1000);
+      drawDragGhost(ctx, gesture.current, g);
       // снаряды и облака напарника: рисуются прямо на главном холсте, в его зеркальной системе.
       // Снаряд, летящий к моим врагам, уходит за край его поля, и в его холсте он бы обрезался.
       if (rem) {
@@ -1478,7 +1651,8 @@ export function GameStage({
       done: false,
     };
     // Тап по соседу уже выбранного — немедленное действие (быстрый отклик)
-    if (hasOrb && g.sel !== null && g.sel !== i && isAdj(g.sel, i)) {
+    // (в накоплении нет: там шарик тащат, а не тапают по соседу)
+    if (g.mode === 'combine' && hasOrb && g.sel !== null && g.sel !== i && isAdj(g.sel, i)) {
       onCellTap(i);
       gesture.current = null;
       return;
@@ -1496,7 +1670,12 @@ export function GameStage({
     }
     if (gs.drag) {
       const h = cellAt(p.x, p.y);
-      if (g.mode === 'combine' && gs.chain.length > 0) {
+      gs.px = p.x;
+      gs.py = p.y;
+      if (g.mode === 'accumulate') {
+        // накопление (drag and drop): тащим шарик на любой шарик поля, с которым он сливается
+        gs.hover = h !== -1 && h !== gs.cell && canMergeCells(g, gs.cell, h) ? h : -1;
+      } else if (g.mode === 'combine' && gs.chain.length > 0) {
         // цепочка: все обычные шарики на линии — ОДИНОГО типа (тип задаёт
         // первый обычный шарик), шипастый можно вставить в любую цепь;
         // назад по линии — откат конца

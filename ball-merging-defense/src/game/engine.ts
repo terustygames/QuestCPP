@@ -210,7 +210,21 @@ export interface Particle {
 // Сдвиг id врагов напарника, чтобы не совпадать с моими id
 export const FOREIGN_BASE = 1_000_000_000;
 
+// Слияние в накоплении: шарик A перетаскивают на B. Анимация (металлболлы в шейдере)
+// идёт в поле ~0.5 с: A перетекает в B, цвета смешиваются, в конце шарик B растёт.
+export const MERGE_DUR = 0.5;
+export interface MergeFx {
+  ax: number; ay: number; // центр шарика A (логические px)
+  bx: number; by: number; // центр шарика B
+  typeA: OrbType;
+  typeB: OrbType;
+  t0: number; // игровое время начала
+  dur: number;
+  popped: boolean; // вспышка и частицы уже выпущены
+}
+
 export class Engine {
+  mergeFx: MergeFx | null = null;
   // --- состояние игры ---
   status: Status = 'title';
   mode: Mode = 'combine';
@@ -482,6 +496,7 @@ export class Engine {
     this.clouds = [];
     this.traps = [];
     this.bengalSparks = [];
+    this.mergeFx = null;
     this.refillField();
     this.setBanner('Поле готово. Волна через 9 секунд');
   }
@@ -935,6 +950,16 @@ export class Engine {
   // Клик по клетке: выбор -> действие с соседом
   clickCell(i: number) {
     const o = this.grid[i];
+    // накопление: слияние только перетаскиванием (drag and drop), тап лишь выбирает шарик
+    if (this.mode === 'accumulate') {
+      if (!o || this.sel === i) {
+        this.sel = null;
+        return;
+      }
+      this.sel = i;
+      sfx.select();
+      return;
+    }
     if (this.sel === i) {
       this.sel = null;
       sfx.cancel();
@@ -1001,12 +1026,14 @@ export class Engine {
     this.grid[a] = null;
     this.popQueued.delete(a);
     this.sel = null;
+    // шарик A перетекает в B (анимация в шейдере); вспышка и числа — когда дошли (см. step)
     const ca = cellC(a);
-    this.pop(ca.x, ca.y);
-    const c = cellC(b);
-    this.ring(c.x, c.y, TYPE_INFO[B.type].color, 70);
-    this.spark(c.x, c.y, TYPE_INFO[B.type].color, 8, 110);
-    this.textP(c.x, c.y - 14, `${B.level}`, '#ffffff');
+    const cb = cellC(b);
+    this.mergeFx = {
+      ax: ca.x, ay: ca.y, bx: cb.x, by: cb.y,
+      typeA: A.type, typeB: B.type,
+      t0: this.now, dur: MERGE_DUR, popped: false,
+    };
     sfx.merge();
     if (B.level >= 2) {
       this.setBanner(`Заряд ${B.level}: переключи на «Совмещение» — шарик взорвётся залпом`, 2.8);
@@ -1191,7 +1218,7 @@ export class Engine {
     if (this.mode === 'combine') {
       this.mode = 'accumulate';
       this.sel = null;
-      this.setBanner('Режим накопления: сливай одинаковые шарики в один', 2.4);
+      this.setBanner('Режим накопления: тащи шарик на такой же, чтобы слить', 2.4);
       sfx.modeOn();
     } else {
       this.mode = 'combine';
@@ -1804,6 +1831,20 @@ export class Engine {
   // ============ ГЛАВНЫЙ ЦИКЛ (вызывается 60 раз/сек) ============
   step(dt: number) {
     this.now += dt;
+
+    // слияние в накоплении: в момент касания вспышка, частицы и уровень на шарике B
+    const mf = this.mergeFx;
+    if (mf) {
+      if (!mf.popped && this.now >= mf.t0 + MERGE_DUR * 0.55) {
+        mf.popped = true;
+        this.pop(mf.bx, mf.by);
+        this.ring(mf.bx, mf.by, TYPE_INFO[mf.typeB].color, 70);
+        this.spark(mf.bx, mf.by, TYPE_INFO[mf.typeB].color, 8, 110);
+        const B = this.grid.find((o, i) => o && cellC(i).x === mf.bx && cellC(i).y === mf.by);
+        if (B) this.textP(mf.bx, mf.by - 14, `${B.level}`, '#ffffff');
+      }
+      if (this.now >= mf.t0 + mf.dur) this.mergeFx = null;
+    }
 
     // подготовка -> старт волны по таймеру
     if (!this.coop && this.status === 'prep' && this.now >= this.prepUntil) this.startWave();
