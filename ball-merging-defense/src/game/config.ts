@@ -226,9 +226,9 @@ export const TYPE_INFO: Record<
   },
   bengal: {
     name: 'Бенгальский',
-    color: '#ffd166',
-    dark: '#6b4a00',
-    glow: 'rgba(255,209,102,',
+    color: '#ff7a1a',
+    dark: '#7a2a00',
+    glow: 'rgba(255,122,26,',
     desc: 'снаряд поджигает врага; из снаряда летят искры в три стороны и жгут врагов',
   },
   swap: {

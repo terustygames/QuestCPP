@@ -281,6 +281,14 @@ function makeOrbSprite(color: string, dark: string, _glow: string, type: OrbType
   const x = c.getContext('2d')!;
   const cx = S / 2;
   const r = 46;
+  // узелок снизу: треугольник, шарик похож на воздушный (рисуется раньше тела, чтобы тело его перекрывало)
+  x.fillStyle = dark;
+  x.beginPath();
+  x.moveTo(cx - 10, cx + r - 6);
+  x.lineTo(cx + 10, cx + r - 6);
+  x.lineTo(cx, cx + r + 10);
+  x.closePath();
+  x.fill();
   // тёмная кромка чуть больше тела
   x.fillStyle = dark;
   x.beginPath();
@@ -616,10 +624,10 @@ function getGlowSprite(): HTMLCanvasElement {
   c.height = 64;
   const gx = c.getContext('2d')!;
   const grd = gx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  grd.addColorStop(0, 'rgba(255,252,236,1)');
-  grd.addColorStop(0.18, 'rgba(255,236,170,0.95)');
-  grd.addColorStop(0.45, 'rgba(255,170,60,0.45)');
-  grd.addColorStop(1, 'rgba(255,120,20,0)');
+  grd.addColorStop(0, 'rgba(255,250,240,1)');
+  grd.addColorStop(0.18, 'rgba(255,196,120,0.95)');
+  grd.addColorStop(0.45, 'rgba(255,110,30,0.5)');
+  grd.addColorStop(1, 'rgba(255,60,0,0)');
   gx.fillStyle = grd;
   gx.fillRect(0, 0, 64, 64);
   glowSprite = c;
@@ -633,7 +641,7 @@ function drawBengalSparks(x: CanvasRenderingContext2D, g: Engine) {
   x.save();
   x.globalCompositeOperation = 'lighter';
   // черты одним путём: быстрые искры видны как вспышки
-  x.strokeStyle = 'rgba(255,200,90,0.55)';
+  x.strokeStyle = 'rgba(255,130,40,0.6)';
   x.lineWidth = 1.6;
   x.lineCap = 'round';
   x.beginPath();

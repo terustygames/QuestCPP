@@ -360,6 +360,19 @@ export class Engine {
       });
     }
   }
+  // Лопание шарика: белые частицы из центра (для всех типов шариков)
+  pop(x: number, y: number) {
+    for (let i = 0; i < 16; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const v = 70 + Math.random() * 130;
+      this.parts.push({
+        id: this.nextId++, kind: 'spark', x, y,
+        vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+        life: 0.5, maxLife: 0.5, color: '#ffffff', size: 2.5 + Math.random() * 3, text: '', x2: 0, y2: 0,
+      });
+    }
+    this.ring(x, y, '#ffffff', 46);
+  }
   ring(x: number, y: number, color: string, size = 60) {
     this.parts.push({
       id: this.nextId++, kind: 'ring', x, y, vx: 0, vy: 0,
@@ -988,6 +1001,8 @@ export class Engine {
     this.grid[a] = null;
     this.popQueued.delete(a);
     this.sel = null;
+    const ca = cellC(a);
+    this.pop(ca.x, ca.y);
     const c = cellC(b);
     this.ring(c.x, c.y, TYPE_INFO[B.type].color, 70);
     this.spark(c.x, c.y, TYPE_INFO[B.type].color, 8, 110);
@@ -1558,6 +1573,7 @@ export class Engine {
     this.popQueued.delete(cell);
     if (this.sel === cell) this.sel = null;
     const c = cellC(cell);
+    this.pop(c.x, c.y);
     // накопление: заряженный шипастый выпускает иглы с усилением своего заряда
     const mul = accumMul(o.level);
     this.essence += this.m('spiky', 'ess');
@@ -1757,7 +1773,7 @@ export class Engine {
       }
       case 'bengal': {
         // снаряд поджигает врага и рассыпает искры; сами искры жгут отдельно
-        this.damage(e, this.hitDmg(CONFIG.bengal.hit + g + b, K), '#ffd166');
+        this.damage(e, this.hitDmg(CONFIG.bengal.hit + g + b, K), '#ff7a1a');
         // поджог: у копии врага напарника не ставим (его поле считает у себя)
         if (!e.foreign) {
           e.burnUntil = this.now + CONFIG.bengal.burnDur + 0.3 * g + this.m(K, 'dur');
@@ -2065,6 +2081,7 @@ export class Engine {
           }
           this.grid[q.cell] = null;
           const c = cellC(q.cell);
+          this.pop(c.x, c.y);
           this.ring(c.x, c.y, TYPE_INFO[o.type].color, 54);
           this.spark(c.x, c.y, TYPE_INFO[o.type].color, 7, 110);
           // накопление: залп заряженного шарика усиливает урон всех своих снарядов
