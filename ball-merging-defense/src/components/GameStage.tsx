@@ -281,14 +281,19 @@ function makeOrbSprite(color: string, dark: string, _glow: string, type: OrbType
   const x = c.getContext('2d')!;
   const cx = S / 2;
   const r = 46;
-  // узелок снизу: треугольник, шарик похож на воздушный (рисуется раньше тела, чтобы тело его перекрывало)
-  x.fillStyle = dark;
+  // узелок снизу: треугольник выступает из-под тела, шарик похож на воздушный.
+  // Рисуется раньше тела: основание спрятано под телом, наружу торчит верхушка с тёмным контуром.
+  x.fillStyle = color;
+  x.strokeStyle = dark;
+  x.lineWidth = 3;
+  x.lineJoin = 'round';
   x.beginPath();
-  x.moveTo(cx - 10, cx + r - 6);
-  x.lineTo(cx + 10, cx + r - 6);
-  x.lineTo(cx, cx + r + 10);
+  x.moveTo(cx - 13, cx + r - 14);
+  x.lineTo(cx + 13, cx + r - 14);
+  x.lineTo(cx, cx + r + 15);
   x.closePath();
   x.fill();
+  x.stroke();
   // тёмная кромка чуть больше тела
   x.fillStyle = dark;
   x.beginPath();
