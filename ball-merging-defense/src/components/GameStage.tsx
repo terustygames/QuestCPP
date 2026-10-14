@@ -1368,13 +1368,10 @@ function drawScene(
   // --- компактный статус (без лишних надписей) ---
   if (g.status === 'prep') {
     const secs = Math.max(0, Math.ceil(g.prepUntil - g.now));
-    drawChip(
-      x,
-      STAGE_W / 2,
-      44,
-      g.coop ? `Подготовка к волне ${g.wave}` : `До волны ${g.wave}: ${secs} с`,
-      '#fcd34d',
-    );
+    // в кооперативе надпись «Подготовка к волне N» не показываем (убрана по просьбе)
+    if (!g.coop) {
+      drawChip(x, STAGE_W / 2, 44, `До волны ${g.wave}: ${secs} с`, '#fcd34d');
+    }
     const bossName = g.nextWaveBoss && g.pendingBossId ? BOSS_DEFS[g.pendingBossId as BossId].name : '';
     drawChip(
       x,
@@ -1689,13 +1686,17 @@ export function GameStage({
     if (!act || gs.done) return;
     const i = gs.cell;
     if (gs.drag) {
+      // Палец на телефоне чуть сдвигается при тапе. Если отпустили на той же клетке,
+      // где нажали, это тап, даже когда сдвиг уже больше порога движения.
+      const endP = toStage(e);
+      const tap = !gs.moved || cellAt(endP.x, endP.y) === i;
       if (g.mode === 'combine') {
         // совмещение: цепочка из 2+ шариков стреляет, простой тап — выбор
         if (gs.chain.length >= 2) {
           onChainFire(gs.chain);
           return;
         }
-        if (!gs.moved) {
+        if (tap) {
           onCellTap(i); // обычный тап: выбор / смена выбора
           return;
         }
@@ -1704,7 +1705,7 @@ export function GameStage({
       }
       // накопление: только тап (слияние — два нажатия подряд, см. clickCell в движке)
       if (g.mode === 'accumulate') {
-        if (!gs.moved) onCellTap(i);
+        if (tap) onCellTap(i);
         return;
       }
       if (gs.moved && gs.hover !== -1) {
