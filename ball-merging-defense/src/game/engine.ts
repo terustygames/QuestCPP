@@ -950,16 +950,6 @@ export class Engine {
   // Клик по клетке: выбор -> действие с соседом
   clickCell(i: number) {
     const o = this.grid[i];
-    // накопление: слияние только перетаскиванием (drag and drop), тап лишь выбирает шарик
-    if (this.mode === 'accumulate') {
-      if (!o || this.sel === i) {
-        this.sel = null;
-        return;
-      }
-      this.sel = i;
-      sfx.select();
-      return;
-    }
     if (this.sel === i) {
       this.sel = null;
       sfx.cancel();
@@ -1218,7 +1208,7 @@ export class Engine {
     if (this.mode === 'combine') {
       this.mode = 'accumulate';
       this.sel = null;
-      this.setBanner('Режим накопления: тащи шарик на такой же, чтобы слить', 2.4);
+      this.setBanner('Режим накопления: сливай одинаковые шарики в один', 2.4);
       sfx.modeOn();
     } else {
       this.mode = 'combine';

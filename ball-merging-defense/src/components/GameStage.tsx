@@ -821,28 +821,6 @@ function drawMergeFx(x: CanvasRenderingContext2D, g: Engine, _vnow: number) {
   x.restore();
 }
 
-// Перетаскиваемый шарик следует за пальцем (накопление)
-function drawDragGhost(x: CanvasRenderingContext2D, gs: Gesture | null, g: Engine) {
-  if (!gs || !gs.drag || !gs.moved || g.mode !== 'accumulate' || gs.px === undefined || gs.py === undefined) return;
-  const o = g.grid[gs.cell];
-  if (!o) return;
-  const sprites = getOrbSprites();
-  x.save();
-  x.globalAlpha = 0.92;
-  x.drawImage(sprites[o.type], gs.px - 48, gs.py - 48, 96, 96);
-  x.restore();
-}
-
-// Можно ли слить два шарика (та же логика, что в движке mergePair)
-function canMergeCells(g: Engine, a: number, b: number): boolean {
-  const A = g.grid[a];
-  const B = g.grid[b];
-  if (!A || !B) return false;
-  if (A.type === 'swap' || B.type === 'swap' || A.type === 'trigger' || B.type === 'trigger') return false;
-  if (A.type !== B.type && A.type !== 'spiky' && B.type !== 'spiky') return false;
-  return A.level + B.level <= CONFIG.maxLevel;
-}
-
 function drawShots(x: CanvasRenderingContext2D, g: Engine, vnow: number) {
   for (const c of g.clouds) drawGas(x, c, vnow);
   for (const t of g.traps) drawTrap(x, t, g.now, vnow);
@@ -1433,8 +1411,6 @@ interface Gesture {
   hover: number; // клетка под пальцем (для drag)
   chain: number[]; // проведённая линия клеток (режим совмещения)
   done: boolean;
-  px?: number; // где палец сейчас (координаты моего поля), для призрака шарика
-  py?: number;
 }
 
 const MOVE_TOL = 16; // логических px, после этого жест считается движением
@@ -1587,10 +1563,9 @@ export function GameStage({
         shots: true,
         enemies: true,
       });
-      // слияние в накоплении (металлболлы) и призрак перетаскиваемого шарика: в системе моего поля
+      // слияние в накоплении (металлболлы): в системе моего поля
       setView(ctx, mode === 'coop' ? VIEW_OWN : VIEW_SOLO);
       drawMergeFx(ctx, g, t / 1000);
-      drawDragGhost(ctx, gesture.current, g);
       // снаряды и облака напарника: рисуются прямо на главном холсте, в его зеркальной системе.
       // Снаряд, летящий к моим врагам, уходит за край его поля, и в его холсте он бы обрезался.
       if (rem) {
@@ -1656,8 +1631,8 @@ export function GameStage({
       done: false,
     };
     // Тап по соседу уже выбранного — немедленное действие (быстрый отклик)
-    // (в накоплении нет: там шарик тащат, а не тапают по соседу)
-    if (g.mode === 'combine' && hasOrb && g.sel !== null && g.sel !== i && isAdj(g.sel, i)) {
+    // Тап по соседу уже выбранного — немедленное действие (быстрый отклик)
+    if (hasOrb && g.sel !== null && g.sel !== i && isAdj(g.sel, i)) {
       onCellTap(i);
       gesture.current = null;
       return;
@@ -1675,12 +1650,7 @@ export function GameStage({
     }
     if (gs.drag) {
       const h = cellAt(p.x, p.y);
-      gs.px = p.x;
-      gs.py = p.y;
-      if (g.mode === 'accumulate') {
-        // накопление (drag and drop): тащим шарик на любой шарик поля, с которым он сливается
-        gs.hover = h !== -1 && h !== gs.cell && canMergeCells(g, gs.cell, h) ? h : -1;
-      } else if (g.mode === 'combine' && gs.chain.length > 0) {
+      if (g.mode === 'combine' && gs.chain.length > 0) {
         // цепочка: все обычные шарики на линии — ОДИНОГО типа (тип задаёт
         // первый обычный шарик), шипастый можно вставить в любую цепь;
         // назад по линии — откат конца
@@ -1707,7 +1677,7 @@ export function GameStage({
         gs.hover = h !== -1 ? h : last;
       } else {
         // подсвечиваем только соседнюю клетку с шариком
-        gs.hover = h !== -1 && h !== gs.cell && isAdj(gs.cell, h) && g.grid[h] ? h : -1;
+        gs.hover = g.mode !== 'accumulate' && h !== -1 && h !== gs.cell && isAdj(gs.cell, h) && g.grid[h] ? h : -1;
       }
     }
   };
@@ -1730,6 +1700,11 @@ export function GameStage({
           return;
         }
         // тащили, но цепочка не выросла — отменяем
+        return;
+      }
+      // накопление: только тап (слияние — два нажатия подряд, см. clickCell в движке)
+      if (g.mode === 'accumulate') {
+        if (!gs.moved) onCellTap(i);
         return;
       }
       if (gs.moved && gs.hover !== -1) {
