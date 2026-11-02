@@ -8,6 +8,7 @@
 #include <dwrite.h>
 #include <commctrl.h>
 #include <shlobj.h>
+#include <mmsystem.h>
 #include <cstdio>
 #include <cstring>
 #include <cmath>
@@ -20,6 +21,7 @@
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "winmm.lib")
 
 struct CP
 {
@@ -119,6 +121,258 @@ static IDWriteFactory *g_dw = 0;
 static IDWriteTextFormat *g_tf = 0, *g_ts = 0;
 
 static std::vector<Btn> g_btns;
+
+// ---------------- Input recording / replay (macro for tricks) ----------------
+struct RecEv
+{
+    unsigned long long t; // ms since record start
+    int vk;
+    bool down;
+    bool mouse;
+};
+
+static std::vector<RecEv> g_rec;
+static bool g_recording = false, g_playing = false, g_loop = false;
+static unsigned long long g_recT0 = 0, g_playT0 = 0, g_playDur = 0;
+static HANDLE g_playThread = 0, g_playStopEv = 0;
+static bool g_keyDown[512]; // [0..255] keyboard vk, [256..511] mouse vk
+
+static void RecToggle();
+
+static bool IsExtVk(int vk)
+{
+    // extended keys have a scan code prefixed with 0xE0
+    return (MapVirtualKey((UINT)vk, MAPVK_VK_TO_VSC_EX) >> 8) == 0xE0;
+}
+
+static std::wstring RecPath()
+{
+    wchar_t p[MAX_PATH];
+    if (SUCCEEDED(SHGetFolderPath(0, CSIDL_APPDATA, 0, 0, p)))
+    {
+        auto d = std::wstring(p) + L"\\KBMOverlay";
+        CreateDirectory(d.c_str(), 0);
+        return d + L"\\last.kbmrec";
+    }
+    return L"last.kbmrec";
+}
+
+static void SaveRec()
+{
+    if (g_rec.empty())
+        return;
+    FILE *f = 0;
+    _wfopen_s(&f, RecPath().c_str(), L"w");
+    if (!f)
+        return;
+    fprintf(f, "KBMREC1\n%zu %llu\n", g_rec.size(), g_playDur);
+    for (auto &e : g_rec)
+        fprintf(f, "%llu %c %d %d\n", e.t, e.mouse ? 'M' : 'K', e.vk, e.down ? 1 : 0);
+    fclose(f);
+}
+
+static bool LoadRec()
+{
+    FILE *f = 0;
+    _wfopen_s(&f, RecPath().c_str(), L"r");
+    if (!f)
+        return false;
+    char ln[64];
+    g_rec.clear();
+    g_playDur = 0;
+    bool ok = false;
+    if (fgets(ln, sizeof(ln), f) && !strncmp(ln, "KBMREC1", 7))
+    {
+        size_t cnt = 0;
+        unsigned long long dur = 0;
+        if (fscanf(f, "%zu %llu", &cnt, &dur) == 2)
+        {
+            ok = true;
+            g_playDur = dur;
+            for (size_t i = 0; i < cnt; i++)
+            {
+                unsigned long long t;
+                char kind = 0;
+                int vk = 0, dn = 0;
+                if (fscanf(f, "%llu %c %d %d", &t, &kind, &vk, &dn) != 4)
+                {
+                    ok = false;
+                    break;
+                }
+                g_rec.push_back({t, vk, dn != 0, kind == 'M'});
+            }
+        }
+    }
+    fclose(f);
+    if (!ok || g_rec.empty())
+        g_rec.clear();
+    return ok && !g_rec.empty();
+}
+
+static void RecKb(int vk, bool down, bool injected)
+{
+    if (!g_recording || g_playing || injected)
+        return;
+    g_keyDown[vk & 0xFF] = down;
+    unsigned long long t = GetTickCount64() - g_recT0;
+    if (t > 300000 || g_rec.size() > 400000) // cap: 5 min / 400k events
+    {
+        RecToggle();
+        return;
+    }
+    g_rec.push_back({t, vk, down, false});
+}
+
+static void RecMs(int vk, bool down, bool injected)
+{
+    if (!g_recording || g_playing || injected)
+        return;
+    g_keyDown[256 + (vk & 0xFF)] = down;
+    unsigned long long t = GetTickCount64() - g_recT0;
+    if (t > 300000 || g_rec.size() > 400000)
+    {
+        RecToggle();
+        return;
+    }
+    g_rec.push_back({t, vk, down, true});
+}
+
+static void ApplyInjected(int vk, bool down, bool mouse)
+{
+    INPUT in;
+    ZeroMemory(&in, sizeof(in));
+    if (mouse)
+    {
+        DWORD fl = 0;
+        switch (vk)
+        {
+        case VK_LBUTTON: fl = down ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_LEFTUP; break;
+        case VK_RBUTTON: fl = down ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_RIGHTUP; break;
+        case VK_MBUTTON: fl = down ? MOUSEEVENTF_MIDDLEDOWN : MOUSEEVENTF_MIDDLEUP; break;
+        case VK_XBUTTON1: fl = down ? MOUSEEVENTF_XDOWN : MOUSEEVENTF_XUP; in.mi.mouseData = XBUTTON1; break;
+        case VK_XBUTTON2: fl = down ? MOUSEEVENTF_XDOWN : MOUSEEVENTF_XUP; in.mi.mouseData = XBUTTON2; break;
+        default: return;
+        }
+        in.type = INPUT_MOUSE;
+        in.mi.dwFlags = fl;
+    }
+    else
+    {
+        in.type = INPUT_KEYBOARD;
+        in.ki.wVk = (WORD)vk;
+        in.ki.dwFlags = (down ? 0 : KEYEVENTF_KEYUP) | (IsExtVk(vk) ? KEYEVENTF_EXTENDEDKEY : 0);
+    }
+    SendInput(1, &in, sizeof(in));
+}
+
+static DWORD WINAPI PlayThread(LPVOID)
+{
+    HANDLE hTimer = CreateWaitableTimer(0, TRUE, 0);
+    HANDLE hs[2] = {hTimer, g_playStopEv};
+    unsigned long long base = GetTickCount64();
+    for (;;)
+    {
+        for (size_t i = 0; i < g_rec.size(); i++)
+        {
+            unsigned long long target = base + g_rec[i].t;
+            while (GetTickCount64() < target)
+            {
+                long long waitMs = (long long)(target - GetTickCount64());
+                LARGE_INTEGER due;
+                due.QuadPart = -(waitMs * 10000LL); // relative, 100ns units
+                SetWaitableTimer(hTimer, &due, 0, 0, 0, FALSE);
+                if (WaitForMultipleObjects(2, hs, FALSE, INFINITE) != WAIT_OBJECT_0)
+                    break; // stop event or error -> abort waiting
+            }
+            if (WaitForSingleObject(g_playStopEv, 0) == WAIT_OBJECT_0)
+            {
+                CloseHandle(hTimer);
+                PostMessage(g_hw, WM_APP + 3, 0, 0);
+                return 0;
+            }
+            auto &e = g_rec[i];
+            PostMessage(g_hw, WM_APP + 2, (WPARAM)(e.vk | (e.down ? 0x100 : 0) | (e.mouse ? 0x200 : 0)), 0);
+        }
+        if (!g_loop)
+            break;
+        base = GetTickCount64(); // restart timing for the next loop
+    }
+    CloseHandle(hTimer);
+    PostMessage(g_hw, WM_APP + 3, 0, 0);
+    return 0;
+}
+
+static void PlayToggle()
+{
+    if (g_playing)
+    {
+        SetEvent(g_playStopEv);
+        if (g_playThread)
+        {
+            WaitForSingleObject(g_playThread, 3000);
+            CloseHandle(g_playThread);
+            g_playThread = 0;
+        }
+        ResetEvent(g_playStopEv);
+        g_playing = false;
+        InvalidateRect(g_hw, 0, FALSE);
+        return;
+    }
+    if (g_rec.empty())
+        LoadRec(); // fall back to the last saved recording
+    if (g_rec.empty())
+        return;
+    if (g_playDur == 0)
+        g_playDur = g_rec.back().t;
+    g_playT0 = GetTickCount64();
+    ResetEvent(g_playStopEv);
+    g_playing = true;
+    g_playThread = CreateThread(0, 0, PlayThread, 0, 0, 0);
+    InvalidateRect(g_hw, 0, FALSE);
+}
+
+static void RecToggle()
+{
+    if (g_playing)
+        PlayToggle();
+    if (g_recording)
+    {
+        g_recording = false;
+        unsigned long long now = GetTickCount64() - g_recT0;
+        // drop trailing hotkey-chord noise (Ctrl + R of the stop key) from the tail
+        while (!g_rec.empty())
+        {
+            auto &e = g_rec.back();
+            if (e.t + 600 >= now && (e.vk == VK_LCONTROL || e.vk == VK_RCONTROL || e.vk == VK_CONTROL || e.vk == 'R'))
+            {
+                g_keyDown[e.mouse ? 256 + (e.vk & 0xFF) : (e.vk & 0xFF)] = false;
+                g_rec.pop_back();
+            }
+            else
+                break;
+        }
+        // release everything still held, so a replay never leaves a key stuck in the game
+        for (int i = 0; i < 512; i++)
+            if (g_keyDown[i])
+            {
+                g_rec.push_back({now, i < 256 ? i : i - 256, false, i >= 256});
+                g_keyDown[i] = false;
+            }
+        g_playDur = g_rec.empty() ? 0 : g_rec.back().t;
+        SaveRec();
+        InvalidateRect(g_hw, 0, FALSE);
+    }
+    else
+    {
+        g_rec.clear();
+        g_playDur = 0;
+        memset(g_keyDown, 0, sizeof(g_keyDown));
+        g_recT0 = GetTickCount64();
+        g_recording = true;
+        InvalidateRect(g_hw, 0, FALSE);
+    }
+}
+// ---------------- end recording / replay ----------------
 
 static D2D1_COLOR_F ACol(D2D1_COLOR_F c, float a)
 {
@@ -425,6 +679,19 @@ static void Render()
         auto tr = D2D1::RectF(b.x, b.y, b.x + b.w, b.y + b.h);
         g_rt->DrawText(b.label, (UINT32)wcslen(b.label), (b.mouse || b.modifier) ? g_ts : g_tf, tr, br);
     }
+    if (g_recording || g_playing)
+    {
+        float s = Cfg::scale / 100.f;
+        wchar_t st[80];
+        if (g_recording)
+            swprintf_s(st, L"\x25CF REC %.1f s", (double)(GetTickCount64() - g_recT0) / 1000.0);
+        else if (g_loop)
+            swprintf_s(st, L"\x25B6 LOOP %.1f / %.1f s", (double)(GetTickCount64() - g_playT0) / 1000.0, (double)g_playDur / 1000.0);
+        else
+            swprintf_s(st, L"\x25B6 PLAY %.1f / %.1f s", (double)(GetTickCount64() - g_playT0) / 1000.0, (double)g_playDur / 1000.0);
+        br->SetColor(g_recording ? D2D1::ColorF(1.f, .3f, .3f, 1.f) : D2D1::ColorF(.35f, .9f, .45f, 1.f));
+        g_rt->DrawText(st, (UINT32)wcslen(st), g_ts, D2D1::RectF(4 * s, 0, w, 13 * s), br);
+    }
     br->Release();
     if (g_rt->EndDraw() == D2DERR_RECREATE_TARGET)
         FRT();
@@ -495,6 +762,9 @@ enum KbmCtrl
     KC_SHIFT,
     KC_CTRL,
     KC_ALT,
+    KC_REC,
+    KC_PLAY,
+    KC_LOOP,
 };
 
 struct SB
@@ -639,6 +909,19 @@ static LRESULT CALLBACK SetProc(HWND hw, UINT m, WPARAM wp, LPARAM lp)
         s.chk(L"Show Ctrl", KC_CTRL, Cfg::showCtrl);
         s.chk(L"Show Alt", KC_ALT, Cfg::showAlt);
 
+        s.sec(L"\x25B6  Recording (macro)");
+        {
+            HWND h = CreateWindow(L"BUTTON", L"\x23FA Rec Start/Stop (Ctrl+Shift+R)", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, s.lm, s.y, s.cw + 170, 32, hw, (HMENU)(INT_PTR)KC_REC, g_hi, 0);
+            s.all.push_back(h);
+            s.y += 36;
+        }
+        {
+            HWND h = CreateWindow(L"BUTTON", L"\x25B6 Play/Stop (Ctrl+Shift+P)", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, s.lm, s.y, s.cw + 170, 32, hw, (HMENU)(INT_PTR)KC_PLAY, g_hi, 0);
+            s.all.push_back(h);
+            s.y += 36;
+        }
+        s.chk(L"Loop playback (Ctrl+Shift+L)", KC_LOOP, g_loop);
+
         s.y += 4;
         s.chk(L"Show Overlay", KC_SHOW, g_vis);
         s.y += 4;
@@ -720,6 +1003,12 @@ static LRESULT CALLBACK SetProc(HWND hw, UINT m, WPARAM wp, LPARAM lp)
         }
         else if (id == KC_CLOSE)
             DestroyWindow(hw);
+        else if (id == KC_REC)
+            RecToggle();
+        else if (id == KC_PLAY)
+            PlayToggle();
+        else if (id == KC_LOOP)
+            g_loop = SendDlgItemMessage(hw, KC_LOOP, BM_GETCHECK, 0, 0) == BST_CHECKED;
         else if (id == KC_RESET)
         {
             Cfg::corner = 3;
@@ -781,7 +1070,7 @@ static void OpenSet()
         RegisterClassEx(&wc);
         r = true;
     }
-    int ww = 480, wh = 920, sw2 = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
+    int ww = 480, wh = 1040, sw2 = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
     g_sw = CreateWindowEx(0, L"KBMSet", L"KBM Overlay \x2014 Settings",
                           WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, (sw2 - ww) / 2, (sh - wh) / 2, ww, wh, 0, 0, g_hi, 0);
     ShowWindow(g_sw, SW_SHOW);
@@ -796,6 +1085,7 @@ static LRESULT CALLBACK KbHk(int c, WPARAM w, LPARAM l)
         bool dn = (w == WM_KEYDOWN || w == WM_SYSKEYDOWN), up = (w == WM_KEYUP || w == WM_SYSKEYUP);
         if (p->vkCode == VK_F2 && dn)
             PostMessage(g_hw, WM_APP + 1, 0, 0);
+        RecKb((int)p->vkCode, dn, (p->flags & LLKHF_INJECTED) != 0);
         int vk = (int)p->vkCode;
         if (vk == VK_RSHIFT)
             vk = VK_LSHIFT;
@@ -828,8 +1118,9 @@ static LRESULT CALLBACK MsHk(int c, WPARAM w, LPARAM l)
     if (c == HC_ACTION)
     {
         auto *p = (MSLLHOOKSTRUCT *)l;
+        bool inj = (p->flags & LLKHF_INJECTED) != 0;
         auto set = [&](int vk, bool s)
-        {for(auto&b:g_btns)if(b.mouse&&b.vk==vk){b.pressed=s;InvalidateRect(g_hw,0,FALSE);break;} };
+        {RecMs(vk, s, inj); for(auto&b:g_btns)if(b.mouse&&b.vk==vk){b.pressed=s;InvalidateRect(g_hw,0,FALSE);break;} };
         switch (w)
         {
         case WM_LBUTTONDOWN:
@@ -885,7 +1176,43 @@ static LRESULT CALLBACK WProc(HWND hw, UINT m, WPARAM wp, LPARAM lp)
     case WM_APP + 1:
         OpenSet();
         return 0;
+    case WM_APP + 2:
+    {
+        int vk = (int)(wp & 0xFF);
+        bool dn = (wp & 0x100) != 0, ms = (wp & 0x200) != 0;
+        ApplyInjected(vk, dn, ms);
+        int nvk = vk;
+        if (nvk == VK_RSHIFT) nvk = VK_LSHIFT;
+        if (nvk == VK_RCONTROL) nvk = VK_LCONTROL;
+        if (nvk == VK_RMENU) nvk = VK_LMENU;
+        if (nvk == VK_SHIFT) nvk = VK_LSHIFT;
+        if (nvk == VK_CONTROL) nvk = VK_LCONTROL;
+        if (nvk == VK_MENU) nvk = VK_LMENU;
+        for (auto &b : g_btns)
+            if (b.mouse == ms && b.vk == nvk)
+            {
+                b.pressed = dn;
+                break;
+            }
+        InvalidateRect(hw, 0, FALSE);
+        return 0;
+    }
+    case WM_APP + 3:
+        g_playing = false;
+        if (g_playThread)
+        {
+            CloseHandle(g_playThread);
+            g_playThread = 0;
+        }
+        InvalidateRect(hw, 0, FALSE);
+        return 0;
+    case WM_TIMER:
+        if (g_recording || g_playing)
+            InvalidateRect(hw, 0, FALSE);
+        return 0;
     case WM_HOTKEY:
+        if (g_playing && wp != 5)
+            return 0;
         if (wp == 1)
         {
             g_vis = !g_vis;
@@ -901,6 +1228,15 @@ static LRESULT CALLBACK WProc(HWND hw, UINT m, WPARAM wp, LPARAM lp)
             Cfg::corner = (Cfg::corner + 1) % 4;
             Repos();
             SaveCfg();
+        }
+        else if (wp == 4)
+            RecToggle();
+        else if (wp == 5)
+            PlayToggle();
+        else if (wp == 6)
+        {
+            g_loop = !g_loop;
+            InvalidateRect(hw, 0, FALSE);
         }
         return 0;
     case WM_DESTROY:
@@ -945,6 +1281,13 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, LPWSTR, int)
     RegisterHotKey(g_hw, 1, MOD_CONTROL | MOD_SHIFT, 'H');
     RegisterHotKey(g_hw, 2, MOD_CONTROL | MOD_SHIFT, 'X');
     RegisterHotKey(g_hw, 3, MOD_CONTROL | MOD_SHIFT, 'M');
+    RegisterHotKey(g_hw, 4, MOD_CONTROL | MOD_SHIFT, 'R');
+    RegisterHotKey(g_hw, 5, MOD_CONTROL | MOD_SHIFT, 'P');
+    RegisterHotKey(g_hw, 6, MOD_CONTROL | MOD_SHIFT, 'L');
+
+    g_playStopEv = CreateEvent(0, TRUE, FALSE, 0);
+    SetTimer(g_hw, 99, 250, 0);
+    timeBeginPeriod(1);
 
     g_kH = SetWindowsHookEx(WH_KEYBOARD_LL, KbHk, hi, 0);
     g_mH = SetWindowsHookEx(WH_MOUSE_LL, MsHk, hi, 0);
@@ -960,6 +1303,27 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE, LPWSTR, int)
         DispatchMessage(&msg);
     }
 
+    timeEndPeriod(1);
+    KillTimer(g_hw, 99);
+    if (g_playing)
+    {
+        SetEvent(g_playStopEv);
+        if (g_playThread)
+        {
+            WaitForSingleObject(g_playThread, 3000);
+            CloseHandle(g_playThread);
+            g_playThread = 0;
+        }
+        g_playing = false;
+    }
+    if (g_recording)
+    {
+        g_recording = false;
+        g_playDur = g_rec.empty() ? 0 : g_rec.back().t;
+        SaveRec();
+    }
+    if (g_playStopEv)
+        CloseHandle(g_playStopEv);
     if (g_kH)
         UnhookWindowsHookEx(g_kH);
     if (g_mH)
