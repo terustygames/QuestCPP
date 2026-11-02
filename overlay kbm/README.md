@@ -45,3 +45,28 @@
 - Формат файла `last.kbmrec` — текстовый:
   `KBMREC1`, затем `count durationMs`, затем строки `<ms> K|M <vk> <down>`.
 - Запись ограничена 5 минутами / 400 000 событий (автостоп).
+
+## Сборка на Windows
+
+Для сборки нужен компилятор MSVC и Windows SDK. Установите Visual Studio или
+Visual Studio Build Tools с компонентом **«Разработка классических приложений
+на C++»** (Desktop development with C++) и Windows SDK. Один только Visual
+Studio Code компилятор не устанавливает.
+
+Из папки `overlay kbm` запустите в обычном `cmd`:
+
+```bat
+"overlay kbm\build.bat"
+```
+
+Скрипт найдёт установленные средства MSVC и пересоберёт `overlay.exe` рядом с
+`overlay.cpp` во вложенной папке `overlay kbm\overlay kbm`. Если уже открыта
+консоль **x64 Native Tools Command Prompt for VS**, можно также перейти в эту
+вложенную папку и выполнить:
+
+```bat
+cl /nologo /EHsc /MD /utf-8 /Fe:overlay.exe overlay.cpp /link /SUBSYSTEM:WINDOWS user32.lib gdi32.lib dwmapi.lib d2d1.lib dwrite.lib comctl32.lib shell32.lib winmm.lib
+```
+
+Существующий в репозитории `overlay.exe` не пересобирается автоматически при
+получении исходников: после изменения кода его нужно собрать заново.
