@@ -1,0 +1,757 @@
+   0.001 2026-11-03 19:28:56; Factorio 2.0.20 (build 80511, win64, full, space-age)
+   0.001 Operating system: Windows 11 (build 26300) 
+   0.001 Program arguments: "C:\Program Files\Factorio\bin\x64\factorio.exe" 
+   0.001 Config path: C:/Users/Александр/AppData/Roaming/Factorio/config/config.ini
+   0.001 Read data path: C:/Program Files/Factorio/data
+   0.001 Write data path: C:/Users/Александр/AppData/Roaming/Factorio [19412/487314MB]
+   0.001 Binaries path: C:/Program Files/Factorio/bin
+   0.012 System info: [CPU: 12th Gen Intel(R) Core(TM) i5-12500H, 16 cores, RAM: 7606/16088 MB, page: 8572/21464 MB, virtual: 4276/134217727 MB, extended virtual: 0 MB]
+   0.065 Memory info:
+   0.065  [0]: Samsung M471A1K43EB1-CWE 8192 MB 3200 MHz 1.2 v
+   0.065  [1]: Samsung M471A1K43EB1-CWE 8192 MB 3200 MHz 1.2 v
+   0.068 Display options: [FullScreen: true] [VSync: false] [UIScale: automatic (100.0%)] [Native DPI: true] [Screen: 255] [Special: lmw] [Lang: ru]
+   0.115 Video driver: windows
+   0.115 Available displays: 1
+   0.115  [0]: \\.\DISPLAY1 - Intel(R) Iris(R) Xe Graphics {0x05, [0,0], 1920x1080, 32bit, 144Hz}
+   0.167 [Direct3D11] Display: 0, Output: 0, DisplayAdapter: 0, RenderingAdapter: -1; d3dcompiler_47.dll
+   0.167 Verbose GraphicsInterfaceDX11.cpp:267: DXGI 1.5 detected, Allow tearing is supported
+   0.168  Adapter [0]: NVIDIA GeForce RTX 3050 Laptop GPU {10de-25a2} (32.0.16.1656)
+   0.168  Adapter [1]: Intel(R) Iris(R) Xe Graphics {8086-46a6} (32.0.101.7085)
+   0.168  Adapter [2]: Microsoft Basic Render Driver {1414-8c} (10.0.26100.9711)
+   0.410 Initialised Direct3D[0]: NVIDIA GeForce RTX 3050 Laptop GPU; id: 10de-25a2; driver: nvldumdx.dll 32.0.16.1656
+   0.410   D3D Feature Level: 11.1, DXGI 1.5+, SwapChain: 3,flip-discard,-,-,-,none
+   0.410   [Local Video Memory] Budget: 3367MB, CurrentUsage: 5MB, Reservation: 0/1782MB
+   0.410   [Non-Local Vid.Mem.] Budget: 7386MB, CurrentUsage: 0MB, Reservation: 0/3821MB
+   0.410   Tiled resources: Tier 2
+   0.410   Unified Memory Architecture: No
+   0.410   BGR 565 Supported: Yes
+   0.410   MaximumFrameLatency: 3, GPUThreadPriority: 0
+   0.410 Graphics settings preset: very-high
+   0.410   Dedicated video memory size 3962 MB
+   0.430 Desktop composition is active.
+   0.430 Graphics options: [Graphics quality: medium] [Video memory usage: all] [DXT: low-quality]
+   0.430                   [Max threads (load/render): 32/10] [Max texture size: 0] [Tex.Stream.: false] [Rotation quality: low] [Other: STDCwtl] [B:100,C:55,S:120]
+   0.448 [Audio] Driver:wasapi, Device:Default device, Depth:16, Frequency:44100, Channels:2, Interpolation:linear
+   0.543 Info ModManager.cpp:434: FeatureFlag expansion-shaders = true
+   0.543 Info ModManager.cpp:434: FeatureFlag freezing = true
+   0.543 Info ModManager.cpp:434: FeatureFlag quality = true
+   0.543 Info ModManager.cpp:434: FeatureFlag rail-bridges = true
+   0.543 Info ModManager.cpp:434: FeatureFlag segmented-units = true
+   0.543 Info ModManager.cpp:434: FeatureFlag space-travel = true
+   0.543 Info ModManager.cpp:434: FeatureFlag spoiling = true
+   0.543 Verbose PipelineStateObject.cpp:104: Time to load shaders: 0.000049 seconds.
+   0.545 Verbose FileReadStream.cpp:42: FileReadStream destroyed due to exception. totalBytesRead=9, fileSize=3817
+   0.545 Error GlobalModSettings.cpp:157: Failed to read mod settings: Карта версии 2.0.69-0 не может быть загружена, её версия выше, чем версия игры (2.0.20-3).
+   0.546 Loading mod core 0.0.0 (data.lua)
+   0.561 Loading mod base 2.0.20 (data.lua)
+   0.705 Loading mod elevated-rails 2.0.20 (data.lua)
+   0.728 Loading mod quality 2.0.20 (data.lua)
+   0.740 Loading mod space-age 2.0.20 (data.lua)
+   0.992 Loading mod base 2.0.20 (data-updates.lua)
+   1.004 Loading mod quality 2.0.20 (data-updates.lua)
+   1.019 Loading mod space-age 2.0.20 (data-updates.lua)
+   1.089 Checksum for core: 2863993211
+   1.089 Checksum of base: 3548713318
+   1.089 Checksum of elevated-rails: 2929976872
+   1.089 Checksum of quality: 3484764141
+   1.089 Checksum of space-age: 1973748825
+   1.361 Prototype list checksum: 3872509593
+   1.364 Verbose ModManager.cpp:633: Time to load mods: 0.820743
+   1.406 Loading sounds...
+   1.683 Info PlayerData.cpp:66: Local player-data.json available, timestamp 1793723117
+   1.683 Info PlayerData.cpp:73: Cloud player-data.json unavailable
+   1.984 Initial atlas bitmap size is 16384
+   2.049 Verbose PipelineStateObject.cpp:100: Time to load shaders in background: 1.506102 seconds.
+   2.060 Created an atlas bitmap (size 16384x16380) [none]
+   2.060 Created an atlas bitmap (size 8192x3660) [none]
+   2.061 Created an atlas bitmap (size 8192x4248) [decal]
+   2.062 Created an atlas bitmap (size 16384x4480) [low-object]
+   2.062 Created an atlas bitmap (size 16384x3584) [corpse-decay]
+   2.063 Created an atlas bitmap (size 8192x2832) [none]
+   2.063 Created an atlas bitmap (size 904x41) [not-compressed]
+   2.063 Created an atlas bitmap (size 8192x1840) [mipmap, linear-minification, linear-magnification, linear-mip-level]
+   2.064 Created an atlas bitmap (size 16384x6496) [terrain, mipmap, linear-minification, linear-mip-level]
+   2.064 Created an atlas bitmap (size 4096x2496) [terrain-effect-map, mipmap, linear-minification, linear-mip-level]
+   2.064 Created an atlas bitmap (size 4096x3008) [smoke, mipmap, linear-minification, linear-magnification]
+   2.065 Created an atlas bitmap (size 4096x1376) [mipmap]
+   2.065 Created an atlas bitmap (size 2048x1520) [mipmap]
+   2.065 Created an atlas bitmap (size 2048x1616) [mipmap]
+   2.065 Created an atlas bitmap (size 2048x1616) [mipmap]
+   2.065 Created an atlas bitmap (size 2048x1616) [mipmap]
+   2.065 Created an atlas bitmap (size 8192x3808) [icon, not-compressed, mipmap, linear-minification, linear-magnification, linear-mip-level]
+   2.066 Created an atlas bitmap (size 8192x3420) [alpha-mask]
+   2.069 Created an atlas bitmap (size 16384x10324) [shadow, linear-magnification, alpha-mask]
+   2.069 Created an atlas bitmap (size 4096x1312) [shadow, mipmap, linear-magnification, alpha-mask]
+   2.069 Created an atlas bitmap (size 2048x496) [icon-background, not-compressed, mipmap, linear-minification, linear-magnification, linear-mip-level, ]
+   2.069 Loading 3D bitmaps.
+   2.079 Verbose TextureProcessor.cpp:1128: GPU accelerated compression test: Time 2.335 ms; YCoCg_DXT PSNR: 35.83, BC3 PSNR: 33.82
+   2.079 Texture processor created (2048). GPU accelerated compression Supported: yes, Enabled: yes/yes. Test passed. YCoCgDXT PSNR: 35.83, BC3 PSNR: 33.82
+   2.082 Parallel sprite loader initialized (threads: 13, bitmaps: 8228)
+  13.923 Sprites loaded
+  13.955 Generated mipmaps (3) for atlas [3] of size 16384x4480   
+  13.966 Generated mipmaps (3) for atlas [7] of size 8192x1840   
+  13.988 Generated mipmaps (3) for atlas [8] of size 16384x6496   
+  14.000 Generated mipmaps (3) for atlas [9] of size 4096x2496   
+  14.011 Generated mipmaps (3) for atlas [10] of size 4096x3008   
+  14.041 Generated mipmaps (3) for atlas [11] of size 4096x1376   
+  14.052 Generated mipmaps (3) for atlas [12] of size 2048x1520   
+  14.062 Generated mipmaps (3) for atlas [13] of size 2048x1616   
+  14.088 Generated mipmaps (3) for atlas [14] of size 2048x1616   
+  14.099 Generated mipmaps (3) for atlas [15] of size 2048x1616   
+  14.121 Generated mipmaps (5) for atlas [16] of size 8192x3808   
+  14.131 Generated mipmaps (3) for atlas [19] of size 4096x1312   
+  14.146 Custom mipmaps uploaded (3203)
+  14.146 Verbose AtlasBuilder.cpp:830: Atlas memory size: 782.09MB; 0.00MB (virtual)
+  14.146 Verbose AtlasBuilder.cpp:703: Size of sprites outside of atlas: 26.91MB
+  14.146 Verbose ParallelSpriteLoader.cpp:145: Sprite loader stats> Worker loaded max size: 130.91MB, Total worker loaded max size: 1626.44MB
+  14.147 Verbose AtlasBuilder.cpp:1336: Prepared alpha-mask lookup table. Count = 21515
+  14.150 Video memory usage: 908.27 MB (Atlases: 875.40 MB, Textures: 32.87 MB)
+  14.170 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002862 seconds.
+  14.170 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+  14.170 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+  14.170 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+  14.208 Factorio initialised
+  21.266 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002571 seconds.
+  21.266 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+  21.266 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+  21.266 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+  21.270 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003289 seconds.
+  21.270 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 1342 expressions (718 unique) and has 530 operations and 43 registers; estimated complexity: 843.
+  21.270 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 5895 expressions (2655 unique) and has 2303 operations and 270 registers; estimated complexity: 20301.
+  21.270 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2395 expressions (1222 unique) and has 1001 operations and 94 registers; estimated complexity: 13602.
+  21.301 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+  21.302 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+  33.400 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002824 seconds.
+  33.400 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+  33.400 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+  33.400 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+  33.402 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001594 seconds.
+  33.402 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 511 expressions (311 unique) and has 195 operations and 29 registers; estimated complexity: 1612.
+  33.402 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 1071 expressions (600 unique) and has 434 operations and 68 registers; estimated complexity: 24637.
+  33.402 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 862 expressions (480 unique) and has 333 operations and 51 registers; estimated complexity: 24599.
+  33.435 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+  33.435 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+  45.501 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003205 seconds.
+  45.501 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+  45.501 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12450.
+  45.501 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+  57.542 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002679 seconds.
+  57.542 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+  57.542 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+  57.542 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+  57.546 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.004398 seconds.
+  57.547 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 832 expressions (439 unique) and has 256 operations and 29 registers; estimated complexity: 503.
+  57.547 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 2341 expressions (1153 unique) and has 819 operations and 109 registers; estimated complexity: 9100.
+  57.547 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1719 expressions (866 unique) and has 579 operations and 69 registers; estimated complexity: 8303.
+  57.547 Verbose CompiledMapGenSettings.cpp:381:   Territory noise program processed 89 expressions (73 unique) and has 27 operations and 8 registers; estimated complexity: 538.
+  57.574 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+  57.574 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+  69.617 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002533 seconds.
+  69.617 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+  69.617 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+  69.617 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+  69.621 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003937 seconds.
+  69.621 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 832 expressions (439 unique) and has 256 operations and 29 registers; estimated complexity: 503.
+  69.621 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 2341 expressions (1153 unique) and has 819 operations and 109 registers; estimated complexity: 9100.
+  69.621 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1719 expressions (866 unique) and has 579 operations and 69 registers; estimated complexity: 8303.
+  69.621 Verbose CompiledMapGenSettings.cpp:381:   Territory noise program processed 89 expressions (73 unique) and has 27 operations and 8 registers; estimated complexity: 538.
+  69.629 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001271 seconds.
+  69.629 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2 expressions (1 unique) and has 1 operations and 3 registers; estimated complexity: 1.
+  69.652 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+  69.652 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+  82.953 Info UDPSocket.cpp:32: Opening socket at (IP ADDR:({0.0.0.0:34196}))
+  82.953 Info UDPSocket.cpp:32: Opening socket at (IP ADDR:({0.0.0.0:0}))
+  85.268 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002687 seconds.
+  85.268 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+  85.268 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+  85.268 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+  85.848 Info UDPSocket.cpp:233: Closing socket
+  85.849 Info UDPSocket.cpp:263: Socket closed
+  85.849 Info UDPSocket.cpp:233: Closing socket
+  85.870 Info UDPSocket.cpp:233: Closing socket
+  85.870 Info UDPSocket.cpp:263: Socket closed
+  85.870 Info UDPSocket.cpp:233: Closing socket
+ 101.317 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002588 seconds.
+ 101.317 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 101.317 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 101.317 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 101.319 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001361 seconds.
+ 101.319 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 622 expressions (334 unique) and has 216 operations and 47 registers; estimated complexity: 4325.
+ 101.319 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 586 expressions (321 unique) and has 217 operations and 30 registers; estimated complexity: 4445.
+ 101.342 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 101.343 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 109.405 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.006332 seconds.
+ 109.405 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 109.405 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 11000 expressions (4911 unique) and has 3888 operations and 446 registers; estimated complexity: 61930.
+ 109.405 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 6241 expressions (2972 unique) and has 2318 operations and 217 registers; estimated complexity: 55702.
+ 125.431 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002772 seconds.
+ 125.431 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 125.431 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12450.
+ 125.431 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 125.456 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002552 seconds.
+ 125.456 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 125.456 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12450.
+ 125.456 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 137.462 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003490 seconds.
+ 137.462 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 137.462 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 137.462 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 150.516 Joining game IP ADDR:({46.51.153.12:18512})
+ 150.517 Info UDPSocket.cpp:38: Opening socket
+ 150.517 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(Ready) to(Connecting)
+ 150.517 Verbose RouterBase.cpp:59: Started router thread.
+ 155.612 Verbose TransmissionControlHelper.cpp:167: Fragment 0000 failed too many times
+ 157.508 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002460 seconds.
+ 157.508 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 157.508 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 157.508 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 157.554 Info LuaGameScript.cpp:660: level state size: 1157 bytes.
+ 157.554 Info LuaGameScript.cpp:660: level state size: 1157 bytes.
+ 160.529 Error ClientMultiplayerManager.cpp:85: MultiplayerManager failed: "Попытка соединения с сервером не удалась."
+ 160.529 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(Connecting) to(InitializationFailed)
+ 162.552 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002660 seconds.
+ 162.552 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 162.552 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 162.552 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 162.554 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001543 seconds.
+ 162.554 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 511 expressions (311 unique) and has 195 operations and 29 registers; estimated complexity: 1612.
+ 162.554 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 1071 expressions (600 unique) and has 434 operations and 68 registers; estimated complexity: 24637.
+ 162.554 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 862 expressions (480 unique) and has 333 operations and 51 registers; estimated complexity: 24599.
+ 162.576 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 162.576 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 174.582 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002753 seconds.
+ 174.582 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 174.582 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 174.582 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 174.584 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.000996 seconds.
+ 174.584 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2 expressions (1 unique) and has 1 operations and 3 registers; estimated complexity: 1.
+ 174.606 Info LuaGameScript.cpp:660: level state size: 1230 bytes.
+ 174.606 Info LuaGameScript.cpp:660: level state size: 1230 bytes.
+ 186.703 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002630 seconds.
+ 186.703 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 186.703 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 186.703 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 186.731 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 186.731 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 199.787 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002401 seconds.
+ 199.787 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 199.787 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 199.787 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 199.789 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001296 seconds.
+ 199.789 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 511 expressions (311 unique) and has 195 operations and 29 registers; estimated complexity: 1612.
+ 199.789 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 1071 expressions (600 unique) and has 434 operations and 68 registers; estimated complexity: 24637.
+ 199.789 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 862 expressions (480 unique) and has 333 operations and 51 registers; estimated complexity: 24599.
+ 199.812 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 199.812 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 211.814 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002756 seconds.
+ 211.814 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 211.814 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 211.814 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 211.816 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001439 seconds.
+ 211.816 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 511 expressions (311 unique) and has 195 operations and 29 registers; estimated complexity: 1612.
+ 211.816 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 1071 expressions (600 unique) and has 434 operations and 68 registers; estimated complexity: 24637.
+ 211.816 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 862 expressions (480 unique) and has 333 operations and 51 registers; estimated complexity: 24599.
+ 211.836 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 211.836 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 223.840 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003240 seconds.
+ 223.840 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 223.840 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 223.840 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 223.882 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 223.882 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 235.923 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002622 seconds.
+ 235.923 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 235.923 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 235.923 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 235.924 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.000958 seconds.
+ 235.924 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2 expressions (1 unique) and has 1 operations and 3 registers; estimated complexity: 1.
+ 235.938 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.004297 seconds.
+ 235.939 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 832 expressions (439 unique) and has 256 operations and 29 registers; estimated complexity: 503.
+ 235.939 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 2341 expressions (1153 unique) and has 819 operations and 109 registers; estimated complexity: 9100.
+ 235.939 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1719 expressions (866 unique) and has 579 operations and 69 registers; estimated complexity: 8303.
+ 235.939 Verbose CompiledMapGenSettings.cpp:381:   Territory noise program processed 89 expressions (73 unique) and has 27 operations and 8 registers; estimated complexity: 538.
+ 235.954 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 235.954 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 247.998 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003020 seconds.
+ 247.998 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 373 expressions (218 unique) and has 138 operations and 16 registers; estimated complexity: 313.
+ 247.998 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12454.
+ 247.998 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1292 expressions (591 unique) and has 483 operations and 53 registers; estimated complexity: 10394.
+ 260.018 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002687 seconds.
+ 260.018 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 260.018 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 260.018 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 260.022 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003114 seconds.
+ 260.022 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 1336 expressions (715 unique) and has 528 operations and 43 registers; estimated complexity: 842.
+ 260.022 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 5856 expressions (2640 unique) and has 2289 operations and 268 registers; estimated complexity: 20269.
+ 260.022 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2399 expressions (1226 unique) and has 1005 operations and 94 registers; estimated complexity: 13606.
+ 260.048 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 260.048 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 272.124 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.007043 seconds.
+ 272.124 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 272.124 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 11112 expressions (4952 unique) and has 3925 operations and 453 registers; estimated complexity: 62350.
+ 272.124 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 6237 expressions (2968 unique) and has 2314 operations and 217 registers; estimated complexity: 55698.
+ 282.155 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.006327 seconds.
+ 282.155 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 282.155 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 11112 expressions (4952 unique) and has 3925 operations and 453 registers; estimated complexity: 62350.
+ 282.155 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 6237 expressions (2968 unique) and has 2314 operations and 217 registers; estimated complexity: 55698.
+ 304.196 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003467 seconds.
+ 304.196 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 304.196 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 304.196 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 304.233 Info LuaGameScript.cpp:660: level state size: 1157 bytes.
+ 304.233 Info LuaGameScript.cpp:660: level state size: 1157 bytes.
+ 315.239 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002691 seconds.
+ 315.239 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 315.239 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 315.239 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 315.241 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001238 seconds.
+ 315.241 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2 expressions (1 unique) and has 1 operations and 3 registers; estimated complexity: 1.
+ 315.256 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003630 seconds.
+ 315.256 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 1346 expressions (722 unique) and has 534 operations and 43 registers; estimated complexity: 843.
+ 315.256 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 5899 expressions (2659 unique) and has 2307 operations and 270 registers; estimated complexity: 20305.
+ 315.256 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2399 expressions (1226 unique) and has 1005 operations and 94 registers; estimated complexity: 13606.
+ 315.273 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 315.273 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 327.284 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002547 seconds.
+ 327.285 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 327.285 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 327.285 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 327.289 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.004332 seconds.
+ 327.290 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 832 expressions (439 unique) and has 256 operations and 29 registers; estimated complexity: 503.
+ 327.290 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 2341 expressions (1153 unique) and has 819 operations and 109 registers; estimated complexity: 9100.
+ 327.290 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1719 expressions (866 unique) and has 579 operations and 69 registers; estimated complexity: 8303.
+ 327.290 Verbose CompiledMapGenSettings.cpp:381:   Territory noise program processed 89 expressions (73 unique) and has 27 operations and 8 registers; estimated complexity: 538.
+ 327.320 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 327.320 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 345.322 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002443 seconds.
+ 345.322 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 345.322 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3063 expressions (1336 unique) and has 990 operations and 154 registers; estimated complexity: 11678.
+ 345.322 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 357.350 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002662 seconds.
+ 357.350 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 357.350 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 357.350 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 357.354 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003059 seconds.
+ 357.354 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 1342 expressions (718 unique) and has 530 operations and 43 registers; estimated complexity: 843.
+ 357.354 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 5895 expressions (2655 unique) and has 2303 operations and 270 registers; estimated complexity: 20301.
+ 357.354 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2395 expressions (1222 unique) and has 1001 operations and 94 registers; estimated complexity: 13602.
+ 357.378 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 357.378 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 370.386 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002564 seconds.
+ 370.386 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 370.386 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3063 expressions (1336 unique) and has 990 operations and 154 registers; estimated complexity: 11678.
+ 370.386 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 380.417 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002544 seconds.
+ 380.417 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 380.417 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 380.417 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 380.445 Info LuaGameScript.cpp:660: level state size: 1186 bytes.
+ 380.445 Info LuaGameScript.cpp:660: level state size: 1186 bytes.
+ 398.464 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.008330 seconds.
+ 398.464 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 398.464 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 10996 expressions (4907 unique) and has 3884 operations and 446 registers; estimated complexity: 61926.
+ 398.464 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 6237 expressions (2968 unique) and has 2314 operations and 217 registers; estimated complexity: 55698.
+ 418.577 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002767 seconds.
+ 418.577 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 418.577 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 418.577 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 428.600 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002962 seconds.
+ 428.600 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 428.600 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 428.600 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 428.604 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003294 seconds.
+ 428.604 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 1332 expressions (711 unique) and has 524 operations and 43 registers; estimated complexity: 842.
+ 428.604 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 5852 expressions (2636 unique) and has 2285 operations and 268 registers; estimated complexity: 20265.
+ 428.604 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2395 expressions (1222 unique) and has 1001 operations and 94 registers; estimated complexity: 13602.
+ 428.648 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 428.648 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 450.656 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002718 seconds.
+ 450.656 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 450.656 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 450.656 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 450.695 Info LuaGameScript.cpp:660: level state size: 1157 bytes.
+ 450.695 Info LuaGameScript.cpp:660: level state size: 1157 bytes.
+ 455.703 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002476 seconds.
+ 455.703 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 455.703 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 455.703 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 470.733 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003156 seconds.
+ 470.733 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 470.733 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 470.733 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 470.735 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001319 seconds.
+ 470.735 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 622 expressions (334 unique) and has 216 operations and 47 registers; estimated complexity: 4325.
+ 470.735 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 586 expressions (321 unique) and has 217 operations and 30 registers; estimated complexity: 4445.
+ 470.753 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 470.753 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 482.754 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002668 seconds.
+ 482.754 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 482.754 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3063 expressions (1336 unique) and has 990 operations and 154 registers; estimated complexity: 11678.
+ 482.754 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 482.810 Info LuaGameScript.cpp:660: level state size: 1157 bytes.
+ 482.810 Info LuaGameScript.cpp:660: level state size: 1157 bytes.
+ 490.821 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002779 seconds.
+ 490.821 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 490.821 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 490.821 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 500.865 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002933 seconds.
+ 500.865 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 500.865 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12450.
+ 500.865 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 500.891 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002681 seconds.
+ 500.891 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 500.891 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12450.
+ 500.891 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 512.882 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002736 seconds.
+ 512.882 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 512.882 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 512.882 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 512.886 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003140 seconds.
+ 512.886 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 1336 expressions (715 unique) and has 528 operations and 43 registers; estimated complexity: 842.
+ 512.886 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 5856 expressions (2640 unique) and has 2289 operations and 268 registers; estimated complexity: 20269.
+ 512.886 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2399 expressions (1226 unique) and has 1005 operations and 94 registers; estimated complexity: 13606.
+ 512.906 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 512.906 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 524.918 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002351 seconds.
+ 524.918 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 524.918 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3063 expressions (1336 unique) and has 990 operations and 154 registers; estimated complexity: 11678.
+ 524.918 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 536.945 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002482 seconds.
+ 536.945 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 536.945 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12450.
+ 536.945 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 548.973 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002515 seconds.
+ 548.973 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 548.973 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 548.973 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 561.002 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002680 seconds.
+ 561.003 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 561.003 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 561.003 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 568.022 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002416 seconds.
+ 568.022 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 568.022 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 568.022 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 568.027 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.004245 seconds.
+ 568.027 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 832 expressions (439 unique) and has 256 operations and 29 registers; estimated complexity: 503.
+ 568.027 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 2341 expressions (1153 unique) and has 819 operations and 109 registers; estimated complexity: 9100.
+ 568.027 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1719 expressions (866 unique) and has 579 operations and 69 registers; estimated complexity: 8303.
+ 568.027 Verbose CompiledMapGenSettings.cpp:381:   Territory noise program processed 89 expressions (73 unique) and has 27 operations and 8 registers; estimated complexity: 538.
+ 568.054 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 568.054 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 580.070 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002698 seconds.
+ 580.070 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 580.070 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 580.070 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 580.074 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003299 seconds.
+ 580.074 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 1342 expressions (718 unique) and has 530 operations and 43 registers; estimated complexity: 843.
+ 580.074 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 5895 expressions (2655 unique) and has 2303 operations and 270 registers; estimated complexity: 20301.
+ 580.074 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2395 expressions (1222 unique) and has 1001 operations and 94 registers; estimated complexity: 13602.
+ 580.107 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 580.107 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 592.117 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002731 seconds.
+ 592.117 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 592.117 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 592.117 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 592.119 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001591 seconds.
+ 592.119 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 511 expressions (311 unique) and has 195 operations and 29 registers; estimated complexity: 1612.
+ 592.119 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 1071 expressions (600 unique) and has 434 operations and 68 registers; estimated complexity: 24637.
+ 592.119 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 862 expressions (480 unique) and has 333 operations and 51 registers; estimated complexity: 24599.
+ 592.155 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 592.155 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 604.172 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002534 seconds.
+ 604.172 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 604.172 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 604.172 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 608.030 Info ClientMultiplayerManager.cpp:198: Quitting multiplayer connection.
+ 608.030 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(InitializationFailed) to(Disconnected)
+ 608.077 Verbose RouterBase.cpp:81: Finishing router thread.
+ 608.077 Info UDPSocket.cpp:233: Closing socket
+ 608.078 Info UDPSocket.cpp:263: Socket closed
+ 616.234 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002487 seconds.
+ 616.234 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 616.234 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 616.234 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 616.239 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.004347 seconds.
+ 616.239 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 832 expressions (439 unique) and has 256 operations and 29 registers; estimated complexity: 503.
+ 616.239 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 2341 expressions (1153 unique) and has 819 operations and 109 registers; estimated complexity: 9100.
+ 616.239 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1719 expressions (866 unique) and has 579 operations and 69 registers; estimated complexity: 8303.
+ 616.239 Verbose CompiledMapGenSettings.cpp:381:   Territory noise program processed 89 expressions (73 unique) and has 27 operations and 8 registers; estimated complexity: 538.
+ 616.273 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 616.273 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 640.284 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002693 seconds.
+ 640.284 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 640.284 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12450.
+ 640.284 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 640.310 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002850 seconds.
+ 640.310 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 640.310 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12450.
+ 640.310 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 652.316 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002790 seconds.
+ 652.316 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 652.316 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12450.
+ 652.316 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 652.343 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002747 seconds.
+ 652.343 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 652.343 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12450.
+ 652.343 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 662.355 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.006983 seconds.
+ 662.355 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 662.355 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 11000 expressions (4911 unique) and has 3888 operations and 446 registers; estimated complexity: 61930.
+ 662.355 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 6241 expressions (2972 unique) and has 2318 operations and 217 registers; estimated complexity: 55702.
+ 678.382 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002639 seconds.
+ 678.382 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 678.382 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 678.382 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 678.384 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001547 seconds.
+ 678.384 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2 expressions (1 unique) and has 1 operations and 3 registers; estimated complexity: 1.
+ 678.407 Info LuaGameScript.cpp:660: level state size: 1230 bytes.
+ 678.408 Info LuaGameScript.cpp:660: level state size: 1230 bytes.
+ 690.486 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002326 seconds.
+ 690.486 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 690.486 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 690.486 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 690.490 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.004193 seconds.
+ 690.490 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 832 expressions (439 unique) and has 256 operations and 29 registers; estimated complexity: 503.
+ 690.490 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 2341 expressions (1153 unique) and has 819 operations and 109 registers; estimated complexity: 9100.
+ 690.490 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1719 expressions (866 unique) and has 579 operations and 69 registers; estimated complexity: 8303.
+ 690.490 Verbose CompiledMapGenSettings.cpp:381:   Territory noise program processed 89 expressions (73 unique) and has 27 operations and 8 registers; estimated complexity: 538.
+ 690.520 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 690.520 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 708.523 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002694 seconds.
+ 708.523 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 708.523 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 708.523 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 708.525 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001090 seconds.
+ 708.525 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2 expressions (1 unique) and has 1 operations and 3 registers; estimated complexity: 1.
+ 708.540 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003491 seconds.
+ 708.540 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 1346 expressions (722 unique) and has 534 operations and 43 registers; estimated complexity: 843.
+ 708.540 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 5899 expressions (2659 unique) and has 2307 operations and 270 registers; estimated complexity: 20305.
+ 708.540 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2399 expressions (1226 unique) and has 1005 operations and 94 registers; estimated complexity: 13606.
+ 708.555 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 708.555 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 720.572 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002654 seconds.
+ 720.572 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 720.572 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 720.572 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 740.603 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002621 seconds.
+ 740.603 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 740.603 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 740.603 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 740.634 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 740.634 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 753.642 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002677 seconds.
+ 753.642 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 753.642 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 753.642 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 753.646 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003599 seconds.
+ 753.646 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 1342 expressions (718 unique) and has 530 operations and 43 registers; estimated complexity: 843.
+ 753.646 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 5895 expressions (2655 unique) and has 2303 operations and 270 registers; estimated complexity: 20301.
+ 753.646 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2395 expressions (1222 unique) and has 1001 operations and 94 registers; estimated complexity: 13602.
+ 753.675 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 753.675 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 766.685 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002552 seconds.
+ 766.685 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 766.685 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 766.685 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 766.687 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001328 seconds.
+ 766.687 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 622 expressions (334 unique) and has 216 operations and 47 registers; estimated complexity: 4325.
+ 766.687 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 586 expressions (321 unique) and has 217 operations and 30 registers; estimated complexity: 4445.
+ 766.712 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 766.712 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 774.721 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002571 seconds.
+ 774.721 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 774.721 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 774.721 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 774.752 Info LuaGameScript.cpp:660: level state size: 1157 bytes.
+ 774.753 Info LuaGameScript.cpp:660: level state size: 1157 bytes.
+ 785.754 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002386 seconds.
+ 785.754 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 785.754 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 785.754 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 785.755 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001096 seconds.
+ 785.755 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2 expressions (1 unique) and has 1 operations and 3 registers; estimated complexity: 1.
+ 785.768 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003976 seconds.
+ 785.768 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 832 expressions (439 unique) and has 256 operations and 29 registers; estimated complexity: 503.
+ 785.768 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 2341 expressions (1153 unique) and has 819 operations and 109 registers; estimated complexity: 9100.
+ 785.768 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1719 expressions (866 unique) and has 579 operations and 69 registers; estimated complexity: 8303.
+ 785.768 Verbose CompiledMapGenSettings.cpp:381:   Territory noise program processed 89 expressions (73 unique) and has 27 operations and 8 registers; estimated complexity: 538.
+ 785.784 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 785.784 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 797.800 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003548 seconds.
+ 797.800 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 797.800 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 797.800 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 797.854 Info LuaGameScript.cpp:660: level state size: 1157 bytes.
+ 797.854 Info LuaGameScript.cpp:660: level state size: 1157 bytes.
+ 802.869 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002810 seconds.
+ 802.869 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 802.869 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 802.869 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 818.899 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003051 seconds.
+ 818.899 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 818.899 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 818.899 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 818.901 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001548 seconds.
+ 818.901 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 511 expressions (311 unique) and has 195 operations and 29 registers; estimated complexity: 1612.
+ 818.901 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 1071 expressions (600 unique) and has 434 operations and 68 registers; estimated complexity: 24637.
+ 818.901 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 862 expressions (480 unique) and has 333 operations and 51 registers; estimated complexity: 24599.
+ 818.929 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 818.929 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 830.934 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002453 seconds.
+ 830.934 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 830.935 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 830.935 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 830.969 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 830.970 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 842.969 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002727 seconds.
+ 842.969 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 842.969 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 842.969 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 842.972 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002854 seconds.
+ 842.972 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 1336 expressions (715 unique) and has 528 operations and 43 registers; estimated complexity: 842.
+ 842.972 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 5856 expressions (2640 unique) and has 2289 operations and 268 registers; estimated complexity: 20269.
+ 842.972 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2399 expressions (1226 unique) and has 1005 operations and 94 registers; estimated complexity: 13606.
+ 842.997 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 842.997 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 855.007 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.006662 seconds.
+ 855.007 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 855.007 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 11112 expressions (4952 unique) and has 3925 operations and 453 registers; estimated complexity: 62350.
+ 855.007 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 6237 expressions (2968 unique) and has 2314 operations and 217 registers; estimated complexity: 55698.
+ 865.042 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.006399 seconds.
+ 865.042 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 865.042 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 11112 expressions (4952 unique) and has 3925 operations and 453 registers; estimated complexity: 62350.
+ 865.042 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 6237 expressions (2968 unique) and has 2314 operations and 217 registers; estimated complexity: 55698.
+ 887.085 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002679 seconds.
+ 887.085 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 887.085 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 887.085 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 887.087 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001462 seconds.
+ 887.087 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 511 expressions (311 unique) and has 195 operations and 29 registers; estimated complexity: 1612.
+ 887.087 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 1071 expressions (600 unique) and has 434 operations and 68 registers; estimated complexity: 24637.
+ 887.087 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 862 expressions (480 unique) and has 333 operations and 51 registers; estimated complexity: 24599.
+ 887.107 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 887.108 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 899.121 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002636 seconds.
+ 899.121 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 899.121 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3063 expressions (1336 unique) and has 990 operations and 154 registers; estimated complexity: 11678.
+ 899.121 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 911.146 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002961 seconds.
+ 911.146 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 911.146 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12450.
+ 911.146 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 911.173 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002829 seconds.
+ 911.173 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 911.173 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12450.
+ 911.173 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 923.163 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002694 seconds.
+ 923.163 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 373 expressions (218 unique) and has 138 operations and 16 registers; estimated complexity: 313.
+ 923.163 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12454.
+ 923.163 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1292 expressions (591 unique) and has 483 operations and 53 registers; estimated complexity: 10394.
+ 935.183 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002494 seconds.
+ 935.183 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 935.183 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 935.183 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 935.185 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001398 seconds.
+ 935.185 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 511 expressions (311 unique) and has 195 operations and 29 registers; estimated complexity: 1612.
+ 935.185 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 1071 expressions (600 unique) and has 434 operations and 68 registers; estimated complexity: 24637.
+ 935.185 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 862 expressions (480 unique) and has 333 operations and 51 registers; estimated complexity: 24599.
+ 935.208 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 935.208 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 947.218 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003296 seconds.
+ 947.218 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 947.218 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 947.218 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 947.222 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.003835 seconds.
+ 947.222 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 832 expressions (439 unique) and has 256 operations and 29 registers; estimated complexity: 503.
+ 947.222 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 2341 expressions (1153 unique) and has 819 operations and 109 registers; estimated complexity: 9100.
+ 947.222 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1719 expressions (866 unique) and has 579 operations and 69 registers; estimated complexity: 8303.
+ 947.222 Verbose CompiledMapGenSettings.cpp:381:   Territory noise program processed 89 expressions (73 unique) and has 27 operations and 8 registers; estimated complexity: 538.
+ 947.230 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001150 seconds.
+ 947.230 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 2 expressions (1 unique) and has 1 operations and 3 registers; estimated complexity: 1.
+ 947.253 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 947.253 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+ 960.714 Joining game IP ADDR:({18.196.69.226:10512})
+ 960.714 Info UDPSocket.cpp:38: Opening socket
+ 960.714 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(Ready) to(Connecting)
+ 960.715 Verbose RouterBase.cpp:59: Started router thread.
+ 960.912 Info ClientSynchronizer.cpp:27: Initialized Synchronizer local peer(1) latency(32).
+ 960.914 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(Connecting) to(ConnectedWaitingForMap)
+ 960.914 Info ClientRouter.cpp:228: ConnectionAccepted
+ 961.337 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002610 seconds.
+ 961.337 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 961.337 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3063 expressions (1336 unique) and has 990 operations and 154 registers; estimated complexity: 11678.
+ 961.337 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 971.364 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002875 seconds.
+ 971.364 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 971.364 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12450.
+ 971.364 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 971.390 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002636 seconds.
+ 971.390 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 971.390 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3273 expressions (1420 unique) and has 1060 operations and 164 registers; estimated complexity: 12450.
+ 971.390 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+ 976.699 Info ClientMultiplayerManager.cpp:137: Disconnecting multiplayer connection. Reason: Quit.
+ 976.699 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(ConnectedWaitingForMap) to(DisconnectScheduled)
+ 976.711 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(DisconnectScheduled) to(WaitingForDisconnectConfirmation)
+ 978.311 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(WaitingForDisconnectConfirmation) to(Disconnected)
+ 978.368 Verbose RouterBase.cpp:81: Finishing router thread.
+ 978.369 Info UDPSocket.cpp:233: Closing socket
+ 978.369 Info UDPSocket.cpp:263: Socket closed
+ 982.254 Joining game IP ADDR:({18.196.69.226:10512})
+ 982.254 Info UDPSocket.cpp:38: Opening socket
+ 982.255 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(Ready) to(Connecting)
+ 982.255 Verbose RouterBase.cpp:59: Started router thread.
+ 982.380 Info ClientSynchronizer.cpp:27: Initialized Synchronizer local peer(1) latency(32).
+ 982.380 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(Connecting) to(ConnectedWaitingForMap)
+ 982.380 Info ClientRouter.cpp:228: ConnectionAccepted
+ 983.420 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002610 seconds.
+ 983.420 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 983.420 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+ 983.420 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+ 983.458 Info LuaGameScript.cpp:660: level state size: 1157 bytes.
+ 983.458 Info LuaGameScript.cpp:660: level state size: 1157 bytes.
+ 988.471 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002476 seconds.
+ 988.471 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+ 988.471 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3063 expressions (1336 unique) and has 990 operations and 154 registers; estimated complexity: 11678.
+ 988.471 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+1000.498 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002745 seconds.
+1000.498 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+1000.498 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+1000.498 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1294 expressions (591 unique) and has 479 operations and 53 registers; estimated complexity: 10088.
+1000.500 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.001452 seconds.
+1000.500 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 622 expressions (334 unique) and has 216 operations and 47 registers; estimated complexity: 4325.
+1000.500 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 586 expressions (321 unique) and has 217 operations and 30 registers; estimated complexity: 4445.
+1000.517 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+1000.517 Info LuaGameScript.cpp:660: level state size: 1197 bytes.
+1002.813 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(ConnectedWaitingForMap) to(WaitingForUserToSaveOrQuitAfterServerLeft)
+1010.679 Verbose RouterBase.cpp:81: Finishing router thread.
+1010.679 Info UDPSocket.cpp:233: Closing socket
+1010.679 Info UDPSocket.cpp:263: Socket closed
+1010.679 Joining game IP ADDR:({18.196.69.226:10512})
+1010.679 Info UDPSocket.cpp:38: Opening socket
+1010.680 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(Ready) to(Connecting)
+1010.680 Verbose RouterBase.cpp:59: Started router thread.
+1010.812 Info ClientSynchronizer.cpp:27: Initialized Synchronizer local peer(1) latency(32).
+1010.812 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(Connecting) to(ConnectedWaitingForMap)
+1010.812 Info ClientRouter.cpp:228: ConnectionAccepted
+1012.519 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002593 seconds.
+1012.519 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+1012.519 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+1012.519 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+1022.573 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002521 seconds.
+1022.573 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+1022.573 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+1022.573 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+1023.002 Info ClientMultiplayerManager.cpp:137: Disconnecting multiplayer connection. Reason: Quit.
+1023.002 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(ConnectedWaitingForMap) to(DisconnectScheduled)
+1023.013 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(DisconnectScheduled) to(WaitingForDisconnectConfirmation)
+1024.612 Info ClientMultiplayerManager.cpp:607: UpdateTick(18446744073709551615) changing state from(WaitingForDisconnectConfirmation) to(Disconnected)
+1024.654 Verbose RouterBase.cpp:81: Finishing router thread.
+1024.654 Info UDPSocket.cpp:233: Closing socket
+1024.654 Info UDPSocket.cpp:263: Socket closed
+1034.620 Verbose CompiledMapGenSettings.cpp:336: MapGenSettings compilation took 0.002983 seconds.
+1034.620 Verbose CompiledMapGenSettings.cpp:381:   Cliff noise program processed 375 expressions (218 unique) and has 134 operations and 17 registers; estimated complexity: 289.
+1034.620 Verbose CompiledMapGenSettings.cpp:381:   Entity noise program processed 3274 expressions (1420 unique) and has 1058 operations and 164 registers; estimated complexity: 12447.
+1034.620 Verbose CompiledMapGenSettings.cpp:381:   Tile noise program processed 1242 expressions (552 unique) and has 455 operations and 52 registers; estimated complexity: 10622.
+1036.623 Quitting: user-quit.
+1036.867 Goodbye

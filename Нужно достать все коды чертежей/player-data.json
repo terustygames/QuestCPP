@@ -1,0 +1,825 @@
+
+{
+  "available-campaign-levels": 
+  {
+    "tight-spot": 
+    {
+      "level-01": "hard"
+    },
+    "transport-belt-madness": 
+    {
+      "level-01": "hard"
+    },
+    "tutorial": 
+    {
+      "level-01": "hard"
+    }
+  },
+  "tips": 
+  {
+    "show-info": 
+    {
+      "status": "completed"
+    },
+    "e-confirm": 
+    {
+      "status": "completed"
+    },
+    "clear-cursor": 
+    {
+      "status": "completed"
+    },
+    "pipette": 
+    {
+      "status": "completed"
+    },
+    "stack-transfers": 
+    {
+      "status": "completed-without-tutorial"
+    },
+    "entity-transfers": 
+    {
+      "status": "completed-without-tutorial"
+    },
+    "z-dropping": 
+    {
+      "status": "completed"
+    },
+    "shoot-targeting": 
+    {
+      "status": "completed"
+    },
+    "bulk-crafting": 
+    {
+      "status": "completed"
+    },
+    "rotating-assemblers": 
+    {
+      "status": "completed"
+    },
+    "entity-flip": 
+    {
+      "status": "completed"
+    },
+    "circuit-network": 
+    {
+      "status": "completed"
+    },
+    "spidertron-control": 
+    {
+      "status": "locked",
+      "conditions": 
+      [
+        
+        {},
+        
+        {
+          "elapsed": 0
+        },
+        
+        {}
+      ],
+      "skip_status": 
+      {
+        "conditions": 
+        [
+          
+          {},
+          
+          {},
+          
+          {}
+        ]
+      }
+    },
+    "belt-lanes": 
+    {
+      "status": "completed"
+    },
+    "splitters": 
+    {
+      "status": "completed"
+    },
+    "inserters": 
+    {
+      "status": "completed"
+    },
+    "burner-inserter-refueling": 
+    {
+      "status": "completed"
+    },
+    "long-handed-inserters": 
+    {
+      "status": "completed"
+    },
+    "move-between-labs": 
+    {
+      "status": "completed"
+    },
+    "insertion-limits": 
+    {
+      "status": "completed"
+    },
+    "limit-chests": 
+    {
+      "status": "completed"
+    },
+    "electric-network": 
+    {
+      "status": "completed"
+    },
+    "steam-power": 
+    {
+      "status": "completed"
+    },
+    "electric-pole-connections": 
+    {
+      "status": "completed"
+    },
+    "low-power": 
+    {
+      "status": "completed"
+    },
+    "connect-switch": 
+    {
+      "status": "completed"
+    },
+    "copy-entity-settings": 
+    {
+      "status": "completed"
+    },
+    "copy-paste-trains": 
+    {
+      "status": "completed"
+    },
+    "copy-paste-filters": 
+    {
+      "status": "completed"
+    },
+    "copy-paste-requester-chest": 
+    {
+      "status": "completed"
+    },
+    "copy-paste-spidertron": 
+    {
+      "status": "locked",
+      "count": 1
+    },
+    "drag-building": 
+    {
+      "status": "completed"
+    },
+    "drag-building-poles": 
+    {
+      "status": "completed"
+    },
+    "pole-dragging-coverage": 
+    {
+      "status": "completed"
+    },
+    "drag-building-underground-belts": 
+    {
+      "status": "completed"
+    },
+    "fast-belt-bending": 
+    {
+      "status": "completed"
+    },
+    "fast-obstacle-traversing": 
+    {
+      "status": "completed"
+    },
+    "trains": 
+    {
+      "status": "completed"
+    },
+    "rail-building": 
+    {
+      "status": "completed"
+    },
+    "elevated-rails": 
+    {
+      "status": "completed"
+    },
+    "train-stops": 
+    {
+      "status": "completed-without-tutorial"
+    },
+    "rail-signals-basic": 
+    {
+      "status": "completed-without-tutorial"
+    },
+    "rail-signals-advanced": 
+    {
+      "status": "completed-without-tutorial"
+    },
+    "gate-over-rail": 
+    {
+      "status": "completed"
+    },
+    "pump-connection": 
+    {
+      "status": "completed"
+    },
+    "train-stop-same-name": 
+    {
+      "status": "completed"
+    },
+    "logistic-network": 
+    {
+      "status": "completed"
+    },
+    "personal-logistics": 
+    {
+      "status": "completed"
+    },
+    "construction-robots": 
+    {
+      "status": "completed"
+    },
+    "passive-provider-chest": 
+    {
+      "status": "completed"
+    },
+    "storage-chest": 
+    {
+      "status": "completed"
+    },
+    "requester-chest": 
+    {
+      "status": "completed"
+    },
+    "active-provider-chest": 
+    {
+      "status": "completed"
+    },
+    "buffer-chest": 
+    {
+      "status": "completed"
+    },
+    "ghost-building": 
+    {
+      "status": "completed"
+    },
+    "ghost-rail-planner": 
+    {
+      "status": "completed"
+    },
+    "copy-paste": 
+    {
+      "status": "completed"
+    },
+    "fast-replace": 
+    {
+      "status": "completed"
+    },
+    "fast-replace-direction": 
+    {
+      "status": "completed"
+    },
+    "fast-replace-belt-splitter": 
+    {
+      "status": "completed"
+    },
+    "fast-replace-belt-underground": 
+    {
+      "status": "completed"
+    },
+    "quality": 
+    {
+      "status": "completed"
+    },
+    "quality-factoriopedia": 
+    {
+      "status": "completed"
+    },
+    "quality-modules": 
+    {
+      "status": "completed"
+    },
+    "quality-probabilities": 
+    {
+      "status": "completed"
+    },
+    "fulgora-briefing": 
+    {
+      "status": "completed"
+    },
+    "lightning-mechanics": 
+    {
+      "status": "locked"
+    },
+    "gleba-briefing": 
+    {
+      "status": "completed"
+    },
+    "agriculture": 
+    {
+      "status": "locked"
+    },
+    "vulcanus-briefing": 
+    {
+      "status": "completed"
+    },
+    "lava-processing": 
+    {
+      "status": "completed"
+    },
+    "aquilo-briefing": 
+    {
+      "status": "locked",
+      "skip_status": 
+      {
+        "conditions": 
+        [
+          
+          {},
+          
+          {
+            "conditions": 
+            [
+              
+              {},
+              
+              {
+                "elapsed": 0
+              },
+              
+              {}
+            ]
+          }
+        ]
+      }
+    },
+    "heating-mechanics": 
+    {
+      "status": "completed"
+    },
+    "space-platform": 
+    {
+      "status": "completed"
+    },
+    "orbital-logistics": 
+    {
+      "status": "completed"
+    },
+    "removing-trash-in-space": 
+    {
+      "status": "completed"
+    },
+    "space-science": 
+    {
+      "status": "completed"
+    },
+    "asteroid-defense": 
+    {
+      "status": "completed"
+    },
+    "spoilables": 
+    {
+      "status": "locked",
+      "skip_status": 
+      {
+        "conditions": 
+        [
+          
+          {},
+          
+          {
+            "elapsed": 0
+          }
+        ]
+      }
+    },
+    "spoilables-result": 
+    {
+      "status": "locked"
+    },
+    "spoilables-research": 
+    {
+      "status": "completed"
+    },
+    "kr-about-k2": 
+    {
+      "status": "completed"
+    },
+    "kr-new-gun-play": 
+    {
+      "status": "completed"
+    },
+    "kr-roboports-hotkey": 
+    {
+      "status": "completed"
+    },
+    "kr-intergalactic-transceiver": 
+    {
+      "status": "completed"
+    },
+    "kr-radiation": 
+    {
+      "status": "completed"
+    },
+    "introduction": 
+    {
+      "status": "completed"
+    },
+    "shoot-targeting-controller": 
+    {
+      "status": "suggested"
+    },
+    "transport-belts": 
+    {
+      "status": "completed"
+    },
+    "splitter-filters": 
+    {
+      "status": "completed"
+    },
+    "underground-belts": 
+    {
+      "status": "completed"
+    },
+    "copy-entity-settings-controller": 
+    {
+      "status": "completed"
+    },
+    "kr-shelter": 
+    {
+      "status": "locked",
+      "conditions": 
+      [
+        
+        {},
+        
+        {}
+      ]
+    },
+    "kr-new-metals": 
+    {
+      "status": "completed"
+    },
+    "kr-creep": 
+    {
+      "status": "completed"
+    },
+    "kr-fuels": 
+    {
+      "status": "completed"
+    },
+    "kr-air-purifier": 
+    {
+      "status": "completed"
+    },
+    "kr-inserters-krastorio-hotkey": 
+    {
+      "status": "completed"
+    },
+    "kr-fusion-reactor": 
+    {
+      "status": "completed"
+    },
+    "kr-matter-of-matter": 
+    {
+      "status": "completed"
+    },
+    "kr-planetary-teleporter": 
+    {
+      "status": "completed"
+    },
+    "kr-crusher": 
+    {
+      "status": "completed"
+    },
+    "kr-wireless-charger": 
+    {
+      "status": "completed"
+    },
+    "kr-commands": 
+    {
+      "status": "completed"
+    },
+    "kr-achievements": 
+    {
+      "status": "completed"
+    },
+    "kr-faq": 
+    {
+      "status": "completed"
+    }
+  },
+  "console-history": 
+  [
+    "НА ТОЧКУ ЕДЬ",
+    "ВЫЛЕЗИ БЛЯТЬ",
+    "ЕБЛАН САМ ",
+    "НЕ ПОЙМИ КУДА ЕДЕШЬ",
+    "ТУПОЙ",
+    "ЕБЛААААААААААа",
+    "Н/",
+    "ИДИ НАХУЙ",
+    "КИДОК",
+    "/time",
+    "/game.player.print(game.evolution_factor)",
+    "0.0206",
+    "/h",
+    "'",
+    "э",
+    "еблан",
+    "/open 1doma",
+    "[special-item=internal_1]",
+    "[special-item=internal_2]",
+    "отойду",
+    "z t",
+    "я ем",
+    "тут есть чат",
+    "на букву ё",
+    "о я чёрный",
+    "сам ",
+    "го камни пиздить",
+    "норм фидно текст",
+    "клавиша Т англ это ветка технологий",
+    "я тебе советую автоматизировать добычу",
+    "чем добывть руками",
+    "нужно буры сделать",
+    "бур на медь поставь",
+    "поближе",
+    "сюда",
+    "камушек",
+    "ой",
+    "сюда медьэ",
+    "буры друг на друга смотрят",
+    "осталось заправить и они будут добывать уголь",
+    "спрашивай всё",
+    "кстати, вот эти блоки",
+    "давай сделаем электростанцию",
+    "нет но кусаки очень далеко",
+    "правая кнопка",
+    "смотри",
+    "ага",
+    "могу на мобилу перейти",
+    "нажми ALT",
+    "это расширенные подкащки",
+    "даавай элекртические буры ставить",
+    "оо",
+    "первая автоматизация",
+    "буры я думаю очень много понадобиться их ставить",
+    "да",
+    "ну как сам сделаешь добычу угля бурами",
+    "я тебе дофига железа дал",
+    "электро",
+    "мы на него переходим",
+    "топливо закончилось",
+    "ну как, всё понятно",
+    ",",
+    "?",
+    "Oh fuck",
+    "[jhjij",
+    "хаха",
+    "отлично",
+    "ща чаю налью",
+    "я тут",
+    "хорошо",
+    "завтра в 10 приду",
+    "/open",
+    "/open 1DOMA",
+    "./open BoGYkpon",
+    "wefwe",
+    "evolution",
+    "Ты следишь",
+    "/open Deduan'",
+    "/open Deduan",
+    "/open Gleb",
+    "Это не наше выживание, я не помню этого",
+    "/c game.player.print(game.player.surface.evolution_factor)",
+    "[item=spoilage]",
+    "Что то они далеко",
+    "помоги там",
+    "отходим",
+    "бля надо добить",
+    "всё я доволен",
+    ")))",
+    "/ec",
+    "/help",
+    "/open nikola_teccla",
+    "open",
+    "зайди в войс",
+    "засыпка",
+    "[item=utility-science-pack]за 10 минут 200",
+    "всё",
+    "я пошёл",
+    "/evolution",
+    "в дс не заходит"
+  ],
+  "last-played": 
+  {
+    "type": "joined-multiplayer",
+    "server-name": "factorio.zone",
+    "server": 
+    {
+      "address": 
+      {
+        "type": "socket",
+        "name": "18.196.69.226:10512"
+      },
+      "non-steam-address": 
+      {
+        "type": "socket",
+        "name": ""
+      },
+      "password-hash": "",
+      "server-hash": "",
+      "use-nat-punch": false
+    }
+  },
+  "latest-multiplayer-connections": 
+  [
+    
+    {
+      "address": "18.196.69.226:10512"
+    },
+    
+    {
+      "address": "46.51.153.12:18512"
+    },
+    
+    {
+      "address": "16.171.1.156:16827"
+    },
+    
+    {
+      "address": "2a05:d016:812:ad02:6211:5636:5eb7:d501"
+    }
+  ],
+  "service-username": "BoGYkpon",
+  "service-token": "",
+  "shortcut-bar": 
+  [
+    
+    {
+      "name": "toggle-alt-mode",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "undo",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "copy",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "cut",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "paste",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "import-string",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "give-blueprint",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "give-blueprint-book",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "give-deconstruction-planner",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "give-upgrade-planner",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "toggle-personal-roboport",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "toggle-equipment-movement-bonus",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "redo",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "give-copper-wire",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "give-green-wire",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "give-red-wire",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "give-artillery-targeting-remote",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "give-discharge-defense-remote",
+      "docked": true,
+      "enabled": true
+    },
+    
+    {
+      "name": "give-spidertron-remote",
+      "docked": true,
+      "enabled": true
+    }
+  ],
+  "editor-lua-snippets": 
+  [
+    
+    {
+      "name": "Example (Turn trees into biters)",
+      "code": "local surface = game.player.surface\nlocal entities = surface.find_entities_filtered{area = area, type = 'tree'}\nfor k, tree in pairs(entities) do\n  local position = tree.position\n  tree.destroy()\n  surface.create_entity{name = 'small-biter', position = position}\nend"
+    }
+  ],
+  "last-played-version": 
+  {
+    "game_version": "2.0.20",
+    "build_version": 80511,
+    "build_mode": "full",
+    "platform": "win64"
+  },
+  "blueprint-view": "slots",
+  "hide-advert": "true",
+  "main-menu-simulations-played": 
+  [
+    "nauvis_train_station",
+    "platform_science",
+    "vulcanus_crossing",
+    "platform_moving",
+    "nauvis_forest_fire",
+    "nauvis_tank_building",
+    "gleba_farm_attack",
+    "aquilo_starter",
+    "nauvis_ship_rails",
+    "platform_messy_nuclear",
+    "nauvis_river_bridge",
+    "nauvis_chase_player",
+    "fulgora_nightfall",
+    "nauvis_biolab",
+    "gleba_agri_towers",
+    "nauvis_train_junction",
+    "nauvis_artillery",
+    "fulgora_race",
+    "nauvis_logistic_robots",
+    "nauvis_biter_base_spidertron",
+    "nauvis_spider_ponds",
+    "fulgora_city_crossing",
+    "vulcanus_sulfur_drop",
+    "nauvis_early_smelting",
+    "nauvis_biter_base_player_attack",
+    "nauvis_t_section",
+    "nauvis_nuclear_power",
+    "aquilo_send_help",
+    "nauvis_lab",
+    "nauvis_big_defense",
+    "nauvis_oil_pumpjacks",
+    "gleba_egg_escape"
+  ],
+  "ticks-since-last-tip-shown": 19856390
+}
